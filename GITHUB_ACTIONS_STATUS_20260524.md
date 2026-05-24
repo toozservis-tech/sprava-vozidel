@@ -2,74 +2,92 @@
 
 ## 1. PASS / FAIL
 
-**PASS** (po opravě CI Baseline guardu a pushi `745a738`)
-
-Workflow triggery na `416e20e` / `745a738` jsou správně. Staré červené běhy v UI jsou **historické** a lze je ignorovat.
+**PASS** — CI Baseline zelený; prod-smoke a definition-of-done opraveny na secret-safe preflight logiku.
 
 ---
 
 ## 2. Aktuální origin/main HEAD
 
 ```
-745a73801bcfa263a47f28794416a70f092e0f59
-Fix CI Baseline secret guard to allow .env.example
+1c5f540f2d67ae533bd68cf2a3c504bc046842ee
+Make production smoke workflows manual and secret-safe
 ```
 
-Předchozí workflow fix:
+Report commit (po tomto souboru): viz sekce 9.
 
-```
-416e20e51fa6bcbb54dd4aad30114cdc5aa27588
-Fix GitHub Actions for clean repository baseline
-```
+Historie oprav:
 
-Lokální `HEAD` == `origin/main` (sync OK).
+| Commit | Popis |
+|--------|-------|
+| `416e20e` | Workflow baseline — manual only pro těžké testy |
+| `745a738` | CI Baseline guard — povolen `.env.example` |
+| `fbe807a` | Status report |
+| `1c5f540` | Preflight logika pro prod-smoke + definition-of-done |
 
 ---
 
-## 3. Posledních 10 workflow runů (očekávaná interpretace)
+## 3. Co padalo a proč
 
-`gh` na serveru **není autentizované** (`gh auth login` chybí). Seznam je rekonstruován z historie commitů a chování GitHub Actions (workflow definice se berou z commitu, který push spustil).
+### `prod-smoke.yml`
 
-| Commit | Očekávané auto workflow | Typický výsledek |
-|--------|-------------------------|------------------|
-| `3fd8619` … `d2d361a` | QA Tests, Full Test Suite, Production Smoke, Definition of Done, Security Checks, Auto-Fix (kaskáda) | **FAIL** (historické) |
-| `416e20e` | CI Baseline only | **FAIL** — guard chybně flagoval `.env.example` |
-| `745a738` | CI Baseline only | **PASS** (očekáváno; čerstvý push) |
+**Root cause:** Job-level `if: ${{ secrets.PROD_E2E_EMAIL != '' && ... }}` — GitHub Actions **nepovoluje** `secrets` v job `if` kontextu. Workflow selže při parsování/validaci ještě před spuštěním jobů.
 
-**URL pro ruční kontrolu v GitHub UI:**  
-https://github.com/toozservis-tech/sprava-vozidel/actions
+**Projev v UI:** Immediate workflow failure bez běžícího Playwright kroku.
 
----
+### `definition-of-done.yml`
 
-## 4. Historické failed runy (ignorovat)
+**Root cause:** Stejný problém — `prod-readonly-smoke` a `prod-readonly-smoke-skipped` používaly `secrets.*` v job-level `if`.
 
-Patří ke commitům **před** `416e20e`:
+**Doplňující riziko:** Finální gate job `needs` oba prod joby; při invalid `if` workflow vůbec neprojde validací.
 
-- `d2d361a` — Update GitHub push report
-- `31f9f2b` — Ignore Playwright browser cache
-- `7ee2816`, `3cd6c25`, `6297a99`, …
-
-Typické historické workflow:
-
-- Auto-Fix Failed Workflows
-- QA Tests
-- Full Test Suite
-- Production Smoke Tests
-- Definition of Done Gate
-- Security Checks (push trigger)
-
-**Nelze zpětně „opravit“** — zůstanou červené v historii Actions.
+`gh` na serveru není autentizované — diagnóza z obsahu workflow + známé GHA omezení.
 
 ---
 
-## 5. Aktuální failed runy
+## 4. Oprava — secret preflight logika
 
-| Commit | Workflow | Stav |
-|--------|----------|------|
-| `416e20e` | CI Baseline | **FAIL** — root cause: `Secret and data guard` matchoval `.env.example` |
-| `745a738` | CI Baseline | **PASS** (očekáváno po opravě guardu) |
+Oba workflow nyní používají **preflight job**:
 
-Po `745a738` by **neměly** existovat aktuální failed auto runy (kromě případného probíhajícího běhu).
+```yaml
+preflight:
+  outputs:
+    has_prod_secrets: ${{ steps.check.outputs.has_prod_secrets }}
+  steps:
+    - env:
+        PROD_E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL }}
+        PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+      run: |
+        if [ -n "$PROD_E2E_EMAIL" ] && [ -n "$PROD_E2E_PASSWORD" ]; then
+          echo "has_prod_secrets=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "has_prod_secrets=false" >> "$GITHUB_OUTPUT"
+        fi
+```
+
+| Job | Podmínka | Výsledek bez secrets |
+|-----|----------|----------------------|
+| `prod-smoke` / `prod-readonly-smoke` | `has_prod_secrets == 'true'` | skipped |
+| `prod-smoke-skipped` / `prod-readonly-smoke-skipped` | `has_prod_secrets != 'true'` | **success** + skip message |
+
+**Definition of Done gate:**
+
+- FAIL — pokud `api-and-local-smoke` selže
+- FAIL — pokud production smoke **běžel a selhal**
+- PASS — pokud production smoke byl korektně skipped (chybí secrets)
+
+---
+
+## 5. Triggery po opravě
+
+| Workflow | push | pull_request | schedule | workflow_run | workflow_dispatch |
+|----------|------|--------------|----------|--------------|-------------------|
+| **CI Baseline** | main ✓ | main ✓ | — | — | — |
+| Production Smoke Tests | — | — | — | — | ✓ |
+| Definition of Done Gate | — | — | — | — | ✓ |
+| QA / Full Suite / Auto-Fix / Backend Sanity | — | — | — | — | ✓ |
+| Security Checks | — | — | 02:00 UTC | — | ✓ |
+
+`grep push|pull_request|schedule|workflow_run` v `prod-smoke.yml` a `definition-of-done.yml`: **žádný match**.
 
 ---
 
@@ -77,71 +95,51 @@ Po `745a738` by **neměly** existovat aktuální failed auto runy (kromě příp
 
 | Položka | Stav |
 |---------|------|
-| Trigger | `push` + `pull_request` na `main` / `master` |
-| Lokální simulace (clean worktree) | **PASS** (všechny kroky) |
-| `416e20e` remote run | **FAIL** — false positive na `.env.example` |
-| `745a738` remote run | **PASS** (očekáváno) |
-
-Opravený krok: `Secret and data guard` — povoluje `.env.example`, blokuje `.env`, `.env.*` (kromě example), DB a runtime data cesty.
+| Remote (GitHub UI) | **PASS** (uživatel potvrdil zelený běh) |
+| Guard `.env.example` | opraveno v `745a738` |
 
 ---
 
-## 7. Automaticky spouštěné workflow — stav triggerů
+## 7. Historické failed runy (ignorovat)
 
-| Workflow | push | pull_request | schedule | workflow_run | workflow_dispatch |
-|----------|------|--------------|----------|--------------|-------------------|
-| **CI Baseline** | main ✓ | main ✓ | — | — | — |
-| Auto-Fix | — | — | — | — | ✓ |
-| QA Tests | — | — | — | — | ✓ |
-| Full Test Suite | — | — | — | — | ✓ |
-| Production Smoke | — | — | — | — | ✓ |
-| Definition of Done | — | — | — | — | ✓ |
-| Backend Sanity | — | — | — | — | ✓ |
-| Security Checks | — | — | 02:00 UTC ✓ | — | ✓ |
-
-**Staré workflow se po `416e20e` automaticky nespouští.**
+Červené běhy u commitů `d2d361a`, `31f9f2b` a starších + failed validace `prod-smoke` / `definition-of-done` **před** `1c5f540` jsou historické. Nelze zpětně opravit v UI.
 
 ---
 
-## 8. Byla potřeba oprava?
+## 8. Commit hash(y)
 
-**ANO** — jedna cílená oprava:
-
-- `.github/workflows/ci-baseline.yml` — secret guard neflaguje `.env.example`
-
-Workflow triggery z `416e20e` **nebyly** dále měněny (už byly správně).
-
----
-
-## 9. Commit hash
+Workflow fix:
 
 ```
-745a73801bcfa263a47f28794416a70f092e0f59
-Fix CI Baseline secret guard to allow .env.example
+1c5f540f2d67ae533bd68cf2a3c504bc046842ee
+Make production smoke workflows manual and secret-safe
 ```
 
 ---
 
-## 10. Produkce změněna?
+## 9. Produkce změněna?
 
 **NE**
 
 ---
 
-## 11. Produkce restartována?
+## 10. Produkce restartována?
 
 **NE**
 
 ---
 
-## 12. Závěr
+## 11. Závěr
 
-**GITHUB ACTIONS CURRENT HEAD CLEAN**
+**PRODUCTION SMOKE WORKFLOWS ARE MANUAL AND SECRET SAFE**
 
-- Červené běhy u starých commitů = historické, ignorovat.
-- Aktuální HEAD `745a738` — pouze CI Baseline auto, guard opraven.
-- Pro plný remote audit spusťte na stroji s PAT: `gh auth login` → `gh run list --repo toozservis-tech/sprava-vozidel --limit 10`
+- Automaticky po pushi běží jen **CI Baseline**
+- `prod-smoke` a `definition-of-done` se **nespouští automaticky**
+- Ruční spuštění bez `PROD_E2E_*` secrets → **success (skipped)**, ne fail
+- Pro skutečný prod smoke přidejte secrets v GitHub repo settings a spusťte workflow ručně
+
+**URL:** https://github.com/toozservis-tech/sprava-vozidel/actions
 
 ---
 
-*Report: 2026-05-24 UTC*
+*Report aktualizováno: 2026-05-24 UTC*
