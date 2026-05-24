@@ -26,6 +26,7 @@ Tyto zásady platí pro vývoj, deploy a provoz. Porušení vyžaduje explicitn�
 ## Git a repozitář
 
 - Do Gitu **nikdy**: `.env`, DB soubory, `data/`, uploady, zálohy, private keys.
+- **Nikdy** `rm -rf data/` bez `readlink -f` — produkční `data/` může být symlink na `/mnt/HC_Volume_105053116/toozhub2/app_data`. Viz `SAFE_CLEAN_REPO_RUNBOOK.md`.
 - Commit messages popisují *proč*, ne jen *co*.
 - Feature větve merge do `main` přes review; produkční tagy pro každý deploy.
 

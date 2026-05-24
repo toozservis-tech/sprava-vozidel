@@ -52,6 +52,10 @@ curl -fsS http://127.0.0.1:8000/health
 - `data/` — runtime data, uploady, DB
 - `.venv/` — vytváří se na serveru
 
+## Production data safety (clean-repo / cleanup)
+
+Production runtime data is never part of Git. The production data paths may be symlinked from the app directory to `/mnt/HC_Volume_105053116/toozhub2`. Never run `rm -rf data/` or `rsync --delete` against the production app tree. Always verify symlinks with `readlink -f` before cleanup.
+
 ## Cloudflare
 
 - Tunnel směruje veřejný provoz na `127.0.0.1:8000`.

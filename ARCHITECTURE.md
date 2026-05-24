@@ -76,3 +76,7 @@ Internet → Cloudflare Tunnel → 127.0.0.1:8000 (uvicorn)
 - GDPR VIN guard: cizí VIN nesmí vracet SPZ, MDČR data ani data jiného uživatele.
 - Tajemství pouze v `.env` na serveru (šablona: `.env.example`).
 - Admin přístup: role `admin` / `developer_admin`; doporučeno Cloudflare Access.
+
+## Production data safety (clean-repo / cleanup)
+
+Production runtime data is never part of Git. The production data paths may be symlinked from the app directory to `/mnt/HC_Volume_105053116/toozhub2`. Never run `rm -rf data/` or `rsync --delete` against the production app tree. Always verify symlinks with `readlink -f` before cleanup.

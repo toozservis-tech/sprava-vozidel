@@ -53,6 +53,13 @@ Produkční DB je runtime data — **záloha DB je povinná před každým deplo
 | [DECISION_RULES.md](DECISION_RULES.md) | Rozhodovací pravidla a zásady |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Nasazení do produkce |
 | [RUNBOOK.md](RUNBOOK.md) | Provozní postupy |
+| [SAFE_CLEAN_REPO_RUNBOOK.md](SAFE_CLEAN_REPO_RUNBOOK.md) | Bezpečné vytváření clean Git baseline |
+
+## Production data safety (clean-repo / cleanup)
+
+Production runtime data is never part of Git. The production data paths may be symlinked from the app directory to `/mnt/HC_Volume_105053116/toozhub2`. Never run `rm -rf data/` or `rsync --delete` against the production app tree. Always verify symlinks with `readlink -f` before cleanup.
+
+See: `SAFE_CLEAN_REPO_RUNBOOK.md`, `scripts/safety_check_paths.sh`.
 
 ## Kontakt (produkce)
 

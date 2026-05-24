@@ -155,3 +155,11 @@ V době kontroly `toozhub2.service` vykazoval restart loop (exit code 1), ale `/
 ---
 
 *Report vygenerován: 2026-05-24*
+
+---
+
+## Production data safety (clean-repo / cleanup)
+
+Production runtime data is never part of Git. The production data paths may be symlinked from the app directory to `/mnt/HC_Volume_105053116/toozhub2`. Never run `rm -rf data/` or `rsync --delete` against the production app tree. Always verify symlinks with `readlink -f` before cleanup.
+
+**Incident 2026-05-24:** `rm -rf data/` v clean stromu se symlinkem smazalo produkční `app_data/`. Guardrails: `SAFE_CLEAN_REPO_RUNBOOK.md`, `scripts/safety_check_paths.sh`.
