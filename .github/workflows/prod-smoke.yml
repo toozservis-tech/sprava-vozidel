@@ -4,9 +4,31 @@ on:
   workflow_dispatch:
 
 jobs:
-  prod-smoke:
+  preflight:
+    name: Preflight
     runs-on: ubuntu-latest
-    if: ${{ secrets.PROD_E2E_EMAIL != '' && secrets.PROD_E2E_PASSWORD != '' }}
+    outputs:
+      has_prod_secrets: ${{ steps.check.outputs.has_prod_secrets }}
+    steps:
+      - name: Detect production E2E secrets
+        id: check
+        env:
+          PROD_E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL }}
+          PROD_E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+        run: |
+          if [ -n "$PROD_E2E_EMAIL" ] && [ -n "$PROD_E2E_PASSWORD" ]; then
+            echo "has_prod_secrets=true" >> "$GITHUB_OUTPUT"
+            echo "Production E2E secrets are configured."
+          else
+            echo "has_prod_secrets=false" >> "$GITHUB_OUTPUT"
+            echo "Production E2E secrets are not configured."
+          fi
+
+  prod-smoke:
+    name: Production Smoke
+    needs: preflight
+    if: needs.preflight.outputs.has_prod_secrets == 'true'
+    runs-on: ubuntu-latest
 
     env:
       BASE_URL: https://hub.toozservis.cz
@@ -54,10 +76,12 @@ jobs:
           retention-days: 30
 
   prod-smoke-skipped:
+    name: Production Smoke (skipped)
+    needs: preflight
+    if: needs.preflight.outputs.has_prod_secrets != 'true'
     runs-on: ubuntu-latest
-    if: ${{ secrets.PROD_E2E_EMAIL == '' || secrets.PROD_E2E_PASSWORD == '' }}
     steps:
       - name: Skip production smoke without secrets
         run: |
-          echo "Skipping production smoke: PROD_E2E_EMAIL / PROD_E2E_PASSWORD not configured."
+          echo "Production smoke skipped: PROD_E2E_EMAIL / PROD_E2E_PASSWORD not configured."
           echo "Add repository secrets and run this workflow manually."
