@@ -54,7 +54,9 @@ jobs:
         run: |
           set -euo pipefail
           echo "Checking tracked files for secrets and runtime data..."
-          if git ls-files | grep -E '(^|/)\.env(\.|$|$)|\.(db|sqlite|sqlite3)$|^(data/|backups/|snapshots/|releases/|worktrees/)'; then
+          forbidden_tracked=$(git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.|\.(db|sqlite|sqlite3)$|^(data/|backups/|snapshots/|releases/|worktrees/)' | grep -vE '(^|/)\.env\.example$' || true)
+          if [ -n "$forbidden_tracked" ]; then
+            echo "$forbidden_tracked"
             echo "::error::Forbidden tracked files detected in git index"
             exit 1
           fi
