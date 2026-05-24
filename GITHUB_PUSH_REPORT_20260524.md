@@ -2,7 +2,7 @@
 
 ## 1. PASS / FAIL
 
-**FAIL** — push na GitHub neproběhl (autentizace / přístup k novému repu).
+**PASS** — clean repo úspěšně pushnuto na `toozservis-tech/sprava-vozidel`.
 
 Pre-push kontroly clean repa: **PASS**  
 Produkce: **beze změny**
@@ -12,63 +12,81 @@ Produkce: **beze změny**
 ## 2. remote URL
 
 ```
-origin  git@github.com:toozservis-tech/sprava-vozidel.git (fetch)
-origin  git@github.com:toozservis-tech/sprava-vozidel.git (push)
+origin  git@github-sprava-vozidel:toozservis-tech/sprava-vozidel.git (fetch)
+origin  git@github-sprava-vozidel:toozservis-tech/sprava-vozidel.git (push)
 ```
 
 Remote **není** `toozservis-tech/TOOZHUB2`.
 
 ---
 
-## 3. pushed branch
+## 3. Deploy key
 
-**NE** — `git push -u origin main` selhalo.
+Nový deploy key **`sprava-vozidel-production-deploy`** přidán v GitHubu s **write access**.
 
----
+SSH alias: `github-sprava-vozidel`  
+Klíč: `~/.ssh/sprava_vozidel_github_deploy`
 
-## 4. pushed tags
-
-**NE** — `git push origin --tags` nebylo spuštěno (main push selhal).
-
----
-
-## 5. clean repo HEAD (před reportem)
-
-`95ddd9f15c7783e8c336bcec0f6959398d9642d5`
+SSH test: `Hi toozservis-tech/sprava-vozidel! You've successfully authenticated`
 
 ---
 
-## 6. forbidden files check
+## 4. pushed branch
+
+**PASS** — `git push -u origin main`
+
+---
+
+## 5. pushed tags
+
+**PASS** — `git push origin --tags`
+
+- `clean-production-baseline-20260524`
+- `clean-photos-services-fix-20260524`
+- `clean-cleanup-safety-guardrails-20260524`
+- `clean-ready-for-github-20260524`
+
+---
+
+## 6. clean repo HEAD (po pushi)
+
+`31f9f2b` — Ignore Playwright browser cache from git
+
+(Před finálním report commitem; historie přepsána kvůli GitHub limitu 100 MB — Playwright browser cache odstraněna z gitu, doplněno do `.gitignore`.)
+
+---
+
+## 7. forbidden files check
 
 **PASS** — 0 souborů
 
 ---
 
-## 7. symlink check
+## 8. symlink check
 
-**PASS** — žádný symlink na `/mnt/HC_Volume_105053116/toozhub2` ani `/opt/toozhub2/app/data`
+**PASS** — žádný symlink na `/mnt/HC_Volume_105053116/toozhub2` ani `/opt/toozhub2/app/data` (pouze interní symlinky v `tests/e2e/.deps` a lokální `.playwright-browsers` mimo git)
 
 ---
 
-## 8. secrets check
+## 9. secrets check
 
 **PASS** — žádné PEM klíče; grep bez produkčních tajemství
 
 ---
 
-## 9. produkce změněna?
+## 10. produkce změněna?
 
 **NE**
 
 ---
 
-## 10. produkce restartována?
+## 11. produkce restartována?
 
 **NE**
 
 ---
 
-## 11. runtime produkce
+## 12. runtime produkce
 
 ```
 ActiveState=active
@@ -79,63 +97,26 @@ ExecMainPID=2724976
 
 ---
 
-## 12. health
+## 13. health
 
 **OK** — `{"status":"ok","environment":"production",...}`
 
 ---
 
-## Chyba push
+## Poznámka k prvnímu pokusu o push
 
-```
-ERROR: Repository not found.
-fatal: Could not read from remote repository.
-```
+První push selhal kvůli souborům >100 MB v `tests/e2e/.playwright-browsers/` (Playwright browser cache). Oprava:
 
-**Diagnóza:** SSH klíč `~/.ssh/toozhub2_github_deploy` funguje pro `toozservis-tech/TOOZHUB2` (`git ls-remote` OK), ale **nemá přístup** k `toozservis-tech/sprava-vozidel`. GitHub u deploy key vrací „Repository not found“, pokud klíč není registrovaný u cílového repa.
-
-SSH test: `ssh -T git@github.com` → `Hi toozservis-tech/TOOZHUB2!`
+1. Přidáno `tests/e2e/.playwright-browsers/` do `.gitignore`
+2. Historie přepsána (`git filter-branch`) — binárky odstraněny z git objektů
+3. Druhý push **PASS**
 
 ---
 
-## Oprava (vyžaduje akci na GitHubu)
+## 14. Verdikt
 
-### Varianta A — deploy key (doporučeno pro server)
-
-1. GitHub → `toozservis-tech/sprava-vozidel` → **Settings** → **Deploy keys** → **Add deploy key**
-2. Title: `toozhub2-production-deploy`
-3. Key (veřejný):
-
-```
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILYatj9lXmALom+erb/iAMO2AcKrYOw1mTjdUPLHPs+R toozhub2-production-deploy@toozservis.cz
-```
-
-4. Zaškrtnout **Allow write access**
-5. Na serveru znovu:
-
-```bash
-cd /opt/toozhub2-clean-production
-git push -u origin main
-git push origin --tags
-```
-
-### Varianta B — gh CLI s PAT
-
-```bash
-gh auth login
-cd /opt/toozhub2-clean-production
-git push -u origin main
-git push origin --tags
-```
+**CLEAN REPO PUSHED TO NEW PRIVATE GITHUB REPOSITORY**
 
 ---
 
-## 13. Verdikt
-
-**PUSH BLOCKED — CLEAN REPO READY, GITHUB ACCESS MISSING**
-
-Clean repo je připraven; po přidání deploy key nebo `gh auth login` spusťte push znovu.
-
----
-
-*Report: 2026-05-24 UTC*
+*Report aktualizováno: 2026-05-24 UTC*
