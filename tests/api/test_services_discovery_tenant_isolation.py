@@ -340,6 +340,36 @@ def test_discovery_owner_filters_by_default_radius(monkeypatch: pytest.MonkeyPat
     assert float(payload["meta"].get("discovery_radius_km") or 0) == 50
 
 
+def test_discovery_default_radius_shows_national_catalog(monkeypatch: pytest.MonkeyPatch, db_context) -> None:
+    monkeypatch.setattr(services_router, "_geocode_address", lambda _: None)
+
+    payload = services_router.get_services_discovery(
+        request=_request_with_coordinates(),
+        current_user=db_context["user_a"],
+        db=db_context["db"],
+    )
+
+    discovered_emails = {item["email"] for item in payload["services"]}
+    assert db_context["service_a"].email in discovered_emails
+    assert db_context["service_b"].email in discovered_emails
+    assert payload["meta"].get("within_radius_filter") is False
+
+
+def test_discovery_radius_keeps_services_with_unknown_distance(monkeypatch: pytest.MonkeyPatch, db_context) -> None:
+    monkeypatch.setattr(services_router, "_geocode_address", lambda _: None)
+
+    payload = services_router.get_services_discovery(
+        request=_request_with_coordinates(),
+        current_user=db_context["user_a"],
+        db=db_context["db"],
+        radius_km=50,
+    )
+
+    discovered_emails = {item["email"] for item in payload["services"]}
+    assert db_context["service_a"].email in discovered_emails
+    assert db_context["service_b"].email in discovered_emails
+
+
 def test_discovery_for_developer_admin_keeps_global_visibility(monkeypatch: pytest.MonkeyPatch, db_context) -> None:
     monkeypatch.setattr(services_router, "_geocode_address", lambda _: None)
 

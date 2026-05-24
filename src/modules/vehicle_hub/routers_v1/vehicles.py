@@ -2985,10 +2985,7 @@ def get_catalog_image_file(
     row = db.query(VehicleCatalogImageModel).filter(VehicleCatalogImageModel.id == str(image_id)).first()
     if not row:
         raise HTTPException(status_code=404, detail="Katalogová fotka nebyla nalezena")
-    row_tenant_id = int(getattr(row, "tenant_id", 0) or 0) or None
-    current_tenant_id = int(getattr(current_user, "tenant_id", 0) or 0) or None
-    if row_tenant_id is not None and row_tenant_id != current_tenant_id:
-        raise HTTPException(status_code=403, detail="Nemáte přístup k této katalogové fotce")
+    # Katalogové ilustrace (make/model cache) jsou sdílené — tenant_id v DB značí původ cache, ne ACL.
     try:
         ensure_catalog_image_storage(row, db=db)
         db.commit()

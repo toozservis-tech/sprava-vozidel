@@ -59,7 +59,7 @@ _SERVICE_GEO_SUGGEST_URL = (
     "&countrycodes=cz&limit={limit}&q={query}"
 )
 _SERVICE_GEOLOOKUP_TIMEOUT_SEC = 1.8
-_DEFAULT_OWNER_DISCOVERY_RADIUS_KM = 50.0
+_DEFAULT_OWNER_DISCOVERY_RADIUS_KM = 0.0
 
 
 def _unwrap_fastapi_query_param(value: Any) -> Any:
@@ -1398,7 +1398,8 @@ def get_services_discovery(
             r
             for r in rows
             if bool(r.get("is_linked"))
-            or (r.get("distance_km") is not None and float(r["distance_km"]) <= rmax)
+            or r.get("distance_km") is None
+            or float(r["distance_km"]) <= rmax
         ]
 
     return {

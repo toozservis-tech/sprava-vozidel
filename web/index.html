@@ -35921,6 +35921,7 @@
         var comgateConfigLoadedAt = 0;
         var selectedLicenseBillingPeriod = 'monthly';
         var currentLicensePlanForUi = 'free';
+        var cachedLicenseStatus = null;
         var currentLicenseSubscriptionForUi = null;
         var pendingPaymentReturnInfo = null;
         var pendingPaidPlanForCheckout = '';
@@ -42706,6 +42707,8 @@
             comgateConfigLoadedAt = 0;
             selectedLicenseBillingPeriod = 'monthly';
             currentLicensePlanForUi = 'free';
+            cachedLicenseStatus = null;
+            window.__licenseFlags = null;
             currentLicenseSubscriptionForUi = null;
             pendingPaymentReturnInfo = null;
             pendingPaidPlanForCheckout = '';
@@ -44692,33 +44695,71 @@
             return 1;
         }
 
+        function isLicenseStatusPayloadComplete(license) {
+            if (!license || typeof license !== 'object') return false;
+            if (String(license.effective_plan || '').trim()) return true;
+            if (license.trial_active === true) return true;
+            if (license.capabilities && typeof license.capabilities === 'object') return true;
+            return false;
+        }
+
+        function mergeLicenseStatusForGating(incoming) {
+            if (!incoming || typeof incoming !== 'object') {
+                return cachedLicenseStatus || null;
+            }
+            if (isLicenseStatusPayloadComplete(incoming)) {
+                return incoming;
+            }
+            if (!cachedLicenseStatus) {
+                return incoming;
+            }
+            return {
+                ...cachedLicenseStatus,
+                ...incoming,
+                effective_plan: incoming.effective_plan || cachedLicenseStatus.effective_plan,
+                trial_active: incoming.trial_active != null ? incoming.trial_active : cachedLicenseStatus.trial_active,
+                trial_plan: incoming.trial_plan || cachedLicenseStatus.trial_plan,
+                trial_days_remaining: incoming.trial_days_remaining != null
+                    ? incoming.trial_days_remaining
+                    : cachedLicenseStatus.trial_days_remaining,
+                display_plan: incoming.display_plan || cachedLicenseStatus.display_plan,
+                capabilities: incoming.capabilities || cachedLicenseStatus.capabilities,
+            };
+        }
+
+        function getActiveLicenseStatusForGating(license) {
+            return mergeLicenseStatusForGating(license);
+        }
+
         function resolveLicenseGatingPlan(license) {
-            if (!license || typeof license !== 'object') {
+            const resolved = getActiveLicenseStatusForGating(license);
+            if (!resolved || typeof resolved !== 'object') {
                 return normalizeLicensePlanKey(currentLicensePlanForUi || 'free');
             }
-            const effective = String(license.effective_plan || '').trim().toLowerCase();
+            const effective = String(resolved.effective_plan || '').trim().toLowerCase();
             if (effective) {
                 return normalizeLicensePlanKey(effective);
             }
-            if (license.trial_active && license.trial_plan) {
-                return normalizeLicensePlanKey(license.trial_plan);
+            if (resolved.trial_active && resolved.trial_plan) {
+                return normalizeLicensePlanKey(resolved.trial_plan);
             }
-            return normalizeLicensePlanKey(license.plan || license.stored_plan || 'free');
+            return normalizeLicensePlanKey(resolved.plan || resolved.stored_plan || 'free');
         }
 
         function getNormalizedLicenseFlags(license) {
-            const plan = resolveLicenseGatingPlan(license);
+            const resolvedLicense = getActiveLicenseStatusForGating(license);
+            const plan = resolveLicenseGatingPlan(resolvedLicense);
             const planRank = getLicensePlanRank(plan);
-            const hasLicensePayload = !!(license && typeof license === 'object');
-            const caps = hasLicensePayload && license.capabilities && typeof license.capabilities === 'object'
-                ? license.capabilities
+            const hasLicensePayload = !!(resolvedLicense && typeof resolvedLicense === 'object');
+            const caps = hasLicensePayload && resolvedLicense.capabilities && typeof resolvedLicense.capabilities === 'object'
+                ? resolvedLicense.capabilities
                 : null;
             const readFlag = (apiKey, capKey, fallback) => {
                 if (caps && Object.prototype.hasOwnProperty.call(caps, capKey)) {
                     return !!caps[capKey];
                 }
-                if (hasLicensePayload && Object.prototype.hasOwnProperty.call(license, apiKey)) {
-                    return !!license[apiKey];
+                if (hasLicensePayload && Object.prototype.hasOwnProperty.call(resolvedLicense, apiKey)) {
+                    return !!resolvedLicense[apiKey];
                 }
                 return fallback;
             };
@@ -44787,10 +44828,11 @@
         }
 
         function getDashboardTabLicenseLock(tab, license) {
-            if (!license && !licenseLastFetch) {
+            const resolvedLicense = getActiveLicenseStatusForGating(license);
+            if (!resolvedLicense && !licenseLastFetch) {
                 return { allowed: true };
             }
-            const flags = getNormalizedLicenseFlags(license);
+            const flags = getNormalizedLicenseFlags(resolvedLicense);
             if (String(tab) === 'documents' && !flags.documentsEnabled) {
                 const meta = getDashboardLockedFeatureMeta('documents');
                 return { allowed: false, featureKey: 'documents', targetPlan: meta.targetPlan, sectionLabel: meta.sectionLabel };
@@ -44820,8 +44862,12 @@
         }
 
         function applyLicenseToUI(license) {
-            const flags = getNormalizedLicenseFlags(license);
-            currentLicensePlanForUi = resolveLicenseGatingPlan(license);
+            const resolvedLicense = mergeLicenseStatusForGating(license);
+            if (isLicenseStatusPayloadComplete(resolvedLicense)) {
+                cachedLicenseStatus = resolvedLicense;
+            }
+            const flags = getNormalizedLicenseFlags(resolvedLicense);
+            currentLicensePlanForUi = resolveLicenseGatingPlan(resolvedLicense);
             window.__licenseFlags = flags;
 
             if (typeof setDashboardTabVisibility === 'function' && typeof shouldShowServicesDirectoryTab === 'function') {
@@ -46962,16 +47008,12 @@
             const extras = model?.extras && typeof model.extras === 'object' ? model.extras : {};
             const license = model?.license && typeof model.license === 'object' ? model.license : null;
             const licenseFlags = getNormalizedLicenseFlags(license);
-            const licensePlan = normalizeLicensePlanKey(license?.plan || currentLicensePlanForUi || 'free');
+            const licensePlan = resolveLicenseGatingPlan(license);
             const dataGapCount = missingMainPhoto + recordsMissingHistory;
             const attentionCount = attentionItems.length;
             const healthState = attentionCount > 0 || dataGapCount > 0
                 ? 'Potřebuje péči'
                 : (vehiclesTotal > 0 ? 'V dobré kondici' : 'Připraveno k založení');
-
-            if (!serviceScope && license && typeof applyLicenseToUI === 'function') {
-                applyLicenseToUI(license);
-            }
 
             if (topGridEl) {
                 topGridEl.setAttribute('data-license-visible', serviceScope ? 'false' : 'true');
@@ -47706,6 +47748,13 @@
                     const cnt = lic.vehicles_count != null ? lic.vehicles_count : lic.vehicles_current;
                     licenseSummary = {
                         plan: lic.plan || 'free',
+                        stored_plan: lic.stored_plan || lic.plan || 'free',
+                        effective_plan: lic.effective_plan || null,
+                        display_plan: lic.display_plan || null,
+                        trial_active: !!lic.trial_active,
+                        trial_plan: lic.trial_plan || null,
+                        trial_days_remaining: lic.trial_days_remaining != null ? Number(lic.trial_days_remaining) : null,
+                        capabilities: lic.capabilities && typeof lic.capabilities === 'object' ? lic.capabilities : null,
                         vehicles_count: cnt != null ? Number(cnt) : 0,
                         license_limit: lic.license_limit,
                         is_over_limit: !!lic.is_over_limit,
@@ -57084,7 +57133,7 @@
             applyServiceDashboardAppChrome(serviceDashboardHomeMode);
             const resolvedTab = serviceDashboardHomeMode ? 'serviceWorkspace' : tab;
             if (!isServiceWorkspaceRole()) {
-                const licenseLock = getDashboardTabLicenseLock(tab);
+                const licenseLock = getDashboardTabLicenseLock(tab, cachedLicenseStatus);
                 if (licenseLock && licenseLock.allowed === false) {
                     showDashboardUpgradePrompt(licenseLock.featureKey, {
                         targetPlan: licenseLock.targetPlan,
@@ -62409,7 +62458,7 @@
                 captureClientGeolocation(true);
                 const isUserContext = getActiveWorkspaceMode() === 'user';
                 const [payload, userVehicles, accessPayload, managedContactsPayload] = await Promise.all([
-                    apiCall('/api/v1/services/discovery', 'GET'),
+                    apiCall('/api/v1/services/discovery?radius_km=0', 'GET'),
                     isUserContext
                         ? apiCall('/api/v1/vehicles', 'GET').catch((error) => {
                             console.warn('[SERVICES_DIRECTORY] Nepodařilo se načíst vozidla pro správu přístupu:', error?.message || error);
@@ -62778,7 +62827,7 @@
             // Načíst seznam dostupných servisů
             let services = [];
             try {
-                const servicesDiscoveryPayload = await apiCall('/api/v1/services/discovery', 'GET');
+                const servicesDiscoveryPayload = await apiCall('/api/v1/services/discovery?radius_km=0', 'GET');
                 services = Array.isArray(servicesDiscoveryPayload?.services) ? servicesDiscoveryPayload.services : [];
             } catch (error) {
                 console.error('Error loading services discovery:', error);
