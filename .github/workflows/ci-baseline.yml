@@ -1,0 +1,113 @@
+name: CI Baseline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  baseline:
+    name: Clean repo baseline checks
+    runs-on: ubuntu-latest
+
+    env:
+      APP_ENV: test
+      ENVIRONMENT: test
+      TESTING: "1"
+      DATABASE_URL: sqlite:///./test_vehicles.db
+      VEHICLE_DB_URL: sqlite:///./test_vehicles.db
+      TEST_DATABASE_URL: sqlite:///./test_vehicles.db
+      JWT_SECRET_KEY: dummy-ci-jwt-secret
+      SECRET_KEY: dummy-ci-secret
+      DISABLE_EXTERNAL_INTEGRATIONS: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Python compileall
+        run: python3 -m compileall -q src
+
+      - name: Node syntax check
+        run: |
+          node --check web/user-app-next.js
+          node --check web/user-settings.js
+
+      - name: Secret and data guard
+        run: |
+          set -euo pipefail
+          echo "Checking tracked files for secrets and runtime data..."
+          if git ls-files | grep -E '(^|/)\.env(\.|$|$)|\.(db|sqlite|sqlite3)$|^(data/|backups/|snapshots/|releases/|worktrees/)'; then
+            echo "::error::Forbidden tracked files detected in git index"
+            exit 1
+          fi
+          hits=$(find . \( \
+            -name ".env" -o \
+            -name "*.db" -o \
+            -name "*.sqlite" -o \
+            -name "*.sqlite3" -o \
+            -path "*/data/*" -o \
+            -path "*/backups/*" -o \
+            -path "*/snapshots/*" -o \
+            -path "*/releases/*" -o \
+            -path "*/worktrees/*" \
+          \) ! -path "./.git/*" -print | wc -l)
+          if [ "$hits" -gt 0 ]; then
+            find . \( \
+              -name ".env" -o \
+              -name "*.db" -o \
+              -name "*.sqlite" -o \
+              -name "*.sqlite3" -o \
+              -path "*/data/*" -o \
+              -path "*/backups/*" \
+            \) ! -path "./.git/*" -print
+            echo "::error::Forbidden runtime data paths present in workspace"
+            exit 1
+          fi
+          echo "Secret and data guard passed"
+
+      - name: Forbidden symlink guard
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r link; do
+            target=$(readlink "$link" || true)
+            resolved=$(readlink -f "$link" 2>/dev/null || echo "$link")
+            if echo "$target $resolved" | grep -qE '/mnt/HC_Volume_105053116/toozhub2|/opt/toozhub2/app/data'; then
+              echo "::error::Forbidden production symlink: $link -> $target (resolved: $resolved)"
+              failed=1
+            fi
+          done < <(find . -type l ! -path './.git/*')
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
+          echo "Forbidden symlink guard passed"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Basic pytest (no production secrets)
+        run: |
+          python -m pytest \
+            tests/api/test_backend_sanity_ci_smoke.py \
+            tests/api/test_schema_migration_smoke.py \
+            -q

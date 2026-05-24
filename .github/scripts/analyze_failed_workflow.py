@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 # Výchozí hodnota odpovídá aktuálnímu GitHub repozitáři (slug může být přejmenován – viz TECHNICAL_RENAME_BACKLOG.md).
-GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "toozservis-tech/TOOZHUB2")
+GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY", "toozservis-tech/sprava-vozidel")
 WORKFLOW_RUN_ID = os.getenv("WORKFLOW_RUN_ID")
 
 def get_failed_workflow_runs() -> List[Dict]:

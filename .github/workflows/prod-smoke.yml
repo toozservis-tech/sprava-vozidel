@@ -2,54 +2,45 @@ name: Production Smoke Tests
 
 on:
   workflow_dispatch:
-  schedule:
-    # 03:30 Europe/Prague = 01:30 UTC (Prague is UTC+2 in summer, UTC+1 in winter)
-    # Using 01:30 UTC to cover both (closest to 03:30 Prague time)
-    - cron: '30 1 * * *'
-  push:
-    branches:
-      - main
-      - master
 
 jobs:
   prod-smoke:
     runs-on: ubuntu-latest
-    
+    if: ${{ secrets.PROD_E2E_EMAIL != '' && secrets.PROD_E2E_PASSWORD != '' }}
+
     env:
       BASE_URL: https://hub.toozservis.cz
       E2E_READONLY: "1"
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: npm
           cache-dependency-path: tests/e2e/package-lock.json
-      
+
       - name: Install E2E dependencies
         working-directory: tests/e2e
         run: |
           npm ci
           npx playwright install --with-deps chromium
-      
+
       - name: Create artifacts directory
-        run: |
-          mkdir -p artifacts/qa
-      
+        run: mkdir -p artifacts/qa
+
       - name: Run production smoke tests
         working-directory: tests/e2e
         env:
           BASE_URL: ${{ env.BASE_URL }}
           E2E_READONLY: ${{ env.E2E_READONLY }}
-          E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL || '' }}
-          E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD || '' }}
-        run: |
-          npx playwright test prod-smoke.spec.ts --reporter=list,html --project=chromium
-      
+          E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+        run: npx playwright test prod-smoke.spec.ts --reporter=list,html --project=chromium
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -61,3 +52,12 @@ jobs:
             tests/e2e/test-results/**
           if-no-files-found: ignore
           retention-days: 30
+
+  prod-smoke-skipped:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.PROD_E2E_EMAIL == '' || secrets.PROD_E2E_PASSWORD == '' }}
+    steps:
+      - name: Skip production smoke without secrets
+        run: |
+          echo "Skipping production smoke: PROD_E2E_EMAIL / PROD_E2E_PASSWORD not configured."
+          echo "Add repository secrets and run this workflow manually."
