@@ -82,6 +82,19 @@ const projects = [
     },
   },
   {
+    name: 'dashboard-prehled-chromium',
+    testMatch: /dashboard-prehled\.spec\.ts/,
+    dependencies: ['setup-auth'],
+    use: {
+      ...devices['Desktop Chrome'],
+      baseURL,
+      storageState: authStatePath,
+      launchOptions: {
+        env: browserEnv,
+      },
+    },
+  },
+  {
     name: 'react-vehicle-list-gated',
     testMatch: /react-vehicle-list-gated\.spec\.ts/,
     dependencies: ['setup-auth'],

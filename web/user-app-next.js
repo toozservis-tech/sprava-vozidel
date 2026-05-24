@@ -248,8 +248,12 @@
     if (!document.body.classList.contains('route-app-view') || !isAuthed() || isServiceMode()) {
       return null;
     }
-    if (/\/settings(?:\/|$)/i.test(String(window.location.pathname || ''))) {
+    const pathname = String(window.location.pathname || '');
+    if (/\/settings(?:\/|$)/i.test(pathname)) {
       return 'settings';
+    }
+    if (/\/service-history(?:\/|$)/i.test(pathname)) {
+      return 'serviceHistory';
     }
     const appShell = document.getElementById('app-shell');
     if (!appShell || appShell.hidden) return null;
@@ -513,7 +517,7 @@
         </button>
         <button type="button" class="uapp-next-card-action" data-uapp-action="shareVehicle:${id}">
           <span class="uapp-next-card-action-ico" aria-hidden="true">${ICO.share}</span>
-          <span class="uapp-next-card-action-label">Sdílet se servisem</span>
+          <span class="uapp-next-card-action-label">Sdílet</span>
         </button>
         ${withArrow ? `<button type="button" class="uapp-next-card-action uapp-next-card-action--arrow" data-uapp-action="detail:${id}" aria-label="Otevřít detail">›</button>` : ''}
       </div>`;
@@ -1322,7 +1326,8 @@
     const badgeHtml = badge > 0 ? `<span class="uapp-next-nav-badge">${esc(String(badge))}</span>` : '';
     const lockHtml = locked ? '<span class="uapp-next-nav-lock" aria-hidden="true" title="Vyžaduje vyšší licenci">🔒</span>' : '';
     const lockClass = locked ? ' is-locked' : '';
-    return `<button type="button" class="${active ? 'is-active' : ''}${lockClass}" data-uapp-action="${esc(action)}"${locked ? ' data-uapp-locked="1"' : ''}><span class="uapp-next-nav-ico" aria-hidden="true">${iconSvg}</span><span class="uapp-next-nav-label">${esc(label)}</span>${lockHtml}${badgeHtml}</button>`;
+    const testId = `dashboard-nav-${String(action || 'unknown').replace(/[^a-z0-9]+/gi, '-')}`;
+    return `<button type="button" class="${active ? 'is-active' : ''}${lockClass}" data-uapp-action="${esc(action)}" data-testid="${esc(testId)}"${locked ? ' data-uapp-locked="1"' : ''}><span class="uapp-next-nav-ico" aria-hidden="true">${iconSvg}</span><span class="uapp-next-nav-label">${esc(label)}</span>${lockHtml}${badgeHtml}</button>`;
   }
 
   function reminderReferenceDate(reminder) {
@@ -3521,31 +3526,40 @@
           ${navButton('Nastavení', ICO.gear, 'settings', nav === 'settings', 0, false)}
         </nav>
         <div class="uapp-next-sidebar-bottom">
-          <button type="button" class="uapp-next-help-card" data-uapp-action="help">
-            <span class="uapp-next-help-card-ico" aria-hidden="true">🎧</span>
-            <span class="uapp-next-help-card-text">Potřebujete pomoc?</span>
+          <button type="button" class="uapp-next-help-card" data-uapp-action="help" data-testid="dashboard-help">
+            <span class="uapp-next-help-card-ico" aria-hidden="true">?</span>
+            <span class="uapp-next-help-card-text">Nápověda</span>
             <span class="uapp-next-help-card-chevron" aria-hidden="true">›</span>
           </button>
-          <button type="button" class="uapp-next-side-action" data-uapp-action="collapse"><span aria-hidden="true">⇤</span><span>Sbalit menu</span></button>
+          <button type="button" class="uapp-next-side-action" data-uapp-action="collapse" data-testid="dashboard-collapse-sidebar"><span aria-hidden="true">⇤</span><span>Sbalit menu</span></button>
         </div>
       </aside>
     `;
+  }
+
+  function searchShortcutKbdLabel() {
+    try {
+      const platform = String(navigator.platform || '');
+      const ua = String(navigator.userAgent || '');
+      if (/Mac|iPhone|iPad|iPod/i.test(platform) || /Mac OS X/i.test(ua)) return '⌘ K';
+    } catch (_) {}
+    return 'Ctrl K';
   }
 
   function renderTopbar() {
     const badge = document.getElementById('desktopNotificationsBadge') || document.getElementById('mobileNotificationsBadge');
     const count = badge ? String(badge.getAttribute('data-count') || badge.textContent || '0').trim() : '0';
     return `
-      <header class="uapp-next-topbar" aria-label="Horní lišta">
+      <header class="uapp-next-topbar" aria-label="Horní lišta" data-testid="dashboard-topbar">
         <label class="uapp-next-search">
           <span class="uapp-next-search-icon" aria-hidden="true">${ICO.search}</span>
-          <input id="uappNextSearch" type="search" autocomplete="off" placeholder="Hledat podle SPZ, VIN, značky nebo modelu…">
-          <kbd class="uapp-next-search-kbd" aria-hidden="true">⌘ K</kbd>
+          <input id="uappNextSearch" type="search" autocomplete="off" placeholder="Hledejte podle SPZ, VIN, názvu vozidla…" data-testid="dashboard-search-input">
+          <kbd class="uapp-next-search-kbd" aria-hidden="true">${esc(searchShortcutKbdLabel())}</kbd>
         </label>
-        <button type="button" class="uapp-next-btn uapp-next-btn-primary" data-uapp-action="addVehicle">+ Přidat vozidlo</button>
+        <button type="button" class="uapp-next-btn uapp-next-btn-primary" data-uapp-action="addVehicle" data-testid="dashboard-add-vehicle">+ Přidat vozidlo</button>
         <div class="uapp-next-top-actions">
-          <button type="button" class="uapp-next-btn uapp-next-icon-btn" data-uapp-action="notifications" aria-label="Oznámení" data-count="${esc(count || '0')}">${ICO.bell}</button>
-          <button type="button" class="uapp-next-profile" data-uapp-action="profile" aria-label="Profil uživatele">
+          <button type="button" class="uapp-next-btn uapp-next-icon-btn" data-uapp-action="notifications" aria-label="Oznámení" data-count="${esc(count || '0')}" data-testid="dashboard-notifications">${ICO.bell}</button>
+          <button type="button" class="uapp-next-profile" data-uapp-action="profile" aria-label="Profil uživatele" data-testid="dashboard-profile">
             <span class="uapp-next-avatar" aria-hidden="true">${esc(initials())}</span>
             <span class="uapp-next-profile-name">${esc(profileName())}</span>
             <span class="uapp-next-profile-caret" aria-hidden="true">▾</span>
@@ -3576,10 +3590,10 @@
     const heroVehicle = data.vehicles[0] || null;
     const needsAttention = fleetNeedsAttention(data);
     return `
-      <div class="uapp-next-overview-top">
-        <section class="uapp-next-hero">
+      <div class="uapp-next-overview-top" data-testid="dashboard-hero-row">
+        <section class="uapp-next-hero" data-testid="dashboard-hero">
           <div class="uapp-next-hero-copy">
-            <h1>Dobrý den, ${esc(fullName())} 👋</h1>
+            <h1 data-testid="dashboard-hero-greeting">Dobrý den, ${esc(fullName())} 👋</h1>
             <p class="uapp-next-hero-summary">${heroSummaryHtml(data)}</p>
           </div>
           <div class="uapp-next-hero-visual" aria-hidden="true">
@@ -3591,7 +3605,7 @@
             </div>
           </div>
         </section>
-        <button type="button" class="uapp-next-overall-status" data-uapp-action="attentionOpen" aria-label="Zobrazit, co je potřeba řešit">
+        <button type="button" class="uapp-next-overall-status" data-uapp-action="attentionOpen" aria-label="Zobrazit, co je potřeba řešit" data-testid="dashboard-overall-status">
           <div class="uapp-next-overall-inner">
             <div class="uapp-next-overall-text">
               <h2>Celkový stav</h2>
@@ -3611,10 +3625,11 @@
     const icoMap = { stk: ICO.quickStk, ins: ICO.quickShield, svc: ICO.wrench, docs: ICO.doc };
     const labels = { stk: 'STK / SME', ins: 'Pojištění', svc: 'Servis', docs: 'Dokumenty' };
     const accentClass = { stk: 'uapp-next-quick-card--warn', ins: 'uapp-next-quick-card--ok', svc: 'uapp-next-quick-card--info', docs: 'uapp-next-quick-card--warn' };
-    return `<div class="uapp-next-quick-grid">${Object.keys(cards).map((key) => {
+    const quickTestIds = { stk: 'dashboard-quick-stk', ins: 'dashboard-quick-insurance', svc: 'dashboard-quick-service', docs: 'dashboard-quick-documents' };
+    return `<div class="uapp-next-quick-grid" data-testid="dashboard-quick-grid">${Object.keys(cards).map((key) => {
       const card = cards[key];
       return `
-        <button type="button" class="uapp-next-quick-card ${accentClass[key] || quickToneClass(card.tone)}" data-uapp-action="${esc(card.action)}">
+        <button type="button" class="uapp-next-quick-card ${accentClass[key] || quickToneClass(card.tone)}" data-uapp-action="${esc(card.action)}" data-testid="${esc(quickTestIds[key] || 'dashboard-quick-card')}">
           <span class="uapp-next-quick-card-ico">${icoMap[key] || ICO.quickStk}</span>
           <span class="uapp-next-quick-card-body">
             <span class="uapp-next-quick-card-cat">${labels[key]}</span>
@@ -3637,16 +3652,17 @@
       ? `${Number(vehicle.current_mileage_km).toLocaleString('cs-CZ')} km`
       : '—';
     return `
-      <article class="uapp-next-vehicle-card" data-uapp-vehicle-card data-search-text="${esc([getVehicleName(vehicle), vehicle.plate, vehicle.vin, vehicle.brand, vehicle.model].filter(Boolean).join(' ').toLowerCase())}" data-vehicle-id="${id}">
-        <div class="uapp-next-vehicle-visual">
-          <div class="uapp-next-photo" data-next-photo-wrap="${id}">
-            <img id="uappNextVehiclePhoto-${id}" alt="Fotka vozidla ${esc(getVehicleName(vehicle))}" loading="lazy">
-            <div class="uapp-next-photo-fallback">Bez fotky</div>
+      <article class="uapp-next-vehicle-card" data-uapp-vehicle-card data-search-text="${esc([getVehicleName(vehicle), vehicle.plate, vehicle.vin, vehicle.brand, vehicle.model].filter(Boolean).join(' ').toLowerCase())}" data-vehicle-id="${id}" data-testid="dashboard-vehicle-card-${id}">
+        <button type="button" class="uapp-next-vehicle-open" data-uapp-action="detail:${id}" aria-label="Otevřít detail vozidla ${esc(getVehicleName(vehicle))}">
+          <div class="uapp-next-vehicle-visual">
+            <div class="uapp-next-photo" data-next-photo-wrap="${id}">
+              <img id="uappNextVehiclePhoto-${id}" alt="Fotka vozidla ${esc(getVehicleName(vehicle))}" loading="lazy">
+              <div class="uapp-next-photo-fallback">Bez fotky</div>
+            </div>
+            <span class="${badgeClass(status.tone === 'warn' ? 'warn' : 'ok')}">${esc(status.label)}</span>
           </div>
-          <span class="${badgeClass(status.tone === 'warn' ? 'warn' : 'ok')}">${esc(status.label)}</span>
-        </div>
-        <div class="uapp-next-vehicle-body">
-          <h3 class="uapp-next-vehicle-title">${esc(getVehicleName(vehicle))}</h3>
+          <div class="uapp-next-vehicle-body uapp-next-vehicle-body--open">
+            <h3 class="uapp-next-vehicle-title">${esc(getVehicleName(vehicle))}</h3>
           <div class="uapp-next-vehicle-subrow">
             ${renderPlateBadge(vehicle.plate)}
           </div>
@@ -3659,8 +3675,9 @@
             <div class="uapp-next-status-line"><span>Pojištění</span><strong class="uapp-next-status-val ${toneClass(ins.tone)}">${esc(ins.label)}</strong></div>
             <div class="uapp-next-status-line"><span>Servis</span><strong class="uapp-next-status-val ${toneClass(svc.tone)}">${esc(svc.label)}</strong></div>
           </div>
-          ${renderCardActionBar(id, false)}
-        </div>
+          </div>
+        </button>
+        ${renderCardActionBar(id, false)}
       </article>
     `;
   }
@@ -3671,15 +3688,15 @@
       ? vehicles.map((vehicle) => renderVehicleCard(vehicle, data)).join('')
       : '';
     return `
-      <section class="uapp-next-vehicles-section">
+      <section class="uapp-next-vehicles-section" data-testid="dashboard-vehicles-section">
         <div class="uapp-next-section-head">
           <h2 class="uapp-next-section-title">Moje vozidla</h2>
-          <button type="button" class="uapp-next-section-link" data-uapp-action="vehicles">Zobrazit všechna vozidla →</button>
+          <button type="button" class="uapp-next-section-link" data-uapp-action="vehicles" data-testid="dashboard-view-all-vehicles">Zobrazit všechna vozidla →</button>
         </div>
-        <div class="uapp-next-vehicle-grid">
+        <div class="uapp-next-vehicle-grid" data-testid="dashboard-vehicle-grid">
           ${cards || '<div class="uapp-next-empty uapp-next-empty--inline">Zatím nemáte žádné vozidlo. Přidejte první vozidlo a přehled se naplní reálnými daty.</div>'}
         </div>
-        <button type="button" class="uapp-next-add-card" data-uapp-action="addVehicle">
+        <button type="button" class="uapp-next-add-card" data-uapp-action="addVehicle" data-testid="dashboard-add-vehicle-card">
           <span class="uapp-next-add-plus">+</span>
           <strong>Přidat další vozidlo</strong>
           <span>Rychle přidejte nové vozidlo do své správy</span>
@@ -3831,17 +3848,17 @@
       : '<li class="uapp-next-aside-empty">Zatím nejsou aktivní sdílené přístupy ani servisní kontakty.</li>';
 
     return `
-      <aside class="uapp-next-overview-aside">
-        <section class="uapp-next-aside-card">
+      <aside class="uapp-next-overview-aside" data-testid="dashboard-overview-aside">
+        <section class="uapp-next-aside-card" data-testid="dashboard-aside-deadlines">
           ${asideHead('Blížící se termíny', 'Zobrazit všechny →', 'reminders')}
           <ul class="uapp-next-aside-list">${reminderList}</ul>
-          <button type="button" class="uapp-next-aside-foot-link" data-uapp-action="reminders">Zobrazit všechny připomínky →</button>
+          <button type="button" class="uapp-next-aside-foot-link" data-uapp-action="reminders" data-testid="dashboard-aside-all-reminders">Zobrazit všechny připomínky →</button>
         </section>
-        <section class="uapp-next-aside-card">
+        <section class="uapp-next-aside-card" data-testid="dashboard-aside-activity">
           ${asideHead('Poslední aktivita', 'Zobrazit vše →', 'serviceHistory')}
           <ul class="uapp-next-aside-activity">${activityList}</ul>
         </section>
-        <section class="uapp-next-aside-card">
+        <section class="uapp-next-aside-card" data-testid="dashboard-aside-access">
           ${asideHead('Servisy a přístupy', 'Spravovat přístupy →', 'servicesDirectory')}
           <ul class="uapp-next-aside-access">${serviceList}</ul>
         </section>
@@ -4050,10 +4067,10 @@
     if (view === 'home') {
       return `
         ${renderTopbar()}
-        <div class="uapp-next-overview-shell">
+        <div class="uapp-next-overview-shell" data-testid="dashboard-overview-shell">
           ${renderHero(data)}
           ${quickCards(data)}
-          <div class="uapp-next-overview-body">
+          <div class="uapp-next-overview-body" data-testid="dashboard-overview-body">
             <div class="uapp-next-overview-main">
               ${renderVehicles(data)}
             </div>
@@ -4112,6 +4129,7 @@
       mountLegacyTabContent(activeView);
     }
     bindSearch();
+    bindSearchShortcut();
     if (activeView === 'vehicles') {
       hydrateGarageImages(data);
       bindSortSelect();
@@ -4232,6 +4250,26 @@
     select.addEventListener('change', () => {
       STATE.vehiclesSort = select.value === 'name' ? 'name' : 'activity';
       reRenderCatalog();
+    });
+  }
+
+  function focusDashboardSearch() {
+    const input = document.getElementById('uappNextSearch');
+    if (!input) return;
+    input.focus();
+    if (typeof input.select === 'function') input.select();
+  }
+
+  function bindSearchShortcut() {
+    if (document.documentElement.dataset.uappSearchShortcutBound === '1') return;
+    document.documentElement.dataset.uappSearchShortcutBound = '1';
+    document.addEventListener('keydown', (event) => {
+      if (!(event.metaKey || event.ctrlKey) || String(event.key || '').toLowerCase() !== 'k') return;
+      if (!shouldActivate() || getActiveView() === 'settings') return;
+      const tag = String(event.target && event.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (event.target && event.target.isContentEditable)) return;
+      event.preventDefault();
+      focusDashboardSearch();
     });
   }
 
@@ -4728,6 +4766,9 @@
     if (name === 'serviceHistory') {
       closeMobileNav();
       STATE.viewOverride = 'serviceHistory';
+      if (hasFn('switchTab')) {
+        try { window.switchTab('serviceHistory', { skipUnsavedGuard: true }); } catch (_) {}
+      }
       if (hasFn('syncUserTabUrlHistory')) {
         try { window.syncUserTabUrlHistory('serviceHistory'); } catch (_) {}
       }
@@ -5087,10 +5128,21 @@
       if (token !== STATE.renderToken || !shouldActivate()) return;
       if (root) {
         root.replaceChildren();
-        const errEl = document.createElement('div');
+        const errWrap = document.createElement('div');
+        errWrap.className = 'uapp-next-error-state';
+        errWrap.setAttribute('data-testid', 'dashboard-load-error');
+        const errEl = document.createElement('p');
         errEl.className = 'uapp-next-loading';
-        errEl.textContent = 'Nepodařilo se načíst sekci. Zkuste obnovit stránku.';
-        root.appendChild(errEl);
+        errEl.textContent = 'Nepodařilo se načíst sekci. Zkuste to znovu nebo obnovte stránku.';
+        const retryBtn = document.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'uapp-next-btn uapp-next-btn-primary';
+        retryBtn.textContent = 'Zkusit znovu';
+        retryBtn.setAttribute('data-testid', 'dashboard-retry-load');
+        retryBtn.addEventListener('click', () => { void render(); });
+        errWrap.appendChild(errEl);
+        errWrap.appendChild(retryBtn);
+        root.appendChild(errWrap);
       }
     }
   }
@@ -5209,9 +5261,14 @@
     installHooks();
     window.setTimeout(() => {
       if (!shouldActivate() && document.body.classList.contains('route-app-view') && isAuthed() && !isServiceMode()) {
-        const homeTab = document.getElementById('homeTab');
-        if (homeTab && homeTab.classList.contains('active')) {
-          STATE.viewOverride = 'home';
+        const pathname = String(window.location.pathname || '');
+        if (/\/service-history(?:\/|$)/i.test(pathname)) {
+          STATE.viewOverride = 'serviceHistory';
+        } else {
+          const homeTab = document.getElementById('homeTab');
+          if (homeTab && homeTab.classList.contains('active')) {
+            STATE.viewOverride = 'home';
+          }
         }
       }
       if (shouldActivate()) render();
