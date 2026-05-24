@@ -33147,10 +33147,10 @@
                     <div id="appNotificationsArchiveList" class="app-notifications-archive-list" data-testid="app-notifications-archive-list"></div>
                 </details>
             </div>
-            <div id="mobileProfileMenu" class="mobile-profile-menu" hidden aria-hidden="true">
-                <button type="button" class="mobile-profile-backdrop" onclick="closeMobileProfileMenu()" aria-label="Zavřít profil"></button>
+            <div id="mobileProfileMenu" class="mobile-profile-menu" hidden aria-hidden="true" data-testid="dashboard-profile-menu" role="menu" aria-label="Účet a nastavení">
+                <button type="button" class="mobile-profile-backdrop" data-testid="dashboard-profile-menu-close-area" onclick="closeMobileProfileMenu()" aria-label="Zavřít profil"></button>
                 <section class="mobile-profile-sheet" aria-label="Profil a licence">
-                    <div class="mobile-profile-head">
+                    <div class="mobile-profile-head" data-testid="dashboard-profile-menu-account">
                         <span class="mobile-profile-avatar" aria-hidden="true">
                             <svg viewBox="0 0 24 24" focusable="false">
                                 <path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4Zm0 2c-3.6 0-6.6 1.9-7.7 4.6-.3.7.2 1.4.9 1.4h13.6c.7 0 1.2-.7.9-1.4C18.6 15.9 15.6 14 12 14Z"></path>
@@ -33164,9 +33164,9 @@
                             <span id="mobileProfileEmail" class="mobile-profile-email">-</span>
                         </div>
                     </div>
-                    <div class="mobile-profile-row">
+                    <div class="mobile-profile-row mobile-profile-license-row" data-testid="dashboard-profile-menu-license">
                         <span>Licence</span>
-                        <strong id="mobileProfileLicenseLabel">Licence</strong>
+                        <strong id="mobileProfileLicenseLabel" class="mobile-profile-license-badge">Licence</strong>
                     </div>
                     <div class="mobile-profile-row mobile-profile-workspace-row hidden" id="mobileProfileWorkspaceSwitchWrap">
                         <span>Režim rozhraní</span>
@@ -33180,35 +33180,51 @@
                             type="button"
                             id="mobileProfileTutorialRow"
                             class="mobile-profile-action"
-                            data-testid="menu-how-to-tutorial"
+                            data-testid="dashboard-profile-menu-help"
                             onclick="closeMobileProfileMenu(); if(typeof openHowToHubModal==='function')openHowToHubModal(); else if(typeof window.openHowToHubModal==='function')window.openHowToHubModal();"
                         >
-                            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                                <path fill="currentColor" d="M12 22a10 10 0 1 1 10-10h-2a8 8 0 1 0-8 8v2Zm-4-14h12v10H8V8Zm2 8h8v2h-8v-2Zm-2-8h12l-2 4h-8l-2-4Z"></path>
-                            </svg>
-                            <span>Jak na to</span>
+                            <span class="mobile-profile-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path fill="currentColor" d="M12 22a10 10 0 1 1 10-10h-2a8 8 0 1 0-8 8v2Zm-4-14h12v10H8V8Zm2 8h8v2h-8v-2Zm-2-8h12l-2 4h-8l-2-4Z"></path>
+                                </svg>
+                            </span>
+                            <span class="mobile-profile-action-label">Jak na to</span>
+                            <span class="mobile-profile-action-chevron" aria-hidden="true">›</span>
                         </button>
-                        <button type="button" class="mobile-profile-action" onclick="closeMobileProfileMenu(); switchTab('account')">
-                            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                        <button type="button" class="mobile-profile-action" data-testid="dashboard-profile-menu-settings" onclick="closeMobileProfileMenu(); switchTab('account')">
+                            <span class="mobile-profile-action-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" focusable="false">
                                 <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1c-.8-.6-1.6-1-2.6-1.2L14 2.7h-4l-.4 2.6c-.9.2-1.8.6-2.6 1.2l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1c.8.6 1.6 1 2.6 1.2l.4 2.6h4l.4-2.6c.9-.2 1.8-.6 2.6-1.2l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"></path>
                             </svg>
-                            <span>Nastavení účtu</span>
+                            </span>
+                            <span class="mobile-profile-action-label">Nastavení účtu</span>
+                            <span class="mobile-profile-action-chevron" aria-hidden="true">›</span>
                         </button>
-                        <button type="button" class="mobile-profile-action" onclick="closeMobileProfileMenu(); openLicenseModal()">
-                            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                                <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2h11A2.5 2.5 0 0 1 20 4.5v15A2.5 2.5 0 0 1 17.5 22h-11A2.5 2.5 0 0 1 4 19.5v-15ZM7 7h10V5H7v2Zm0 4h10V9H7v2Zm0 4h7v-2H7v2Zm0 4h10v-2H7v2Z"></path>
-                            </svg>
-                            <span>Licence a plán</span>
+                        <button type="button" class="mobile-profile-action" data-testid="dashboard-profile-menu-license-plan" onclick="closeMobileProfileMenu(); openLicenseModal()">
+                            <span class="mobile-profile-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2h11A2.5 2.5 0 0 1 20 4.5v15A2.5 2.5 0 0 1 17.5 22h-11A2.5 2.5 0 0 1 4 19.5v-15ZM7 7h10V5H7v2Zm0 4h10V9H7v2Zm0 4h7v-2H7v2Zm0 4h10v-2H7v2Z"></path>
+                                </svg>
+                            </span>
+                            <span class="mobile-profile-action-label">Licence a plán</span>
+                            <span class="mobile-profile-action-chevron" aria-hidden="true">›</span>
                         </button>
-                        <button type="button" class="mobile-profile-action" onclick="closeMobileProfileMenu(); if (typeof window.toggleAppUiTheme === 'function') window.toggleAppUiTheme();">
-                            <span aria-hidden="true">◐</span>
-                            <span>Světlý / tmavý motiv</span>
+                        <button type="button" class="mobile-profile-action" data-testid="dashboard-profile-menu-theme" onclick="closeMobileProfileMenu(); if (typeof window.toggleAppUiTheme === 'function') window.toggleAppUiTheme();">
+                            <span class="mobile-profile-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1Z"></path>
+                                </svg>
+                            </span>
+                            <span class="mobile-profile-action-label">Světlý / tmavý motiv</span>
+                            <span class="mobile-profile-action-chevron" aria-hidden="true">›</span>
                         </button>
-                        <button type="button" class="mobile-profile-action mobile-profile-action--danger" onclick="handleLogout()">
-                            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                                <path d="M10 4h9a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-9v-2h8V6h-8V4Zm-.7 4.3L10.7 7 16 12l-5.3 5-1.4-1.3 2.9-2.7H4v-2h8.2L9.3 8.3Z"></path>
-                            </svg>
-                            <span>Odhlásit se</span>
+                        <button type="button" class="mobile-profile-action mobile-profile-action--danger" data-testid="dashboard-profile-menu-logout" onclick="handleLogout()">
+                            <span class="mobile-profile-action-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M10 4h9a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-9v-2h8V6h-8V4Zm-.7 4.3L10.7 7 16 12l-5.3 5-1.4-1.3 2.9-2.7H4v-2h8.2L9.3 8.3Z"></path>
+                                </svg>
+                            </span>
+                            <span class="mobile-profile-action-label">Odhlásit se</span>
                         </button>
                     </div>
                 </section>
@@ -37080,38 +37096,208 @@
                 const licenseLabel = document.getElementById('licenseQuickLabel')?.textContent?.trim();
                 licenseEl.textContent = licenseLabel || 'Licence';
                 licenseEl.title = licenseLabel || '';
+                applyMobileProfileLicenseBadgeClass(licenseEl);
             }
+        }
+
+        function applyMobileProfileLicenseBadgeClass(licenseEl) {
+            if (!licenseEl) return;
+            licenseEl.classList.add('mobile-profile-license-badge');
+            const text = String(licenseEl.textContent || '').trim().toLowerCase();
+            licenseEl.classList.remove(
+                'mobile-profile-license-badge--trial',
+                'mobile-profile-license-badge--premium',
+                'mobile-profile-license-badge--free',
+                'mobile-profile-license-badge--warn',
+            );
+            if (!text || text === 'licence') {
+                licenseEl.classList.add('mobile-profile-license-badge--free');
+            } else if (/trial|zkušeb|zbyvá|zbyva/.test(text)) {
+                licenseEl.classList.add('mobile-profile-license-badge--trial');
+            } else if (/expi|vyprš|vyprs|neaktiv|pozastav|problém|problem|expired|blocked/.test(text)) {
+                licenseEl.classList.add('mobile-profile-license-badge--warn');
+            } else if (/premium|pro|basic|business|active|aktiv/.test(text)) {
+                licenseEl.classList.add('mobile-profile-license-badge--premium');
+            } else {
+                licenseEl.classList.add('mobile-profile-license-badge--premium');
+            }
+        }
+
+        function getMobileProfileMenuAnchor() {
+            const nextProfile = document.querySelector(
+                '[data-testid="dashboard-profile"], .uapp-next-profile[data-uapp-action="profile"]',
+            );
+            if (nextProfile && document.body.classList.contains('user-app-next-active')) return nextProfile;
+            return document.getElementById('desktopProfileButton') || document.getElementById('mobileProfileButton');
+        }
+
+        function resolveMobileProfileMenuAnchor(ev) {
+            if (ev && ev.target && typeof ev.target.closest === 'function') {
+                const fromTarget = ev.target.closest(
+                    '[data-testid="dashboard-profile"], .uapp-next-profile, #mobileProfileButton, #desktopProfileButton',
+                );
+                if (fromTarget) return fromTarget;
+            }
+            if (ev && ev.currentTarget && ev.currentTarget.nodeType === 1) {
+                return ev.currentTarget;
+            }
+            return getMobileProfileMenuAnchor();
+        }
+
+        function resetMobileProfileMenuSheetPosition() {
+            const sheet = document.getElementById('mobileProfileMenu')?.querySelector('.mobile-profile-sheet');
+            if (!sheet) return;
+            sheet.style.position = '';
+            sheet.style.top = '';
+            sheet.style.left = '';
+            sheet.style.right = '';
+            sheet.style.bottom = '';
+            sheet.style.width = '';
+            sheet.style.maxWidth = '';
+            sheet.style.transform = '';
+        }
+
+        function positionMobileProfileMenu(anchorEl) {
+            const menu = document.getElementById('mobileProfileMenu');
+            const sheet = menu?.querySelector('.mobile-profile-sheet');
+            if (!menu || menu.hidden || !sheet) return;
+
+            let anchor = anchorEl;
+            if (!anchor || typeof anchor.getBoundingClientRect !== 'function') {
+                anchor = getMobileProfileMenuAnchor();
+            }
+            const isUserAppNext = document.body.classList.contains('user-app-next-active');
+            const isDesktopPopover = isUserAppNext && window.matchMedia('(min-width: 901px)').matches;
+
+            if (isDesktopPopover) {
+                const rect = anchor && typeof anchor.getBoundingClientRect === 'function' ? anchor.getBoundingClientRect() : null;
+                const width = Math.min(360, Math.max(320, window.innerWidth - 24));
+                let left = rect ? rect.right - width : window.innerWidth - width - 12;
+                if (left < 12) left = 12;
+                if (left + width > window.innerWidth - 12) {
+                    left = Math.max(12, window.innerWidth - width - 12);
+                }
+                const top = rect ? Math.max(12, rect.bottom + 8) : 72;
+                sheet.style.position = 'fixed';
+                sheet.style.width = `${width}px`;
+                sheet.style.maxWidth = `${width}px`;
+                sheet.style.left = `${left}px`;
+                sheet.style.top = `${top}px`;
+                sheet.style.right = 'auto';
+                sheet.style.bottom = 'auto';
+            } else if (isUserAppNext) {
+                sheet.style.position = 'fixed';
+                sheet.style.left = '12px';
+                sheet.style.right = '12px';
+                sheet.style.bottom = 'max(12px, env(safe-area-inset-bottom, 0px))';
+                sheet.style.top = 'auto';
+                sheet.style.width = 'auto';
+                sheet.style.maxWidth = 'none';
+            } else {
+                resetMobileProfileMenuSheetPosition();
+            }
+        }
+
+        function bindMobileProfileMenuInteractionsOnce() {
+            if (window.__mobileProfileMenuDocBound) return;
+            window.__mobileProfileMenuDocBound = true;
+
+            document.addEventListener(
+                'click',
+                (ev) => {
+                    const menu = document.getElementById('mobileProfileMenu');
+                    if (!menu || menu.hidden) return;
+                    const t = ev.target;
+                    if (menu.contains(t)) return;
+                    if (
+                        t &&
+                        t.closest &&
+                        (t.closest('[data-testid="dashboard-profile"]') ||
+                            t.closest('.uapp-next-profile[data-uapp-action="profile"]') ||
+                            t.closest('#mobileProfileButton') ||
+                            t.closest('#desktopProfileButton'))
+                    ) {
+                        return;
+                    }
+                    closeMobileProfileMenu();
+                },
+                false,
+            );
+
+            document.addEventListener('keydown', (ev) => {
+                if (ev.key !== 'Escape') return;
+                const menu = document.getElementById('mobileProfileMenu');
+                if (menu && !menu.hidden) {
+                    ev.preventDefault();
+                    closeMobileProfileMenu();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                const menu = document.getElementById('mobileProfileMenu');
+                if (menu && !menu.hidden) positionMobileProfileMenu(getMobileProfileMenuAnchor());
+            });
         }
 
         function setMobileProfileMenuOpen(isOpen) {
             const menu = document.getElementById('mobileProfileMenu');
             const mobileBtn = document.getElementById('mobileProfileButton');
             const desktopBtn = document.getElementById('desktopProfileButton');
+            const nextProfileBtn = document.querySelector(
+                '[data-testid="dashboard-profile"], .uapp-next-profile[data-uapp-action="profile"]',
+            );
             if (!menu) return;
 
             if (isOpen) {
                 syncMobileProfileMenu();
                 menu.hidden = false;
                 menu.setAttribute('aria-hidden', 'false');
+                menu.classList.add('is-open');
+                requestAnimationFrame(() => {
+                    positionMobileProfileMenu(getMobileProfileMenuAnchor());
+                    menu.classList.add('is-open');
+                });
             } else {
                 menu.hidden = true;
                 menu.setAttribute('aria-hidden', 'true');
+                menu.classList.remove('is-open');
+                resetMobileProfileMenuSheetPosition();
             }
             const expanded = isOpen ? 'true' : 'false';
             if (mobileBtn) mobileBtn.setAttribute('aria-expanded', expanded);
             if (desktopBtn) desktopBtn.setAttribute('aria-expanded', expanded);
+            if (nextProfileBtn) nextProfileBtn.setAttribute('aria-expanded', expanded);
         }
 
         function closeMobileProfileMenu() {
             setMobileProfileMenuOpen(false);
         }
 
-        function toggleMobileProfileMenu() {
+        function toggleMobileProfileMenu(ev) {
             const menu = document.getElementById('mobileProfileMenu');
             if (!menu) return;
+            bindMobileProfileMenuInteractionsOnce();
             closeMobileNavbarMenu();
-            setMobileProfileMenuOpen(menu.hidden);
+            const willOpen = menu.hidden;
+            if (willOpen) {
+                const notifPanel = document.getElementById('appNotificationsPanel');
+                if (notifPanel && !notifPanel.hasAttribute('hidden')) {
+                    notifPanel.setAttribute('hidden', '');
+                    window.__appNotificationsPanelOpen = false;
+                    if (typeof setNotificationsButtonsExpanded === 'function') {
+                        setNotificationsButtonsExpanded(false);
+                    }
+                }
+            }
+            setMobileProfileMenuOpen(willOpen);
+            if (willOpen) {
+                const anchor = resolveMobileProfileMenuAnchor(ev);
+                positionMobileProfileMenu(anchor);
+                requestAnimationFrame(() => positionMobileProfileMenu(anchor));
+            }
         }
+        window.toggleMobileProfileMenu = toggleMobileProfileMenu;
+        window.closeMobileProfileMenu = closeMobileProfileMenu;
 
         function setMobileNavbarToggleVisualState(isOpen) {
             const menuToggle = document.getElementById('mobileMenuToggle');
@@ -57131,6 +57317,9 @@
 
         // Přepínání tabů
         function switchTab(tab, options = {}) {
+            if (typeof closeMobileProfileMenu === 'function') {
+                closeMobileProfileMenu();
+            }
             const serviceDashboardHomeMode = isServiceWorkspaceRole() && tab === 'home';
             applyServiceDashboardAppChrome(serviceDashboardHomeMode);
             const resolvedTab = serviceDashboardHomeMode ? 'serviceWorkspace' : tab;
@@ -69030,6 +69219,7 @@
     
     <!-- AI Features JavaScript -->
     <script src="/web/ai-features.js"></script>
+    <script src="/web/tutorial-hub.js"></script>
     <script src="/web/user-app-next.js?v=202605234settings"></script>
     <script src="/web/user-settings.js?v=202605237sessions"></script>
     <script src="/web/service-shell.js?v=2026050720"></script>

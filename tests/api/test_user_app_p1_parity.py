@@ -164,6 +164,33 @@ def test_dashboard_overview_testids_present():
         assert testid in app
 
 
+def test_profile_dropdown_panel_testids_and_actions():
+    index = _read("index.html")
+    for testid in (
+        "dashboard-profile-menu",
+        "dashboard-profile-menu-account",
+        "dashboard-profile-menu-license",
+        "dashboard-profile-menu-help",
+        "dashboard-profile-menu-settings",
+        "dashboard-profile-menu-license-plan",
+        "dashboard-profile-menu-theme",
+        "dashboard-profile-menu-logout",
+        "dashboard-profile-menu-close-area",
+    ):
+        assert f'data-testid="{testid}"' in index
+    assert "function toggleMobileProfileMenu" in index
+    assert "function closeMobileProfileMenu" in index
+    assert "function positionMobileProfileMenu" in index
+    assert "openHowToHubModal" in index
+    assert "switchTab('account')" in index
+    assert "openLicenseModal()" in index
+    assert "toggleAppUiTheme" in index
+    assert "handleLogout()" in index
+    app = _read("user-app-next.js")
+    assert 'data-testid="dashboard-profile"' in app
+    assert "openProfileMenu(event)" in app
+
+
 def test_user_app_next_lock_messages_are_specific_and_safe():
     content = _read("user-app-next.js")
     assert "function getUserAppLockedMessage" in content
