@@ -4316,9 +4316,9 @@
     return clickOriginal('#desktopNotificationsButton') || clickOriginal('#mobileNotificationsButton');
   }
 
-  function openProfileMenu() {
+  function openProfileMenu(event) {
     preserveLegacyOverlays();
-    if (hasFn('toggleMobileProfileMenu')) return window.toggleMobileProfileMenu();
+    if (hasFn('toggleMobileProfileMenu')) return window.toggleMobileProfileMenu(event);
     return clickOriginal('#desktopProfileButton') || clickOriginal('#mobileProfileButton');
   }
 
@@ -5025,7 +5025,7 @@
       return clickOriginal('#btnOpenAddVehicleModal');
     }
     if (name === 'notifications') return openNotificationsPanel(event);
-    if (name === 'profile') return openProfileMenu();
+    if (name === 'profile') return openProfileMenu(event);
     if (name === 'detail' && id) return openUserVehicleDetailModal(id);
     if (name === 'addRecord' && id) {
       if (hasFn('openAddServiceRecordModal')) return window.openAddServiceRecordModal(id);

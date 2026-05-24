@@ -1431,7 +1431,246 @@ body.user-app-next-active #appNotificationsPanel.app-notifications-dropdown:not(
 }
 
 body.user-app-next-active #mobileProfileMenu.mobile-profile-menu:not([hidden]) {
-  z-index: 12100 !important;
+  z-index: 12090 !important;
+}
+
+/* Profile dropdown — aligned with user-app-next dashboard */
+body.user-app-next-active #mobileProfileMenu.mobile-profile-menu {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: transparent;
+}
+
+body.user-app-next-active #mobileProfileMenu.mobile-profile-menu:not([hidden]) {
+  pointer-events: none;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-backdrop {
+  position: fixed;
+  inset: 0;
+  top: 0;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: default;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  body.user-app-next-active #mobileProfileMenu.mobile-profile-menu:not([hidden]) {
+    pointer-events: auto;
+  }
+
+  body.user-app-next-active #mobileProfileMenu .mobile-profile-backdrop {
+    background: rgba(15, 23, 42, 0.14);
+    pointer-events: auto;
+  }
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-sheet {
+  position: fixed;
+  width: min(360px, calc(100vw - 24px));
+  max-width: 380px;
+  max-height: min(calc(100dvh - 24px), 560px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 23px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: var(--uapp-text);
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.12), 0 4px 16px rgba(15, 23, 42, 0.06);
+  padding: 14px;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: auto;
+}
+
+body.user-app-next-active #mobileProfileMenu.is-open .mobile-profile-sheet {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 900px) {
+  body.user-app-next-active #mobileProfileMenu .mobile-profile-sheet {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: translateY(16px);
+  }
+
+  body.user-app-next-active #mobileProfileMenu.is-open .mobile-profile-sheet {
+    transform: translateY(0);
+  }
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 4px 2px 14px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: var(--uapp-pill-active);
+  color: var(--uapp-primary-bright);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--uapp-muted);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-email {
+  margin-top: 2px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--uapp-text);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-account-id {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--uapp-muted);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-license-row {
+  min-height: 48px;
+  padding: 10px 2px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--uapp-muted);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-license-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 62%;
+  padding: 0.28rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-license-badge--free {
+  background: #f2f4f7;
+  color: #475467;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-license-badge--trial {
+  background: #e8eefc;
+  color: var(--uapp-primary-bright);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-license-badge--premium {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-license-badge--warn {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-actions {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 10px 0 8px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--uapp-text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action:hover,
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action:focus-visible {
+  background: rgba(11, 31, 122, 0.05);
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(11, 31, 122, 0.18);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: #f2f4f7;
+  color: var(--uapp-primary);
+  flex-shrink: 0;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action-label {
+  min-width: 0;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action-chevron {
+  color: #98a2b3;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding-right: 2px;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action--danger {
+  margin-top: 4px;
+  background: #fef3f2;
+  color: #b42318;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action--danger .mobile-profile-action-icon {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action--danger:hover,
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action--danger:focus-visible {
+  background: #fee4e2;
+  box-shadow: inset 0 0 0 2px rgba(180, 35, 24, 0.22);
+}
+
+body.user-app-next-active #mobileProfileMenu .mobile-profile-action--danger .mobile-profile-action-chevron {
+  display: none;
 }
 
 .uapp-next-aside-access-item:last-child {

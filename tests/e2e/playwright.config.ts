@@ -95,6 +95,19 @@ const projects = [
     },
   },
   {
+    name: 'dashboard-profile-panel-chromium',
+    testMatch: /dashboard-profile-panel\.spec\.ts/,
+    dependencies: ['setup-auth'],
+    use: {
+      ...devices['Desktop Chrome'],
+      baseURL,
+      storageState: authStatePath,
+      launchOptions: {
+        env: browserEnv,
+      },
+    },
+  },
+  {
     name: 'react-vehicle-list-gated',
     testMatch: /react-vehicle-list-gated\.spec\.ts/,
     dependencies: ['setup-auth'],
