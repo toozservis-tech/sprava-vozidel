@@ -82,6 +82,21 @@ const projects = [
     },
   },
   {
+    name: 'ui-audit-bot-chromium',
+    testMatch: /audit-bot\/audit-crawler\.spec\.ts/,
+    dependencies: ['setup-auth'],
+    use: {
+      ...devices['Desktop Chrome'],
+      baseURL,
+      storageState: authStatePath,
+      launchOptions: {
+        env: browserEnv,
+      },
+      trace: 'off',
+      screenshot: 'off',
+    },
+  },
+  {
     name: 'dashboard-prehled-chromium',
     testMatch: /dashboard-prehled\.spec\.ts/,
     dependencies: ['setup-auth'],

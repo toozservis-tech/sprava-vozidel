@@ -41,3 +41,4 @@ tests/e2e/playwright-report/
 tests/e2e/.pw-*-report/
 tests/e2e/.playwright-browsers/
 artifacts/qa/playwright-report/
+artifacts/ui-audit/
