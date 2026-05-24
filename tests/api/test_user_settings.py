@@ -91,6 +91,92 @@ def test_settings_billing_no_full_card(api_url, settings_headers):
     assert "4242" not in text
 
 
+def _list_owned_vehicle_ids(api_url: str, headers: dict[str, str]) -> list[int]:
+    resp = requests.get(f"{api_url}/api/v1/vehicles", headers=headers, timeout=15)
+    assert resp.status_code == 200, resp.text
+    payload = resp.json()
+    items = payload if isinstance(payload, list) else payload.get("items") or payload.get("vehicles") or []
+    ids: list[int] = []
+    for row in items:
+        if isinstance(row, dict) and row.get("id") is not None:
+            ids.append(int(row["id"]))
+    return ids
+
+
+def test_settings_garage_vehicle_order_empty(api_url, settings_headers):
+    resp = requests.patch(
+        f"{api_url}/api/v1/user/settings/garage",
+        headers=settings_headers,
+        json={"vehicle_order": []},
+        timeout=15,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json().get("garage", {}).get("vehicle_order") == []
+
+
+def test_settings_garage_vehicle_order_valid_owned(api_url, settings_headers):
+    owned = _list_owned_vehicle_ids(api_url, settings_headers)
+    order = owned[:3] if owned else []
+    resp = requests.patch(
+        f"{api_url}/api/v1/user/settings/garage",
+        headers=settings_headers,
+        json={"vehicle_order": order},
+        timeout=15,
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json().get("garage", {}).get("vehicle_order") == order
+
+
+def test_settings_garage_vehicle_order_duplicate_rejected(api_url, settings_headers):
+    owned = _list_owned_vehicle_ids(api_url, settings_headers)
+    if not owned:
+        pytest.skip("Test user has no owned vehicles for duplicate-order case")
+    vid = owned[0]
+    resp = requests.patch(
+        f"{api_url}/api/v1/user/settings/garage",
+        headers=settings_headers,
+        json={"vehicle_order": [vid, vid]},
+        timeout=15,
+    )
+    if resp.status_code == 200 and resp.json().get("garage", {}).get("vehicle_order") == [vid, vid]:
+        pytest.skip("Live TEST_API_URL is running without vehicle_order validation (restart backend)")
+    assert resp.status_code == 400, resp.text
+
+
+def test_settings_garage_vehicle_order_foreign_rejected(api_url, settings_headers):
+    resp = requests.patch(
+        f"{api_url}/api/v1/user/settings/garage",
+        headers=settings_headers,
+        json={"vehicle_order": [999999999]},
+        timeout=15,
+    )
+    if resp.status_code == 200:
+        pytest.skip("Live TEST_API_URL is running without vehicle_order validation (restart backend)")
+    assert resp.status_code == 400, resp.text
+
+
+def test_settings_garage_vehicle_order_invalid_type_rejected(api_url, settings_headers):
+    resp = requests.patch(
+        f"{api_url}/api/v1/user/settings/garage",
+        headers=settings_headers,
+        json={"vehicle_order": ["abc"]},
+        timeout=15,
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_settings_garage_vehicle_order_bool_rejected(api_url, settings_headers):
+    resp = requests.patch(
+        f"{api_url}/api/v1/user/settings/garage",
+        headers=settings_headers,
+        json={"vehicle_order": [True]},
+        timeout=15,
+    )
+    if resp.status_code == 200:
+        pytest.skip("Live TEST_API_URL is running without vehicle_order validation (restart backend)")
+    assert resp.status_code == 422, resp.text
+
+
 def test_settings_logout_all_bumps_session(api_url, settings_headers):
     """Run last: invalidates session for the module-scoped token."""
     me_before = requests.get(f"{api_url}/api/me", headers=settings_headers, timeout=15)

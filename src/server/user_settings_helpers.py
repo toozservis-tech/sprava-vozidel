@@ -43,6 +43,7 @@ DEFAULT_USER_PREFERENCES: Dict[str, Any] = {
         "default_units": "metric",
         "default_currency": "CZK",
         "mdcr_auto_update": True,
+        "vehicle_order": [],
     },
     "documents": {
         "auto_sort": True,
@@ -251,6 +252,42 @@ def enforce_notification_rules(prefs: Dict[str, Any]) -> Dict[str, Any]:
             if isinstance(channels, dict):
                 channels["sms"] = False
     return out
+
+
+def validate_vehicle_order_ids(db: Session, customer: Customer, raw_order: Any) -> List[int]:
+    """Ověří, že vehicle_order obsahuje pouze unikátní ID vozidel vlastněných uživatelem."""
+    from fastapi import HTTPException
+
+    if not isinstance(raw_order, list):
+        raise HTTPException(status_code=400, detail="vehicle_order musí být seznam ID vozidel")
+
+    normalized: List[int] = []
+    seen: set[int] = set()
+    for item in raw_order:
+        if isinstance(item, bool) or not isinstance(item, int):
+            raise HTTPException(
+                status_code=400,
+                detail="vehicle_order musí obsahovat pouze celočíselná ID vozidel",
+            )
+        vid = int(item)
+        if vid <= 0:
+            raise HTTPException(status_code=400, detail="vehicle_order obsahuje neplatné ID vozidla")
+        if vid in seen:
+            raise HTTPException(status_code=400, detail="vehicle_order obsahuje duplicitní ID vozidla")
+        seen.add(vid)
+        normalized.append(vid)
+
+    if not normalized:
+        return []
+
+    owned = set(get_owned_vehicle_ids(db, customer, tenant_id=customer.tenant_id))
+    invalid = [vid for vid in normalized if vid not in owned]
+    if invalid:
+        raise HTTPException(
+            status_code=400,
+            detail="vehicle_order obsahuje vozidla, která nepatří aktuálnímu uživateli",
+        )
+    return normalized
 
 
 def format_address(customer: Customer) -> str:

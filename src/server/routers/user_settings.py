@@ -46,6 +46,7 @@ from src.server.user_settings_helpers import (
     mask_phone,
     password_strength_label,
     set_user_preferences,
+    validate_vehicle_order_ids,
 )
 
 
@@ -87,6 +88,7 @@ class SettingsGaragePatch(BaseModel):
     default_units: Optional[str] = Field(default=None, max_length=32)
     default_currency: Optional[str] = Field(default=None, max_length=16)
     mdcr_auto_update: Optional[bool] = None
+    vehicle_order: Optional[List[int]] = None
 
 
 class SettingsDocumentsPatch(BaseModel):
@@ -346,7 +348,12 @@ def patch_garage(
 ):
     customer = _require_customer(db, email)
     prefs = get_user_preferences(customer)
-    prefs = deep_merge(prefs, {"garage": payload.model_dump(exclude_unset=True)})
+    garage_patch = payload.model_dump(exclude_unset=True)
+    if "vehicle_order" in garage_patch:
+        garage_patch["vehicle_order"] = validate_vehicle_order_ids(
+            db, customer, garage_patch["vehicle_order"]
+        )
+    prefs = deep_merge(prefs, {"garage": garage_patch})
     set_user_preferences(customer, prefs)
     db.commit()
     log_user_activity(

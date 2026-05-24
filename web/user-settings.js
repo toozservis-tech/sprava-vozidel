@@ -19,6 +19,14 @@
     { id: 'support', label: 'Podpora', icon: 'globe' },
   ];
 
+  const FAQ_ITEMS = [
+    { label: 'Začínáme se správou vozidel', action: 'faq:getting-started', tutorialId: 'add-vehicle' },
+    { label: 'Přidávání vozidel a dokumentů', action: 'faq:vehicles-documents', tutorialId: 'documents' },
+    { label: 'Servisy, připomínky a historie', action: 'faq:services-reminders', tutorialId: 'service-partners' },
+    { label: 'Fakturace a tarify', action: 'faq:billing', panel: 'license' },
+    { label: 'Účet a zabezpečení', action: 'faq:account-security', panel: 'security' },
+  ];
+
   const STATE = {
     panel: 'profile',
     search: '',
@@ -83,8 +91,9 @@
     return `<div class="uapp-settings-progress"><div class="uapp-settings-progress-bar" style="width:${pct}%"></div></div>`;
   }
 
-  function toggleHtml(checked, disabled) {
-    return `<button type="button" class="uapp-settings-toggle${checked ? ' is-on' : ''}${disabled ? ' is-disabled' : ''}" ${disabled ? 'disabled' : ''} role="switch" aria-checked="${checked ? 'true' : 'false'}"><span class="uapp-settings-toggle-knob"></span></button>`;
+  function toggleHtml(checked, disabled, toggleKey) {
+    const keyAttr = toggleKey ? ` data-uapp-settings-toggle="${esc(toggleKey)}"` : '';
+    return `<button type="button" class="uapp-settings-toggle${checked ? ' is-on' : ''}${disabled ? ' is-disabled' : ''}"${keyAttr} ${disabled ? 'disabled' : ''} role="switch" aria-checked="${checked ? 'true' : 'false'}"><span class="uapp-settings-toggle-knob"></span></button>`;
   }
 
   function badge(text, tone) {
@@ -496,6 +505,7 @@
     const prefs = (snapshot && snapshot.preferences && snapshot.preferences.notifications) || {};
     const channels = prefs.channels || {};
     const types = prefs.types || {};
+    const quiet = String(prefs.quiet_mode || 'off');
     const typeRows = [
       ['service_reminders', 'Připomínky servisu a údržby'],
       ['documents', 'Dokumenty'],
@@ -506,13 +516,13 @@
     return `
       <div class="uapp-settings-panel-head"><span class="uapp-settings-panel-ico">🔔</span><div><h2>Oznámení</h2><p>Spravujte kanály a typy oznámení</p></div></div>
       <section class="uapp-settings-card"><h3>Obecná nastavení oznámení</h3>
-        <div class="uapp-settings-row-line"><span>Hlavní přepínač</span>${toggleHtml(prefs.master !== false)}</div>
-        <label>Tichý režim<select data-uapp-settings-field="quiet_mode"><option value="off">Vypnuto</option><option value="1h">1 hodina</option><option value="today">Dnes</option></select></label>
+        <div class="uapp-settings-row-line"><span>Hlavní přepínač</span>${toggleHtml(prefs.master !== false, false, 'notify.master')}</div>
+        <label>Tichý režim<select data-uapp-settings-field="quiet_mode"><option value="off"${quiet === 'off' ? ' selected' : ''}>Vypnuto</option><option value="1h"${quiet === '1h' ? ' selected' : ''}>1 hodina</option><option value="today"${quiet === 'today' ? ' selected' : ''}>Dnes</option></select></label>
       </section>
       <section class="uapp-settings-card" id="uappSettingsChannels"><h3>Kanály oznámení</h3>
-        <div class="uapp-settings-row-line"><div><strong>E-mail</strong><span>${esc((snapshot.profile && snapshot.profile.email_masked) || '')}</span></div>${toggleHtml(channels.email !== false)}</div>
+        <div class="uapp-settings-row-line"><div><strong>E-mail</strong><span>${esc((snapshot.profile && snapshot.profile.email_masked) || '')}</span></div>${toggleHtml(channels.email !== false, false, 'notify.email')}</div>
         <div class="uapp-settings-row-line"><div><strong>SMS</strong><span>${esc((snapshot.profile && snapshot.profile.phone_masked) || '')}</span></div>${badge('Neověřeno', 'orange')}</div>
-        <div class="uapp-settings-row-line"><div><strong>Push oznámení</strong></div>${toggleHtml(channels.push !== false)}</div>
+        <div class="uapp-settings-row-line"><div><strong>Push oznámení</strong></div>${toggleHtml(channels.push !== false, false, 'notify.push')}</div>
       </section>
       <section class="uapp-settings-card"><h3>Typy oznámení</h3>
         <table class="uapp-settings-matrix"><thead><tr><th>Typ</th><th>E-mail</th><th>SMS</th><th>Push</th></tr></thead><tbody>
@@ -540,7 +550,7 @@
       <section class="uapp-settings-card"><h3>Výchozí nastavení vozidel</h3>
         <label>Jednotky<select data-uapp-settings-field="default_units"><option value="metric">Metrické (km, °C, l)</option></select></label>
         <label>Měna<select data-uapp-settings-field="default_currency"><option value="CZK">CZK – Kč</option></select></label>
-        <div class="uapp-settings-row-line"><span>Automatická aktualizace dat vozidel (MDČR)</span>${toggleHtml(prefs.mdcr_auto_update !== false)}</div>
+        <div class="uapp-settings-row-line"><span>Automatická aktualizace dat vozidel (MDČR)</span>${toggleHtml(prefs.mdcr_auto_update !== false, false, 'garage.mdcr_auto_update')}</div>
         <button type="button" class="uapp-settings-btn" data-uapp-settings-action="save-garage">Uložit</button>
       </section>
       <section class="uapp-settings-card"><h3>Sdílení vozidel</h3><button type="button" class="uapp-settings-btn" data-uapp-settings-action="panel:services-sharing">Spravovat sdílení</button></section>
@@ -554,8 +564,8 @@
       <div class="uapp-settings-panel-head"><span class="uapp-settings-panel-ico">📁</span><div><h2>Dokumenty</h2><p>Nastavení úložiště a organizace dokumentů</p></div></div>
       <section class="uapp-settings-card"><h3>Nastavení úložiště</h3><p>Maximální velikost souboru: <strong>25 MB</strong></p><p>Celkem dokumentů: <strong>${esc(String(doc.total || 0))}</strong></p><button type="button" class="uapp-settings-link" data-uapp-settings-action="nav:documents">Spravovat úložiště</button></section>
       <section class="uapp-settings-card"><h3>Organizace dokumentů</h3>
-        <div class="uapp-settings-row-line"><span>Automatické řazení</span>${toggleHtml(prefs.auto_sort !== false)}</div>
-        <div class="uapp-settings-row-line"><span>Pojmenování souborů</span>${toggleHtml(prefs.smart_naming !== false)}</div>
+        <div class="uapp-settings-row-line"><span>Automatické řazení</span>${toggleHtml(prefs.auto_sort !== false, false, 'documents.auto_sort')}</div>
+        <div class="uapp-settings-row-line"><span>Pojmenování souborů</span>${toggleHtml(prefs.smart_naming !== false, false, 'documents.smart_naming')}</div>
         <button type="button" class="uapp-settings-btn" data-uapp-settings-action="save-documents">Uložit</button>
       </section>
       <section class="uapp-settings-card"><h3>Zálohování a bezpečnost</h3><p>Pravidelné zálohování: <strong class="is-green">Aktivní</strong></p><p>Skenování malware: <strong class="is-green">Aktivní</strong> <small>(status)</small></p></section>`;
@@ -589,8 +599,8 @@
         ${sharing.length ? `<table class="uapp-settings-table"><thead><tr><th>Servis</th><th>Vozidlo</th><th>Přístup</th><th>Stav</th></tr></thead><tbody>${sharing.map((r) => `<tr><td>${esc(r.service_name)}</td><td>${esc(r.vehicle_name)}</td><td>${esc(r.access_level)}</td><td>${esc(r.status)}</td></tr>`).join('')}</tbody></table>` : '<p class="uapp-settings-muted">Žádné sdílení.</p>'}
       </section>
       <section class="uapp-settings-card"><h3>Komunikace se servisy</h3>
-        <div class="uapp-settings-row-line"><span>Povolit servisům přístup k vozidlům</span>${toggleHtml((data.communication && data.communication.allow_vehicle_access) !== false)}</div>
-        <div class="uapp-settings-row-line"><span>Povolit komunikaci se servisy</span>${toggleHtml((data.communication && data.communication.allow_communication) !== false)}</div>
+        <div class="uapp-settings-row-line"><span>Povolit servisům přístup k vozidlům</span>${toggleHtml((data.communication && data.communication.allow_vehicle_access) !== false, false, 'services.allow_vehicle_access')}</div>
+        <div class="uapp-settings-row-line"><span>Povolit komunikaci se servisy</span>${toggleHtml((data.communication && data.communication.allow_communication) !== false, false, 'services.allow_communication')}</div>
         <button type="button" class="uapp-settings-btn" data-uapp-settings-action="save-services">Uložit</button>
       </section>`;
   }
@@ -605,9 +615,9 @@
         <div class="uapp-settings-row-line"><span>Oznámení</span>${badge('Povoleno', 'green')}</div>
       </section>
       <section class="uapp-settings-card"><h3>Ochrana osobních údajů</h3>
-        <div class="uapp-settings-row-line"><span>Sdílení dat s třetími stranami</span>${badge(priv.third_party ? 'Povoleno' : 'Zakázáno', priv.third_party ? 'green' : 'red')}</div>
-        <div class="uapp-settings-row-line"><span>Personalizace</span>${badge(priv.personalization !== false ? 'Povoleno' : 'Zakázáno', 'green')}</div>
-        <div class="uapp-settings-row-line"><span>Marketingová oznámení</span>${badge(priv.marketing ? 'Povoleno' : 'Zakázáno', priv.marketing ? 'green' : 'red')}</div>
+        <div class="uapp-settings-row-line"><span>Sdílení dat s třetími stranami</span>${toggleHtml(!!priv.third_party, false, 'privacy.third_party')}</div>
+        <div class="uapp-settings-row-line"><span>Personalizace</span>${toggleHtml(priv.personalization !== false, false, 'privacy.personalization')}</div>
+        <div class="uapp-settings-row-line"><span>Marketingová oznámení</span>${toggleHtml(!!priv.marketing, false, 'privacy.marketing')}</div>
         <button type="button" class="uapp-settings-btn" data-uapp-settings-action="save-privacy">Uložit</button>
       </section>
       <section class="uapp-settings-card"><h3>Správa a export dat</h3>
@@ -619,8 +629,8 @@
   function renderPanelSupport() {
     return `
       <div class="uapp-settings-panel-head"><span class="uapp-settings-panel-ico">🌐</span><div><h2>Podpora</h2><p>Získejte pomoc, nápovědu a kontaktujte tým podpory</p></div></div>
-      <section class="uapp-settings-card"><h3>Časté dotazy</h3>
-        ${['Začínáme se správou vozidel', 'Přidávání vozidel a dokumentů', 'Servisy, připomínky a historie', 'Fakturace a tarify', 'Účet a zabezpečení'].map((q) => `<button type="button" class="uapp-settings-faq-row">${esc(q)} <span>›</span></button>`).join('')}
+      <section class="uapp-settings-card" id="uappSettingsSupportFaq"><h3>Časté dotazy</h3>
+        ${FAQ_ITEMS.map((item) => `<button type="button" class="uapp-settings-faq-row" data-uapp-settings-action="${esc(item.action)}">${esc(item.label)} <span>›</span></button>`).join('')}
       </section>
       <section class="uapp-settings-card"><h3>Kontaktujte podporu</h3>
         ${supportContactRow('✉️', 'Napsat e-mail', 'Odpovíme vám co nejdříve', `<a class="uapp-settings-link" href="${SUPPORT_MAILTO}">${esc(SUPPORT_EMAIL)}</a>`)}
@@ -719,6 +729,33 @@
     await loadSnapshot(true);
   }
 
+  function collectToggleState(root, key) {
+    const el = root && root.querySelector(`[data-uapp-settings-toggle="${key}"]`);
+    if (!el) return null;
+    return el.classList.contains('is-on');
+  }
+
+  function leaveSettingsToTab(tab, options) {
+    if (hasFn('switchTab')) window.switchTab(tab, options || {});
+  }
+
+  function openFaqItem(item) {
+    if (!item) return;
+    if (item.panel) {
+      navigatePanel(item.panel);
+      return;
+    }
+    if (item.tutorialId && hasFn('openHowToHubModal')) {
+      window.openHowToHubModal();
+      window.setTimeout(() => {
+        const btn = document.querySelector(`[data-tutorial-id="${item.tutorialId}"]`);
+        if (btn) btn.click();
+      }, 120);
+      return;
+    }
+    if (hasFn('openHowToHubModal')) window.openHowToHubModal();
+  }
+
   async function saveNotifications(root) {
     const types = {};
     root.querySelectorAll('[data-notify-type]').forEach((el) => {
@@ -727,8 +764,60 @@
       types[spec[0]] = types[spec[0]] || {};
       types[spec[0]][spec[1]] = el.checked;
     });
-    await api(`${API_BASE}/notifications`, 'PATCH', { types });
+    const quietEl = root.querySelector('[data-uapp-settings-field="quiet_mode"]');
+    await api(`${API_BASE}/notifications`, 'PATCH', {
+      master: collectToggleState(root, 'notify.master') !== false,
+      quiet_mode: quietEl ? quietEl.value : 'off',
+      channels: {
+        email: collectToggleState(root, 'notify.email') !== false,
+        push: collectToggleState(root, 'notify.push') !== false,
+        sms: false,
+      },
+      types,
+    });
     showMsg('Nastavení oznámení uloženo.', 'success');
+    await loadSnapshot(true);
+  }
+
+  async function saveGaragePrefs(root) {
+    const draft = collectProfileDraft(root);
+    await api(`${API_BASE}/garage`, 'PATCH', {
+      default_units: draft.default_units || 'metric',
+      default_currency: draft.default_currency || 'CZK',
+      mdcr_auto_update: collectToggleState(root, 'garage.mdcr_auto_update') !== false,
+    });
+    showMsg('Nastavení garáže uloženo.', 'success');
+    await loadSnapshot(true);
+  }
+
+  async function saveDocumentsPrefs(root) {
+    await api(`${API_BASE}/documents`, 'PATCH', {
+      auto_sort: collectToggleState(root, 'documents.auto_sort') !== false,
+      smart_naming: collectToggleState(root, 'documents.smart_naming') !== false,
+    });
+    showMsg('Nastavení dokumentů uloženo.', 'success');
+    if (STATE.panel === 'documents') await loadPanelData('documents');
+  }
+
+  async function saveServicesPrefs(root) {
+    await api(`${API_BASE}/services`, 'PATCH', {
+      allow_vehicle_access: collectToggleState(root, 'services.allow_vehicle_access') !== false,
+      allow_communication: collectToggleState(root, 'services.allow_communication') !== false,
+    });
+    showMsg('Nastavení komunikace uloženo.', 'success');
+    await loadPanelData('services-sharing');
+    refresh();
+  }
+
+  async function savePrivacyPrefs(root) {
+    await api(`${API_BASE}/privacy`, 'PATCH', {
+      third_party: collectToggleState(root, 'privacy.third_party') === true,
+      personalization: collectToggleState(root, 'privacy.personalization') !== false,
+      marketing: collectToggleState(root, 'privacy.marketing') === true,
+    });
+    showMsg('Nastavení soukromí uloženo.', 'success');
+    await loadSnapshot(true);
+    refresh();
   }
 
   async function handleAction(action, event) {
@@ -740,15 +829,20 @@
       return;
     }
     if (action === 'save-profile' && root) { try { await saveProfile(root); refresh(); } catch (e) { showMsg(e.message || 'Uložení selhalo', 'error'); } return; }
-    if (action === 'save-notifications' && root) { try { await saveNotifications(root); } catch (e) { showMsg(e.message || 'Uložení selhalo', 'error'); } return; }
-    if (action === 'save-garage') { try { await api(`${API_BASE}/garage`, 'PATCH', { mdcr_auto_update: true }); showMsg('Uloženo.', 'success'); } catch (e) { showMsg(e.message, 'error'); } return; }
-    if (action === 'save-privacy') { try { await api(`${API_BASE}/privacy`, 'PATCH', { marketing: false, third_party: false }); showMsg('Uloženo.', 'success'); await loadSnapshot(true); refresh(); } catch (e) { showMsg(e.message, 'error'); } return; }
-    if (action === 'save-services') { try { await api(`${API_BASE}/services`, 'PATCH', { allow_vehicle_access: true, allow_communication: true }); showMsg('Uloženo.', 'success'); } catch (e) { showMsg(e.message, 'error'); } return; }
-    if (action === 'save-documents') { try { await api(`${API_BASE}/documents`, 'PATCH', { auto_sort: true, smart_naming: true }); showMsg('Uloženo.', 'success'); } catch (e) { showMsg(e.message, 'error'); } return; }
+    if (action === 'save-notifications' && root) { try { await saveNotifications(root); refresh(); } catch (e) { showMsg(e.message || 'Uložení selhalo', 'error'); } return; }
+    if (action === 'save-garage' && root) { try { await saveGaragePrefs(root); refresh(); } catch (e) { showMsg(e.message, 'error'); } return; }
+    if (action === 'save-privacy' && root) { try { await savePrivacyPrefs(root); } catch (e) { showMsg(e.message, 'error'); } return; }
+    if (action === 'save-services' && root) { try { await saveServicesPrefs(root); } catch (e) { showMsg(e.message, 'error'); } return; }
+    if (action === 'save-documents' && root) { try { await saveDocumentsPrefs(root); refresh(); } catch (e) { showMsg(e.message, 'error'); } return; }
+    if (action.startsWith('faq:')) {
+      const item = FAQ_ITEMS.find((f) => f.action === action);
+      openFaqItem(item);
+      return;
+    }
     if (action === 'open-license') { if (hasFn('openLicenseModal')) window.openLicenseModal(); else showMsg('Modul licencí není dostupný.', 'warning'); return; }
-    if (action === 'add-vehicle') { if (hasFn('openAddVehicleModal')) window.openAddVehicleModal(); return; }
-    if (action === 'upload-document') { if (hasFn('switchTab')) { window.switchTab('documents'); } return; }
-    if (action.startsWith('nav:')) { const tab = action.split(':')[1]; if (hasFn('switchTab')) window.switchTab(tab === 'servicesDirectory' ? 'servicesDirectory' : tab); return; }
+    if (action === 'add-vehicle') { if (hasFn('openAddVehicleModal')) window.openAddVehicleModal(); else leaveSettingsToTab('vehicles', { expandVehiclesAdd: true }); return; }
+    if (action === 'upload-document') { leaveSettingsToTab('documents'); return; }
+    if (action.startsWith('nav:')) { const tab = action.split(':')[1]; leaveSettingsToTab(tab === 'servicesDirectory' ? 'servicesDirectory' : tab); return; }
     if (action === 'export-data') {
       try {
         if (!hasFn('apiCall')) throw new Error('API není dostupné');
@@ -824,9 +918,9 @@
       return;
     }
     if (action === 'open-help') {
-      const pageRoot = getPageRoot();
-      const faq = pageRoot && pageRoot.querySelector('.uapp-settings-faq-row');
-      if (faq) faq.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (hasFn('openHowToHubModal')) { window.openHowToHubModal(); return; }
+      const faq = document.getElementById('uappSettingsSupportFaq');
+      if (faq) faq.scrollIntoView({ behavior: 'smooth', block: 'start' });
       else showMsg('Nápověda — rozbalte sekci Časté dotazy níže.', 'info');
       return;
     }
@@ -840,6 +934,13 @@
   function bindEvents(root) {
     if (!root) return;
     root.addEventListener('click', (ev) => {
+      const toggle = ev.target.closest('[data-uapp-settings-toggle]');
+      if (toggle && !toggle.disabled) {
+        ev.preventDefault();
+        toggle.classList.toggle('is-on');
+        toggle.setAttribute('aria-checked', toggle.classList.contains('is-on') ? 'true' : 'false');
+        return;
+      }
       const btn = ev.target.closest('[data-uapp-settings-action]');
       if (!btn) return;
       ev.preventDefault();
