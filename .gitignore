@@ -39,4 +39,5 @@ private_key.pem
 # Test report artifacts (regenerated locally)
 tests/e2e/playwright-report/
 tests/e2e/.pw-*-report/
+tests/e2e/.playwright-browsers/
 artifacts/qa/playwright-report/
