@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/web/app.css" />
     <link rel="stylesheet" href="/web/inline-styles.css" />
     <link rel="stylesheet" href="/web/service-shell.css?v=2026050720" />
-    <link rel="stylesheet" href="/web/user-app-next.css?v=202605237" />
+    <link rel="stylesheet" href="/web/user-app-next.css?v=20260524docpreview2" />
     <style>
         * {
             margin: 0;
@@ -11556,8 +11556,9 @@
         /* Nad .reminder-modal-overlay (theme.css z-index: 10000) a nad běžnými vehicle-modal vrstvami. */
         #vehiclePhotoCropModal.active,
         #vehiclePhotoLightboxModal.active,
-        #vehicleLargeTpPreviewModal.active {
-            z-index: 10150 !important;
+        #vehicleLargeTpPreviewModal.active,
+        #attachmentPreviewModal.active {
+            z-index: 2147483200 !important;
         }
 
         .vehicle-modal-content {
@@ -22616,6 +22617,81 @@
             background: rgba(248, 250, 252, 0.04);
         }
 
+        .doc-preview-modal .vehicle-modal-content {
+            max-width: min(960px, 96vw);
+            width: min(960px, 96vw);
+            max-height: min(92vh, 900px);
+        }
+
+        .doc-preview-shell {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .doc-preview-header {
+            flex-shrink: 0;
+        }
+
+        .doc-preview-title {
+            margin: 0;
+            font-size: 1.08rem;
+        }
+
+        .doc-preview-loading {
+            flex: 1;
+            min-height: 240px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: #94a3b8;
+            font-size: 15px;
+        }
+
+        .doc-preview-body {
+            flex: 1 1 auto;
+            min-height: min(62vh, 560px);
+            margin: 0 16px 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .doc-preview-frame {
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: min(58vh, 520px);
+            height: min(62vh, 560px);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 8px;
+            background: #525659;
+            box-sizing: border-box;
+        }
+
+        .doc-preview-image {
+            flex: 1 1 auto;
+            max-width: 100%;
+            max-height: min(62vh, 560px);
+            margin: 0 auto;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: #f1f5f9;
+        }
+
+        .doc-preview-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 14px 18px 18px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            background: rgba(248, 250, 252, 0.04);
+            flex-shrink: 0;
+        }
+
         .vehicle-primary-source-details {
             position: relative;
             display: inline-block;
@@ -29532,7 +29608,9 @@
         }
 
         .app-floating-modal-root > .reminder-modal-overlay,
-        .app-floating-modal-root > .service-shell-modal-overlay {
+        .app-floating-modal-root > .service-shell-modal-overlay,
+        .app-floating-modal-root > .uapp-next-float-backdrop,
+        .app-floating-modal-root > .vehicle-detail-floating-overlay {
             pointer-events: auto;
             z-index: 2147483001 !important;
         }
@@ -36497,7 +36575,7 @@
 
             const root = document.createElement('div');
             root.id = APP_FLOATING_MODAL_ROOT_ID;
-            root.className = 'app-floating-modal-root';
+            root.className = 'app-floating-modal-root' + (document.body.classList.contains('user-app-next-active') ? ' uapp-next-floating-root' : '');
             root.dataset.locked = '1';
             root.innerHTML = String(modalHtml);
             document.body.appendChild(root);
@@ -36761,6 +36839,75 @@
                 clientGeoRefreshTimer = null;
             }
         }
+
+        function waitForClientGeolocation(timeoutMs, options) {
+            const timeout = Math.max(1000, Number(timeoutMs) || 8000);
+            const force = Boolean(options && options.force);
+            return new Promise((resolve, reject) => {
+                if (typeof navigator === 'undefined' || !navigator.geolocation) {
+                    reject(new Error('Geolokace není podporována v tomto prohlížeči.'));
+                    return;
+                }
+                if (force) {
+                    clearClientGeoTelemetry();
+                    clientGeoLastAttemptAt = 0;
+                }
+                const timer = setTimeout(() => {
+                    reject(new Error('Vypršel časový limit pro načtení polohy.'));
+                }, timeout);
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        clearTimeout(timer);
+                        const coords = position && position.coords ? position.coords : null;
+                        if (!coords) {
+                            reject(new Error('Poloha není k dispozici.'));
+                            return;
+                        }
+                        const lat = Number(coords.latitude);
+                        const lon = Number(coords.longitude);
+                        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                            reject(new Error('Neplatné GPS souřadnice.'));
+                            return;
+                        }
+                        const payload = {
+                            lat: Number(lat.toFixed(6)),
+                            lon: Number(lon.toFixed(6)),
+                            accuracy: Number.isFinite(Number(coords.accuracy)) ? Math.round(Number(coords.accuracy)) : null,
+                            capturedAtMs: Date.now(),
+                        };
+                        saveClientGeoTelemetry(payload);
+                        resolve(payload);
+                    },
+                    (error) => {
+                        clearTimeout(timer);
+                        const code = error && error.code;
+                        if (code === 1) {
+                            reject(new Error('Přístup k poloze byl zamítnut. Povolte GPS v prohlížeči.'));
+                            return;
+                        }
+                        if (code === 2) {
+                            reject(new Error('Polohu se nepodařilo určit.'));
+                            return;
+                        }
+                        if (code === 3) {
+                            reject(new Error('Vypršel časový limit pro načtení polohy.'));
+                            return;
+                        }
+                        reject(new Error('Polohu se nepodařilo načíst.'));
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: Math.max(1000, Math.min(timeout - 500, 15000)),
+                        maximumAge: force ? 0 : 300000,
+                    }
+                );
+            });
+        }
+
+        window.clearClientGeoTelemetry = clearClientGeoTelemetry;
+        window.getClientGeoTelemetryForHeaders = getClientGeoTelemetryForHeaders;
+        window.captureClientGeolocation = captureClientGeolocation;
+        window.waitForClientGeolocation = waitForClientGeolocation;
 
         let authStoryTimer = null;
 
@@ -37077,41 +37224,264 @@
                 emailEl.title = email || '';
             }
             if (licenseEl) {
-                const licenseLabel = document.getElementById('licenseQuickLabel')?.textContent?.trim();
-                licenseEl.textContent = licenseLabel || 'Licence';
-                licenseEl.title = licenseLabel || '';
+                const badge = resolveMobileProfileLicenseBadgeText();
+                licenseEl.textContent = badge.text;
+                licenseEl.title = badge.title || badge.text;
+                applyMobileProfileLicenseBadgeClass(licenseEl, badge.loading);
             }
+        }
+
+        function resolveMobileProfileLicenseBadgeText() {
+            const ui = window.__profileTopbarLicenseUi;
+            if (ui && ui.trial_active) {
+                const raw = ui.trial_days_remaining;
+                if (raw != null && raw !== '' && Number.isFinite(Number(raw))) {
+                    const days = Math.max(0, Math.floor(Number(raw)));
+                    return { text: `Trial ${days} dní`, title: `Trial Premium – zbývá ${days} dní`, loading: false };
+                }
+                return { text: 'Trial', title: 'Trial Premium', loading: false };
+            }
+            if (ui) {
+                const plan = String(ui.plan_public_label || ui.display_plan || '').trim();
+                if (plan && !/^free$/i.test(plan)) {
+                    const label = plan.replace(/_/g, ' ');
+                    return { text: label, title: label, loading: false };
+                }
+            }
+            const labelRaw = document.getElementById('licenseQuickLabel')?.textContent?.trim() || '';
+            const currentRaw = document.getElementById('licenseQuickCurrent')?.textContent?.trim() || '';
+            if (/načítám|loading/i.test(labelRaw) || /načítám|loading/i.test(currentRaw)) {
+                return { text: 'Načítám…', title: 'Načítám stav licence', loading: true };
+            }
+            if (/trial|zkušeb/i.test(labelRaw) || /trial/i.test(currentRaw)) {
+                const daysMatch = currentRaw.match(/(\d+)\s*d(en|ny|ní)/i) || labelRaw.match(/(\d+)\s*d(ní|ny|en)/i);
+                if (daysMatch) {
+                    return { text: `Trial ${daysMatch[1]} dní`, title: currentRaw || labelRaw, loading: false };
+                }
+                return { text: 'Trial', title: currentRaw || labelRaw, loading: false };
+            }
+            const stripped = labelRaw.replace(/^Licence(?: servisu)?:\s*/i, '').trim();
+            if (stripped && !/^licence$/i.test(stripped)) {
+                return { text: stripped, title: labelRaw, loading: false };
+            }
+            return { text: 'Licence', title: 'Licence', loading: false };
+        }
+
+        function applyMobileProfileLicenseBadgeClass(licenseEl, isLoading) {
+            if (!licenseEl) return;
+            licenseEl.classList.add('mobile-profile-license-badge');
+            const text = String(licenseEl.textContent || '').trim().toLowerCase();
+            licenseEl.classList.remove(
+                'mobile-profile-license-badge--trial',
+                'mobile-profile-license-badge--premium',
+                'mobile-profile-license-badge--free',
+                'mobile-profile-license-badge--warn',
+            );
+            if (isLoading || /načítám|loading/.test(text)) {
+                licenseEl.classList.add('mobile-profile-license-badge--free');
+            } else if (!text || text === 'licence') {
+                licenseEl.classList.add('mobile-profile-license-badge--free');
+            } else if (/trial|zkušeb|zbyvá|zbyva/.test(text)) {
+                licenseEl.classList.add('mobile-profile-license-badge--trial');
+            } else if (/expi|vyprš|vyprs|neaktiv|pozastav|problém|problem|expired|blocked/.test(text)) {
+                licenseEl.classList.add('mobile-profile-license-badge--warn');
+            } else if (/premium|pro|basic|business|active|aktiv/.test(text)) {
+                licenseEl.classList.add('mobile-profile-license-badge--premium');
+            } else {
+                licenseEl.classList.add('mobile-profile-license-badge--premium');
+            }
+        }
+
+        function getMobileProfileMenuAnchor() {
+            const nextProfile = document.querySelector(
+                '[data-testid="dashboard-profile"], .uapp-settings-profile-btn[data-uapp-action="profile"]',
+            );
+            if (nextProfile && document.body.classList.contains('user-app-next-active')) return nextProfile;
+            return document.getElementById('desktopProfileButton') || document.getElementById('mobileProfileButton');
+        }
+
+        function resolveMobileProfileMenuAnchor(ev) {
+            if (ev && ev.target && typeof ev.target.closest === 'function') {
+                const fromTarget = ev.target.closest(
+                    '[data-testid="dashboard-profile"], .uapp-settings-profile-btn, #mobileProfileButton, #desktopProfileButton',
+                );
+                if (fromTarget) return fromTarget;
+            }
+            if (ev && ev.currentTarget && ev.currentTarget.nodeType === 1) {
+                return ev.currentTarget;
+            }
+            return getMobileProfileMenuAnchor();
+        }
+
+        function resetMobileProfileMenuSheetPosition() {
+            const sheet = document.getElementById('mobileProfileMenu')?.querySelector('.mobile-profile-sheet');
+            if (!sheet) return;
+            sheet.style.position = '';
+            sheet.style.top = '';
+            sheet.style.left = '';
+            sheet.style.right = '';
+            sheet.style.bottom = '';
+            sheet.style.width = '';
+            sheet.style.maxWidth = '';
+            sheet.style.transform = '';
+        }
+
+        function positionMobileProfileMenu(anchorEl) {
+            const menu = document.getElementById('mobileProfileMenu');
+            const sheet = menu?.querySelector('.mobile-profile-sheet');
+            if (!menu || menu.hidden || !sheet) return;
+
+            let anchor = anchorEl;
+            if (!anchor || typeof anchor.getBoundingClientRect !== 'function') {
+                anchor = getMobileProfileMenuAnchor();
+            }
+            const isUserAppNext = document.body.classList.contains('user-app-next-active');
+            const isDesktopPopover = isUserAppNext && window.matchMedia('(min-width: 901px)').matches;
+
+            if (isDesktopPopover) {
+                const rect = anchor && typeof anchor.getBoundingClientRect === 'function' ? anchor.getBoundingClientRect() : null;
+                const width = Math.min(360, Math.max(320, window.innerWidth - 24));
+                let left = rect ? rect.right - width : window.innerWidth - width - 12;
+                if (left < 12) left = 12;
+                if (left + width > window.innerWidth - 12) {
+                    left = Math.max(12, window.innerWidth - width - 12);
+                }
+                const top = rect ? Math.max(12, rect.bottom + 8) : 72;
+                sheet.style.position = 'fixed';
+                sheet.style.width = `${width}px`;
+                sheet.style.maxWidth = `${width}px`;
+                sheet.style.left = `${left}px`;
+                sheet.style.top = `${top}px`;
+                sheet.style.right = 'auto';
+                sheet.style.bottom = 'auto';
+            } else if (isUserAppNext) {
+                sheet.style.position = 'fixed';
+                sheet.style.left = '12px';
+                sheet.style.right = '12px';
+                sheet.style.bottom = 'max(12px, env(safe-area-inset-bottom, 0px))';
+                sheet.style.top = 'auto';
+                sheet.style.width = 'auto';
+                sheet.style.maxWidth = 'none';
+            } else {
+                resetMobileProfileMenuSheetPosition();
+            }
+        }
+
+        function bindMobileProfileMenuInteractionsOnce() {
+            if (window.__mobileProfileMenuDocBound) return;
+            window.__mobileProfileMenuDocBound = true;
+
+            document.addEventListener(
+                'click',
+                (ev) => {
+                    const menu = document.getElementById('mobileProfileMenu');
+                    if (!menu || menu.hidden) return;
+                    const t = ev.target;
+                    if (menu.contains(t)) return;
+                    if (
+                        t &&
+                        t.closest &&
+                        (t.closest('[data-testid="dashboard-profile"]') ||
+                            t.closest('.uapp-settings-profile-btn[data-uapp-action="profile"]') ||
+                            t.closest('#mobileProfileButton') ||
+                            t.closest('#desktopProfileButton'))
+                    ) {
+                        return;
+                    }
+                    closeMobileProfileMenu();
+                },
+                false,
+            );
+
+            document.addEventListener('keydown', (ev) => {
+                if (ev.key !== 'Escape') return;
+                const menu = document.getElementById('mobileProfileMenu');
+                if (menu && !menu.hidden) {
+                    ev.preventDefault();
+                    closeMobileProfileMenu();
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                const menu = document.getElementById('mobileProfileMenu');
+                if (menu && !menu.hidden) positionMobileProfileMenu(getMobileProfileMenuAnchor());
+            });
         }
 
         function setMobileProfileMenuOpen(isOpen) {
             const menu = document.getElementById('mobileProfileMenu');
             const mobileBtn = document.getElementById('mobileProfileButton');
             const desktopBtn = document.getElementById('desktopProfileButton');
+            const nextProfileBtn = document.querySelector(
+                '[data-testid="dashboard-profile"], .uapp-settings-profile-btn[data-uapp-action="profile"]',
+            );
             if (!menu) return;
 
             if (isOpen) {
                 syncMobileProfileMenu();
                 menu.hidden = false;
                 menu.setAttribute('aria-hidden', 'false');
+                menu.classList.add('is-open');
+                requestAnimationFrame(() => {
+                    positionMobileProfileMenu(getMobileProfileMenuAnchor());
+                    menu.classList.add('is-open');
+                });
             } else {
                 menu.hidden = true;
                 menu.setAttribute('aria-hidden', 'true');
+                menu.classList.remove('is-open');
+                resetMobileProfileMenuSheetPosition();
             }
             const expanded = isOpen ? 'true' : 'false';
             if (mobileBtn) mobileBtn.setAttribute('aria-expanded', expanded);
             if (desktopBtn) desktopBtn.setAttribute('aria-expanded', expanded);
+            if (nextProfileBtn) nextProfileBtn.setAttribute('aria-expanded', expanded);
         }
 
         function closeMobileProfileMenu() {
             setMobileProfileMenuOpen(false);
         }
 
-        function toggleMobileProfileMenu() {
+        function toggleMobileProfileMenu(ev) {
             const menu = document.getElementById('mobileProfileMenu');
             if (!menu) return;
+            bindMobileProfileMenuInteractionsOnce();
             closeMobileNavbarMenu();
-            setMobileProfileMenuOpen(menu.hidden);
+            const willOpen = menu.hidden;
+            if (willOpen) {
+                const notifPanel = document.getElementById('appNotificationsPanel');
+                if (notifPanel && !notifPanel.hasAttribute('hidden')) {
+                    notifPanel.setAttribute('hidden', '');
+                    window.__appNotificationsPanelOpen = false;
+                    if (typeof setNotificationsButtonsExpanded === 'function') {
+                        setNotificationsButtonsExpanded(false);
+                    }
+                }
+            }
+            setMobileProfileMenuOpen(willOpen);
+            if (willOpen) {
+                const anchor = resolveMobileProfileMenuAnchor(ev);
+                positionMobileProfileMenu(anchor);
+                requestAnimationFrame(() => positionMobileProfileMenu(anchor));
+                const badge = typeof resolveMobileProfileLicenseBadgeText === 'function'
+                    ? resolveMobileProfileLicenseBadgeText()
+                    : null;
+                const labelRaw = document.getElementById('licenseQuickLabel')?.textContent?.trim() || '';
+                const needsRefresh = !window.__profileTopbarLicenseUi
+                    || (badge && badge.loading)
+                    || /načítám|loading/i.test(labelRaw);
+                if (needsRefresh && typeof loadLicenseStatus === 'function' && typeof isAuthenticated === 'function' && isAuthenticated()) {
+                    void loadLicenseStatus().then(() => {
+                        const menuEl = document.getElementById('mobileProfileMenu');
+                        if (menuEl && !menuEl.hidden && typeof syncMobileProfileMenu === 'function') {
+                            syncMobileProfileMenu();
+                        }
+                    });
+                }
+            }
         }
+        window.toggleMobileProfileMenu = toggleMobileProfileMenu;
+        window.closeMobileProfileMenu = closeMobileProfileMenu;
 
         function setMobileNavbarToggleVisualState(isOpen) {
             const menuToggle = document.getElementById('mobileMenuToggle');
@@ -38130,62 +38500,7 @@
             if (!rel.startsWith('/')) {
                 throw new Error('Neplatná cesta k PDF.');
             }
-            const popup = window.open('', '_blank');
-            API_URL = getApiBaseUrl();
-            if (!API_URL) {
-                if (popup && !popup.closed) popup.close();
-                throw new Error('API URL není nastavena. Kontaktujte administrátora.');
-            }
-            const headers = {
-                Accept: 'application/pdf',
-                'Accept-Language': 'cs-CZ,cs;q=0.9,en;q=0.8',
-            };
-            const tok = getEffectiveAccessToken();
-            if (tok) {
-                headers['Authorization'] = `Bearer ${tok}`;
-            } else if (currentUser && currentUser.email) {
-                headers['X-User-Email'] = currentUser.email;
-            }
-            if (typeof appendClientGeoHeaders === 'function') {
-                appendClientGeoHeaders(headers);
-            }
-            const url = `${API_URL}${rel}`;
-            const res = await fetch(url, { method: 'GET', headers, credentials: 'include', mode: 'cors', cache: 'no-cache' });
-            if (!res.ok) {
-                if (popup && !popup.closed) popup.close();
-                let msg = `PDF se nepodařilo načíst (HTTP ${res.status}).`;
-                try {
-                    const ct = res.headers.get('content-type') || '';
-                    if (ct.includes('application/json')) {
-                        const j = await res.json();
-                        if (j && j.detail) {
-                            msg = typeof j.detail === 'string' ? j.detail : msg;
-                        }
-                    }
-                } catch (e) {
-                    /* ignore */
-                }
-                throw new Error(msg);
-            }
-            const blob = await res.blob();
-            const objUrl = URL.createObjectURL(blob);
-            if (popup && !popup.closed) {
-                popup.location.href = objUrl;
-                try {
-                    popup.opener = null;
-                } catch (e) {
-                    /* ignore */
-                }
-            } else {
-                window.open(objUrl, '_blank', 'noopener');
-            }
-            setTimeout(() => {
-                try {
-                    URL.revokeObjectURL(objUrl);
-                } catch (e) {
-                    /* ignore */
-                }
-            }, 120000);
+            return openAuthenticatedDocumentPreview(rel, { title: 'Náhled dokumentu', filename: 'dokument.pdf' });
         }
         window.openAuthenticatedPdf = openAuthenticatedPdf;
 
@@ -42709,6 +43024,7 @@
             currentLicensePlanForUi = 'free';
             cachedLicenseStatus = null;
             window.__licenseFlags = null;
+            window.__profileTopbarLicenseUi = null;
             currentLicenseSubscriptionForUi = null;
             pendingPaymentReturnInfo = null;
             pendingPaidPlanForCheckout = '';
@@ -44943,8 +45259,21 @@
             setLicenseTabLockState('documents', !flags.documentsEnabled, 'Basic');
             setLicenseTabLockState('servicesDirectory', !flags.sharingWithServiceEnabled, 'Premium');
 
+            window.__profileTopbarLicenseUi = license
+                ? {
+                    trial_active: !!license.trial_active,
+                    trial_days_remaining: license.trial_days_remaining != null ? Number(license.trial_days_remaining) : null,
+                    display_plan: license.display_plan || license.effective_plan || license.plan || '',
+                    plan_public_label: license.plan_public_label || '',
+                }
+                : null;
+
             if (window.UserAppNext && typeof window.UserAppNext.render === 'function') {
                 void window.UserAppNext.render();
+            }
+
+            if (typeof syncMobileProfileMenu === 'function') {
+                syncMobileProfileMenu();
             }
         }
 
@@ -46196,6 +46525,10 @@
                     const statusText = enabled ? 'Zapnuto' : 'Vypnuto';
                     return `<div class="license-quick-feature"><span class="${iconClass}">${icon}</span><span>${label} — ${statusText}</span></div>`;
                 }).join('');
+            }
+
+            if (typeof syncMobileProfileMenu === 'function') {
+                syncMobileProfileMenu();
             }
         }
         
@@ -52062,17 +52395,17 @@
             if (!sectionNode || !sourceNode) return;
 
             mountFloatingModal(`
-                <div class="reminder-modal-overlay vehicle-detail-floating-overlay" onclick="if (event.target === this) closeVehicleDetailFloatingSection()">
-                    <div class="reminder-modal vehicle-detail-floating-modal">
-                        <div class="reminder-modal-head">
-                            <div class="vehicle-detail-floating-modal-copy">
-                                <p class="vehicle-detail-floating-modal-kicker">${escapeHtml(config.kicker)}</p>
-                                <h2 class="modal-title">${escapeHtml(config.title)}</h2>
-                                <p class="vehicle-detail-floating-modal-intro">${escapeHtml(config.intro)}</p>
+                <div class="reminder-modal-overlay uapp-next-float-backdrop vehicle-detail-floating-overlay" onclick="if (event.target === this) closeVehicleDetailFloatingSection()">
+                    <div class="uapp-next-float-modal vehicle-detail-floating-modal" role="dialog" aria-modal="true" aria-labelledby="uappVehicleFloatTitle-${config.vehicleId}" onclick="event.stopPropagation()">
+                        <div class="uapp-next-float-head reminder-modal-head">
+                            <div class="uapp-next-float-copy vehicle-detail-floating-modal-copy">
+                                <p class="uapp-next-float-kicker vehicle-detail-floating-modal-kicker">${escapeHtml(config.kicker)}</p>
+                                <h2 id="uappVehicleFloatTitle-${config.vehicleId}" class="uapp-next-float-title modal-title">${escapeHtml(config.title)}</h2>
+                                <p class="uapp-next-float-intro vehicle-detail-floating-modal-intro">${escapeHtml(config.intro)}</p>
                             </div>
-                            <button type="button" class="reminder-modal-close" aria-label="Zavřít sekci" onclick="closeVehicleDetailFloatingSection()">×</button>
+                            <button type="button" class="uapp-next-float-close reminder-modal-close" aria-label="Zavřít sekci" onclick="closeVehicleDetailFloatingSection()">×</button>
                         </div>
-                        <div class="vehicle-detail-floating-modal-body">
+                        <div class="uapp-next-float-body vehicle-detail-floating-modal-body">
                             <div class="vehicle-detail-floating-modal-shell" id="vehicle-detail-floating-modal-shell-${config.vehicleId}"></div>
                         </div>
                     </div>
@@ -52364,8 +52697,8 @@
                             <h4>Centrální přehledy</h4>
                             <p>Dokumenty a servisní kontakty otevřete napříč celou aplikací jedním krokem.</p>
                             <div class="vehicle-detail-command-grid">
-                                <button type="button" class="btn btn-secondary" onclick="switchTab('documents'); closeVehicleModal();">Centrální dokumenty</button>
-                                <button type="button" class="btn btn-secondary" onclick="switchTab('servicesDirectory'); closeVehicleModal();">Partneři a přístupy</button>
+                                <button type="button" class="uapp-next-btn uapp-next-btn-secondary" onclick="leaveVehicleDetailForTab('documents')">Centrální dokumenty</button>
+                                <button type="button" class="uapp-next-btn uapp-next-btn-secondary" onclick="leaveVehicleDetailForTab('servicesDirectory')">Partneři a přístupy</button>
                             </div>
                         </div>
                         ${renderVehicleDetailQrCard(vehicle, false)}
@@ -52715,10 +53048,10 @@
                                         </summary>
                                         <div class="vehicle-detail-panel-body">
                                             <div class="vehicle-modal-section vehicle-modal-section-gallery vehicle-detail-section-surface" id="vehicle-modal-section-gallery-${Number(vehicleId)}">
-                                                <p style="margin:0 0 10px;color:#94a3b8;font-size:0.95rem;line-height:1.55;">Nahrané soubory jsou dostupné jen vám a oprávněným servisům. Hvězdička u fotky z galerie nastaví hlavní náhled pro celé vozidlo.</p>
-                                                <p style="margin:0 0 12px;color:#cbd5e1;font-size:0.92rem;line-height:1.55;">Ilustrační katalogová fotka je pouze univerzální náhled modelu, nejde o skutečnou fotku vozidla. Vlastní reálná fotka má vždy přednost.</p>
+                                                <p class="uapp-vehicle-float-lead">Nahrané soubory jsou dostupné jen vám a oprávněným servisům. Hvězdička u fotky z galerie nastaví hlavní náhled pro celé vozidlo.</p>
+                                                <p class="uapp-vehicle-float-note">Ilustrační katalogová fotka je pouze univerzální náhled modelu, nejde o skutečnou fotku vozidla. Vlastní reálná fotka má vždy přednost.</p>
                                                 <div id="vehicle-gallery-grid-${vehicleId}" class="vehicle-gallery-grid"></div>
-                                                <div class="vehicle-photo-actions" style="margin-top:10px; justify-content:flex-start;">
+                                                <div class="uapp-vehicle-float-actions">
                                                     <input
                                                         type="file"
                                                         id="vehicle-gallery-upload-${vehicleId}"
@@ -52728,7 +53061,7 @@
                                                     >
                                                     <button
                                                         type="button"
-                                                        class="btn btn-secondary"
+                                                        class="uapp-next-btn uapp-next-btn-secondary"
                                                         onclick="document.getElementById('vehicle-gallery-upload-${vehicleId}').click();"
                                                     >
                                                         📷 Přidat do galerie
@@ -52752,7 +53085,7 @@
                                             <div class="vehicle-modal-section vehicle-modal-section-service vehicle-modal-section-service-primary vehicle-detail-section-surface" id="vehicle-modal-section-service-${Number(vehicleId)}">
                                                 <div class="vehicle-service-header vehicle-service-header--toolbar-only">
                                                     <div class="vehicle-service-actions">
-                                                        <button type="button" onclick="downloadVehicleVerifiedReportFromHub(${vehicleId}); return false;" class="vehicle-service-btn pdf" aria-label="Stáhnout digitální výpis">
+                                                        <button type="button" onclick="previewVehicleVerifiedReportFromHub(${vehicleId}); return false;" class="vehicle-service-btn pdf" aria-label="Digitální výpis — náhled">
                                                             <span class="vehicle-service-btn-ico" aria-hidden="true">
                                                                 <svg class="vehicle-service-ico-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/><path d="M8 9h2"/></svg>
                                                             </span>
@@ -52784,19 +53117,19 @@
                                         </summary>
                                         <div class="vehicle-detail-panel-body">
                                             <div class="vehicle-modal-section vehicle-modal-section-documents vehicle-detail-section-surface" id="vehicle-modal-section-documents-${Number(vehicleId)}">
-                                                <p style="margin:0 0 12px;color:#94a3b8;font-size:0.96rem;line-height:1.6;">Faktury a zakázkové listy otevřete přímo u konkrétního záznamu v servisní historii. Níže máte náhled velkého technického průkazu (jako fotky v galerii po kliknutí na dlaždici) a odkazy na hlavní PDF výstupy.</p>
+                                                <p class="uapp-vehicle-float-lead">Faktury a zakázkové listy otevřete přímo u konkrétního záznamu v servisní historii. Níže máte náhled velkého technického průkazu (jako fotky v galerii po kliknutí na dlaždici) a odkazy na hlavní PDF výstupy.</p>
                                                 <div class="vehicle-doc-thumb-grid" role="list">
-                                                    <button type="button" class="vehicle-doc-thumb-item" role="listitem" onclick="void openVehicleLargeTechnicalCertificatePreview(${Number(vehicleId)})" title="Velký technický průkaz — náhled PDF">
+                                                    <button type="button" class="vehicle-doc-thumb-item uapp-vehicle-doc-card" role="listitem" data-uapp-action="docPreview:technical_cert:${Number(vehicleId)}" title="Velký technický průkaz — náhled PDF">
                                                         <span class="vehicle-doc-thumb-visual" aria-hidden="true">
                                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fb923c" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/><path d="M8 9h2"/></svg>
                                                         </span>
                                                         <span class="vehicle-doc-thumb-caption">Velký technický průkaz</span>
                                                     </button>
                                                 </div>
-                                                <div class="vehicle-photo-actions" style="justify-content:flex-start;">
-                                                    <button type="button" class="btn btn-secondary" onclick="downloadVehicleReportFromHub(${Number(vehicleId)})">Stáhnout PDF servisní historie</button>
-                                                    <button type="button" class="btn btn-secondary" onclick="downloadVehicleVerifiedReportFromHub(${Number(vehicleId)})">Digitální výpis</button>
-                                                    <button type="button" class="btn btn-secondary" onclick="switchTab('documents'); closeVehicleModal();">Otevřít centrální dokumenty</button>
+                                                <div class="uapp-vehicle-float-actions">
+                                                    <button type="button" class="uapp-next-btn uapp-next-btn-secondary" onclick="previewVehicleReportFromHub(${Number(vehicleId)})">Servisní historie (PDF)</button>
+                                                    <button type="button" class="uapp-next-btn uapp-next-btn-secondary" onclick="previewVehicleVerifiedReportFromHub(${Number(vehicleId)})">Digitální výpis</button>
+                                                    <button type="button" class="uapp-next-btn uapp-next-btn-primary" onclick="leaveVehicleDetailForTab('documents')">Otevřít centrální dokumenty</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -53014,6 +53347,21 @@
             }
         }
 
+        function leaveVehicleDetailForTab(tab) {
+            if (typeof closeVehicleDetailFloatingSection === 'function') {
+                closeVehicleDetailFloatingSection({ preserveFocus: true });
+            }
+            if (window.UserAppNext && typeof window.UserAppNext.closeUserVehicleDetailModal === 'function') {
+                window.UserAppNext.closeUserVehicleDetailModal();
+            } else if (typeof closeVehicleModal === 'function') {
+                closeVehicleModal();
+            }
+            if (typeof switchTab === 'function') {
+                switchTab(tab);
+            }
+        }
+        window.leaveVehicleDetailForTab = leaveVehicleDetailForTab;
+
         // Zavření modal okna
         function closeVehicleModal() {
             const modal = document.getElementById('vehicleDetailModal');
@@ -53217,8 +53565,13 @@
 
         async function downloadAuthenticatedRelativeFile(relativeUrl, fallbackFilename = 'soubor') {
             const { blob, response } = await fetchAuthenticatedBinary(relativeUrl, 'application/pdf,application/octet-stream,*/*');
+            const filename = resolveDownloadFilename(response, fallbackFilename);
+            triggerBlobDownload(blob, filename);
+        }
+
+        function resolveDownloadFilename(response, fallbackFilename = 'soubor') {
             let filename = String(fallbackFilename || 'soubor').trim() || 'soubor';
-            const contentDisposition = response.headers.get('content-disposition') || response.headers.get('Content-Disposition') || '';
+            const contentDisposition = response?.headers?.get('content-disposition') || response?.headers?.get('Content-Disposition') || '';
             const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
             const plainMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
             if (utf8Match && utf8Match[1]) {
@@ -53230,11 +53583,14 @@
             } else if (plainMatch && plainMatch[1]) {
                 filename = plainMatch[1];
             }
+            return filename;
+        }
 
+        function triggerBlobDownload(blob, filename) {
             const objectUrl = URL.createObjectURL(blob);
             const anchor = document.createElement('a');
             anchor.href = objectUrl;
-            anchor.download = filename;
+            anchor.download = String(filename || 'soubor');
             document.body.appendChild(anchor);
             anchor.click();
             setTimeout(() => {
@@ -53760,62 +54116,116 @@
             }
         }
 
-        let activeAttachmentPreviewUrl = null;
+        let activeDocumentPreviewState = {
+            blobUrl: null,
+            filename: '',
+            relativeUrl: '',
+            isPdf: false,
+            title: '',
+        };
+
+        function resetActiveDocumentPreviewState() {
+            if (activeDocumentPreviewState.blobUrl) {
+                URL.revokeObjectURL(activeDocumentPreviewState.blobUrl);
+            }
+            activeDocumentPreviewState = { blobUrl: null, filename: '', relativeUrl: '', isPdf: false, title: '' };
+        }
 
         function closeAttachmentPreviewModal() {
             const modal = document.getElementById('attachmentPreviewModal');
             const frame = document.getElementById('attachmentPreviewFrame');
-            if (frame) {
-                frame.removeAttribute('src');
+            const image = document.getElementById('attachmentPreviewImage');
+            if (frame) frame.removeAttribute('src');
+            if (image) {
+                image.removeAttribute('src');
+                image.style.display = 'none';
             }
-            if (modal) {
-                closeStaticOverlayModal(modal);
-            }
-            if (activeAttachmentPreviewUrl) {
-                URL.revokeObjectURL(activeAttachmentPreviewUrl);
-                activeAttachmentPreviewUrl = null;
-            }
+            if (modal) closeStaticOverlayModal(modal);
+            resetActiveDocumentPreviewState();
+            setDocumentPreviewLoading(true, 'Načítám dokument…');
         }
 
-        function openAttachmentPreviewModal(blobUrl, titleText = 'Náhled dokladu') {
+        function ensureAttachmentPreviewModal() {
             let modal = document.getElementById('attachmentPreviewModal');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'attachmentPreviewModal';
-                modal.className = 'vehicle-modal app-modal-drawer';
-                modal.style.display = 'none';
-                modal.innerHTML = `
-                    <div class="vehicle-modal-content" style="max-width: 1100px; width: 94vw; max-height: 94vh; overflow: hidden; display: flex; flex-direction: column;">
-                        <div class="vehicle-modal-header" style="display:flex; align-items:center; justify-content:space-between; gap: 12px;">
-                            <h2 id="attachmentPreviewTitle" style="margin:0; font-size: 22px;">Náhled dokladu</h2>
-                            <button type="button" class="vehicle-modal-close" onclick="closeAttachmentPreviewModal()">&times;</button>
-                        </div>
-                        <div style="flex: 1; padding: 0 20px 20px; min-height: 60vh;">
-                            <iframe
-                                id="attachmentPreviewFrame"
-                                title="Náhled přílohy"
-                                style="width: 100%; height: 100%; min-height: 62vh; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 8px; background: #0f172a;"
-                            ></iframe>
-                        </div>
-                        <div style="padding: 0 20px 20px; display:flex; justify-content:flex-end;">
-                            <button type="button" class="btn" style="background:#6b7280; color:#fff; border:none; border-radius:8px; padding:10px 16px;" onclick="closeAttachmentPreviewModal()">Zavřít</button>
-                        </div>
+            if (modal && !document.getElementById('attachmentPreviewDownloadBtn')) {
+                closeAttachmentPreviewModal();
+                modal.remove();
+                modal = null;
+            }
+            if (modal) return modal;
+            modal = document.createElement('div');
+            modal.id = 'attachmentPreviewModal';
+            modal.className = 'vehicle-modal app-modal-drawer doc-preview-modal';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="vehicle-modal-overlay" onclick="closeAttachmentPreviewModal()"></div>
+                <div class="vehicle-modal-content doc-preview-shell">
+                    <div class="vehicle-modal-header doc-preview-header">
+                        <h2 id="attachmentPreviewTitle" class="doc-preview-title">Náhled dokumentu</h2>
+                        <button type="button" class="vehicle-modal-close" onclick="closeAttachmentPreviewModal()" aria-label="Zavřít">&times;</button>
                     </div>
-                `;
-                document.body.appendChild(modal);
-            }
+                    <div id="attachmentPreviewLoading" class="doc-preview-loading">Načítám dokument…</div>
+                    <div id="attachmentPreviewBody" class="doc-preview-body" style="display:none;">
+                        <embed id="attachmentPreviewFrame" type="application/pdf" title="Náhled dokumentu" class="doc-preview-frame" />
+                        <img id="attachmentPreviewImage" alt="Náhled dokumentu" class="doc-preview-image" style="display:none;">
+                    </div>
+                    <div class="doc-preview-actions">
+                        <button type="button" class="btn btn-secondary" id="attachmentPreviewDownloadBtn" onclick="downloadActiveDocumentPreview()">Stáhnout</button>
+                        <button type="button" class="btn btn-secondary" id="attachmentPreviewNewTabBtn" onclick="openActiveDocumentPreviewInNewTab()">Otevřít v novém panelu</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeAttachmentPreviewModal()">Zavřít</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            return modal;
+        }
 
+        function setDocumentPreviewLoading(isLoading, message) {
+            const loadingEl = document.getElementById('attachmentPreviewLoading');
+            const bodyEl = document.getElementById('attachmentPreviewBody');
+            if (loadingEl) {
+                loadingEl.style.display = isLoading ? 'flex' : 'none';
+                if (message) loadingEl.textContent = message;
+            }
+            if (bodyEl) bodyEl.style.display = isLoading ? 'none' : 'block';
+        }
+
+        function openDocumentPreviewModal(blobUrl, titleText, meta) {
+            const modal = ensureAttachmentPreviewModal();
             const title = document.getElementById('attachmentPreviewTitle');
-            if (title) {
-                title.textContent = titleText || 'Náhled dokladu';
-            }
             const frame = document.getElementById('attachmentPreviewFrame');
+            const image = document.getElementById('attachmentPreviewImage');
+            const newTabBtn = document.getElementById('attachmentPreviewNewTabBtn');
+            const info = meta || {};
+            const isPdf = info.isPdf !== false;
+            if (title) title.textContent = titleText || 'Náhled dokumentu';
             if (frame) {
-                frame.src = blobUrl;
+                frame.style.display = isPdf ? 'block' : 'none';
+                frame.src = isPdf ? blobUrl : '';
             }
-            openStaticOverlayModal(modal, {
-                focusSelector: '.vehicle-modal-close',
-            });
+            if (image) {
+                if (!isPdf) {
+                    image.src = blobUrl;
+                    image.style.display = 'block';
+                } else {
+                    image.removeAttribute('src');
+                    image.style.display = 'none';
+                }
+            }
+            if (newTabBtn) newTabBtn.style.display = isPdf ? '' : 'none';
+            activeDocumentPreviewState = {
+                blobUrl,
+                filename: info.filename || 'dokument',
+                relativeUrl: info.relativeUrl || '',
+                isPdf,
+                title: titleText || 'Náhled dokumentu',
+            };
+            setDocumentPreviewLoading(false);
+            openStaticOverlayModal(modal, { focusSelector: '.vehicle-modal-close' });
+        }
+
+        function openAttachmentPreviewModal(blobUrl, titleText = 'Náhled dokladu', meta) {
+            openDocumentPreviewModal(blobUrl, titleText || 'Náhled dokladu', meta || { isPdf: true, filename: 'doklad' });
         }
 
         function decodePreviewHint(value) {
@@ -53841,6 +54251,95 @@
             }
         }
 
+        async function openAuthenticatedDocumentPreview(relativeUrl, options) {
+            const url = String(relativeUrl || '').trim();
+            if (!url.startsWith('/')) {
+                showAlert('Neplatný odkaz na dokument.', 'error');
+                return;
+            }
+            const opts = options || {};
+            const title = opts.title || 'Náhled dokumentu';
+            const fallbackFilename = opts.filename || 'dokument.pdf';
+            ensureAttachmentPreviewModal();
+            resetActiveDocumentPreviewState();
+            setDocumentPreviewLoading(true, 'Načítám dokument…');
+            openStaticOverlayModal(document.getElementById('attachmentPreviewModal'), { focusSelector: '.vehicle-modal-close' });
+            try {
+                const { blob, response } = await fetchAuthenticatedBinary(url, 'application/pdf,application/octet-stream,image/*,*/*');
+                const filename = resolveDownloadFilename(response, fallbackFilename);
+                const blobType = String(blob.type || '').toLowerCase();
+                const isPdf = blobType.includes('pdf') || looksLikePdfByHint(filename, url) || await hasPdfMagicHeader(blob);
+                const isImage = !isPdf && blobType.startsWith('image/');
+                const previewBlob = isPdf && !blobType.includes('pdf')
+                    ? new Blob([await blob.arrayBuffer()], { type: 'application/pdf' })
+                    : blob;
+                const blobUrl = URL.createObjectURL(previewBlob);
+                openDocumentPreviewModal(blobUrl, title, { filename, relativeUrl: url, isPdf: isPdf || !isImage });
+            } catch (error) {
+                console.error('[DOCUMENT_PREVIEW]', error);
+                closeAttachmentPreviewModal();
+                showAlert(`Nepodařilo se načíst náhled: ${error?.message || 'Neznámá chyba'}`, 'error');
+            }
+        }
+
+        function downloadActiveDocumentPreview() {
+            const state = activeDocumentPreviewState || {};
+            if (state.blobUrl) {
+                const anchor = document.createElement('a');
+                anchor.href = state.blobUrl;
+                anchor.download = state.filename || 'dokument';
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                return;
+            }
+            if (state.relativeUrl) {
+                void downloadAuthenticatedRelativeFile(state.relativeUrl, state.filename || 'dokument');
+            }
+        }
+
+        function openActiveDocumentPreviewInNewTab() {
+            const state = activeDocumentPreviewState || {};
+            if (!state.blobUrl) {
+                showAlert('Náhled není připraven.', 'warning');
+                return;
+            }
+            if (typeof openPdfFullPageShellInNewTab === 'function') {
+                openPdfFullPageShellInNewTab(state.blobUrl, state.title || state.filename || 'PDF');
+                return;
+            }
+            const opened = window.open(state.blobUrl, '_blank', 'noopener');
+            if (!opened) showAlert('Prohlížeč zablokoval nový panel.', 'warning');
+        }
+
+        async function previewVehicleReportFromHub(vehicleId) {
+            const normalizedId = Number(vehicleId);
+            if (!Number.isFinite(normalizedId) || normalizedId <= 0) {
+                showAlert('Dokument není navázán na platné vozidlo.', 'error');
+                return;
+            }
+            await openAuthenticatedDocumentPreview(`/api/v1/vehicles/${normalizedId}/export/pdf`, {
+                title: 'Servisní historie — náhled',
+                filename: `servisni-historie-${normalizedId}.pdf`,
+            });
+        }
+
+        async function previewVehicleVerifiedReportFromHub(vehicleId) {
+            const normalizedId = Number(vehicleId);
+            if (!Number.isFinite(normalizedId) || normalizedId <= 0) {
+                showAlert('Dokument není navázán na platné vozidlo.', 'error');
+                return;
+            }
+            await openAuthenticatedDocumentPreview(`/api/v1/vehicles/${normalizedId}/report.pdf`, {
+                title: 'Digitální výpis — náhled',
+                filename: `vypis-vozidla-${normalizedId}.pdf`,
+            });
+        }
+
+        window.openAuthenticatedDocumentPreview = openAuthenticatedDocumentPreview;
+        window.previewVehicleReportFromHub = previewVehicleReportFromHub;
+        window.previewVehicleVerifiedReportFromHub = previewVehicleVerifiedReportFromHub;
+
         async function openServiceRecordAttachmentPreview(encodedDownloadUrl, encodedFileName = '') {
             const relativeUrl = decodePreviewHint(encodedDownloadUrl).trim();
             if (!relativeUrl) {
@@ -53848,49 +54347,35 @@
                 return;
             }
             const fileName = decodePreviewHint(encodedFileName).trim() || 'priloha';
-            const likelyPdf = looksLikePdfByHint(fileName, relativeUrl);
-            // Otevřít tab hned při kliknutí (pro pravděpodobné PDF), aby popup neblokoval prohlížeč.
-            const previewWindow = likelyPdf ? window.open('', '_blank') : null;
+            ensureAttachmentPreviewModal();
+            resetActiveDocumentPreviewState();
+            setDocumentPreviewLoading(true, 'Načítám dokument…');
+            openStaticOverlayModal(document.getElementById('attachmentPreviewModal'), { focusSelector: '.vehicle-modal-close' });
             try {
                 const blob = await fetchServiceRecordAttachmentBlob(relativeUrl);
                 const blobType = String(blob?.type || '').toLowerCase();
-                const isPdf = likelyPdf || blobType.includes('pdf') || await hasPdfMagicHeader(blob);
-                const blobUrl = URL.createObjectURL(blob);
-
-                if (isPdf) {
-                    closeAttachmentPreviewModal();
-                    if (previewWindow && !previewWindow.closed) {
-                        previewWindow.opener = null;
-                        previewWindow.location.replace(blobUrl);
-                    } else {
-                        const opened = window.open(blobUrl, '_blank');
-                        if (!opened) {
-                            URL.revokeObjectURL(blobUrl);
-                            throw new Error('Prohlížeč zablokoval náhled v nové kartě. Povolte vyskakovací okna pro tento web.');
-                        }
-                        opened.opener = null;
-                    }
-                    // URL ponechat chvíli živé kvůli načtení PDF vieweru v nové kartě.
-                    setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
-                    return;
-                }
-
-                if (previewWindow && !previewWindow.closed) {
-                    previewWindow.close();
-                }
-                if (activeAttachmentPreviewUrl) {
-                    URL.revokeObjectURL(activeAttachmentPreviewUrl);
-                }
-                activeAttachmentPreviewUrl = blobUrl;
-                openAttachmentPreviewModal(blobUrl, `Náhled: ${fileName}`);
+                const isPdf = looksLikePdfByHint(fileName, relativeUrl) || blobType.includes('pdf') || await hasPdfMagicHeader(blob);
+                const isImage = !isPdf && blobType.startsWith('image/');
+                const previewBlob = isPdf && !blobType.includes('pdf')
+                    ? new Blob([await blob.arrayBuffer()], { type: 'application/pdf' })
+                    : blob;
+                const blobUrl = URL.createObjectURL(previewBlob);
+                openDocumentPreviewModal(blobUrl, `Náhled: ${fileName}`, {
+                    filename: fileName,
+                    relativeUrl,
+                    isPdf: isPdf || !isImage,
+                });
             } catch (error) {
-                if (previewWindow) {
-                    previewWindow.close();
-                }
                 console.error('Error opening service attachment preview:', error);
+                closeAttachmentPreviewModal();
                 showAlert('Nepodařilo se otevřít přílohu: ' + (error?.message || 'Neznámá chyba'), 'error');
             }
         }
+
+        window.openServiceRecordAttachmentPreview = openServiceRecordAttachmentPreview;
+        window.closeAttachmentPreviewModal = closeAttachmentPreviewModal;
+        window.downloadActiveDocumentPreview = downloadActiveDocumentPreview;
+        window.openActiveDocumentPreviewInNewTab = openActiveDocumentPreviewInNewTab;
 
         function parseServiceRecordAttachments(vehicleId, attachmentsRaw) {
             if (!attachmentsRaw) {
@@ -55227,8 +55712,8 @@
 
             if (serviceVehicleAccessState.apiAvailable === false) {
                 shell.innerHTML = `
-                    <p class="vehicle-access-lead">Správa přístupů servisů na tomto prostředí není k dispozici (nelze načíst oprávnění). Zkuste znovu načíst stránku nebo otevřít sekci Servisní partneři.</p>
-                    <button type="button" class="btn btn-secondary" onclick="switchTab('servicesDirectory'); closeVehicleModal();">Otevřít servisní partnery</button>
+                    <p class="vehicle-access-lead uapp-vehicle-float-lead">Správa přístupů servisů na tomto prostředí není k dispozici (nelze načíst oprávnění). Zkuste znovu načíst stránku nebo otevřít sekci Servisní partneři.</p>
+                    <button type="button" class="uapp-next-btn uapp-next-btn-primary" onclick="leaveVehicleDetailForTab('servicesDirectory')">Otevřít servisní partnery</button>
                 `;
                 return;
             }
@@ -55237,8 +55722,8 @@
             const grants = (serviceVehicleAccessState.grants || []).filter((g) => Number(g?.vehicle_id) === vid);
             if (!grants.length) {
                 shell.innerHTML = `
-                    <p class="vehicle-access-lead">Žádný servis zatím nemá ke vozidlu povolenou správu. Přístup povolíte u konkrétního partnera v sekci Servisní partneři (výběr vozidla a tlačítko „Povolit správu“).</p>
-                    <button type="button" class="btn btn-secondary" onclick="switchTab('servicesDirectory'); closeVehicleModal();">Otevřít servisní partnery</button>
+                    <p class="vehicle-access-lead uapp-vehicle-float-lead">Žádný servis zatím nemá ke vozidlu povolenou správu. Přístup povolíte u konkrétního partnera v sekci Servisní partneři (výběr vozidla a tlačítko „Povolit správu“).</p>
+                    <button type="button" class="uapp-next-btn uapp-next-btn-primary" onclick="leaveVehicleDetailForTab('servicesDirectory')">Otevřít servisní partnery</button>
                 `;
                 return;
             }
@@ -64907,6 +65392,8 @@
             }
         }
 
+        window.openVehicleLargeTechnicalCertificatePreview = openVehicleLargeTechnicalCertificatePreview;
+
         function _escapeBlobUrlForHtmlAttr(blobUrl) {
             return String(blobUrl || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
@@ -65100,8 +65587,8 @@
                                 </div>
                             </div>
                             <div class="hub-action-bar">
-                                <button type="button" class="btn btn-secondary" onclick="downloadVehicleReportFromHub(${Number(item.vehicle_id)})">Stáhnout PDF</button>
-                                ${item.has_verified_report ? `<button type="button" class="btn btn-secondary" onclick="downloadVehicleVerifiedReportFromHub(${Number(item.vehicle_id)})">Digitální výpis</button>` : ''}
+                                <button type="button" class="btn btn-secondary" onclick="previewVehicleReportFromHub(${Number(item.vehicle_id)})">Náhled PDF</button>
+                                ${item.has_verified_report ? `<button type="button" class="btn btn-secondary" onclick="previewVehicleVerifiedReportFromHub(${Number(item.vehicle_id)})">Digitální výpis</button>` : ''}
                                 ${item.verify_url ? `<button type="button" class="btn btn-secondary" onclick="openDocumentsVerifyPage('${escapeHtml(item.verify_url)}')">Veřejné ověření</button>` : ''}
                                 <button type="button" class="btn btn-secondary" onclick="openVehicleFromShortcut(${Number(item.vehicle_id)}, 'documents-hub-report')">Vozidlo</button>
                             </div>
@@ -65121,7 +65608,7 @@
                                 <div class="documents-hub-section-copy">Jeden PDF soubor na vozidlo — po načtení z VIN nebo úpravě vozidla se přepíše.${item.generated_at ? ` Poslední aktualizace souboru: ${escapeHtml(formatDateCZ(item.generated_at))}.` : ' Soubor vznikne při prvním stažení nebo po obnovení z VIN.'}</div>
                             </div>
                             <div class="hub-action-bar">
-                                <button type="button" class="btn btn-secondary" onclick="downloadLargeTechnicalCertificateFromHub(${Number(item.vehicle_id)})">Stáhnout PDF</button>
+                                <button type="button" class="btn btn-secondary" onclick="openVehicleLargeTechnicalCertificatePreview(${Number(item.vehicle_id)})">Náhled PDF</button>
                                 <button type="button" class="btn btn-secondary" onclick="openVehicleFromShortcut(${Number(item.vehicle_id)}, 'documents-hub-vtp')">Vozidlo</button>
                             </div>
                         </div>
@@ -69028,8 +69515,9 @@
     
     <!-- AI Features JavaScript -->
     <script src="/web/ai-features.js"></script>
-    <script src="/web/user-app-next.js?v=202605234settings"></script>
-    <script src="/web/user-settings.js?v=202605237sessions"></script>
+    <script src="/web/tutorial-hub.js"></script>
+    <script src="/web/user-app-next.js?v=20260524docpreview2"></script>
+    <script src="/web/user-settings.js?v=20260524settingsfull"></script>
     <script src="/web/service-shell.js?v=2026050720"></script>
 </body>
 </html>

@@ -9,6 +9,10 @@
     vehiclesFilter: 'all',
     vehiclesSort: 'activity',
     vehiclesSearchQuery: '',
+    vehiclesReorderMode: false,
+    vehiclesManageHint: null,
+    reorderDraftOrder: null,
+    garageVehicleOrder: null,
     detailModal: { open: false, vehicleId: null, activeTab: 'tech', vehicle: null, records: [], optionsOpen: false },
     attentionModalOpen: false,
     attentionItems: [],
@@ -44,6 +48,7 @@
     servicesMapHint: '',
     servicesMapTotal: 0,
     servicesMapBoundsDebounce: null,
+    servicesMapControlsOpen: false,
     servicesOsmRows: [],
     servicesOsmLoading: false,
     servicesOsmError: null,
@@ -55,7 +60,10 @@
     googleMapsLoadPromise: null,
     servicesMapRuntime: null,
     servicesLocationLabel: '',
+    servicesLocationSuggestDebounce: null,
     servicesSearchDebounce: null,
+    serviceAddressCache: {},
+    serviceAddressResolveToken: 0,
   };
 
   const DETAIL_MODAL_ID = 'uappNextVehicleDetail';
@@ -248,8 +256,12 @@
     if (!document.body.classList.contains('route-app-view') || !isAuthed() || isServiceMode()) {
       return null;
     }
-    if (/\/settings(?:\/|$)/i.test(String(window.location.pathname || ''))) {
+    const pathname = String(window.location.pathname || '');
+    if (/\/settings(?:\/|$)/i.test(pathname)) {
       return 'settings';
+    }
+    if (/\/service-history(?:\/|$)/i.test(pathname)) {
+      return 'serviceHistory';
     }
     const appShell = document.getElementById('app-shell');
     if (!appShell || appShell.hidden) return null;
@@ -365,8 +377,28 @@
     return list.filter((vehicle) => getCatalogVehicleStatus(vehicle, recordsFor(data, vehicle.id)).key === filter);
   }
 
+  function getGarageVehicleOrder() {
+    const raw = STATE.garageVehicleOrder != null ? STATE.garageVehicleOrder : window.__garageVehicleOrder;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0);
+  }
+
+  function applyCustomVehicleOrder(list, order) {
+    if (!order || !order.length) return list;
+    const index = new Map(order.map((id, idx) => [Number(id), idx]));
+    return list.slice().sort((a, b) => {
+      const ia = index.has(Number(a.id)) ? index.get(Number(a.id)) : 9999;
+      const ib = index.has(Number(b.id)) ? index.get(Number(b.id)) : 9999;
+      if (ia !== ib) return ia - ib;
+      return getVehicleName(a).localeCompare(getVehicleName(b), 'cs');
+    });
+  }
+
   function sortCatalogVehicles(list, data, sortKey) {
     const copy = list.slice();
+    if (sortKey === 'custom') {
+      return applyCustomVehicleOrder(copy, getGarageVehicleOrder());
+    }
     if (sortKey === 'name') {
       copy.sort((a, b) => getVehicleName(a).localeCompare(getVehicleName(b), 'cs'));
       return copy;
@@ -407,6 +439,48 @@
       .slice(0, 2)
       .map((part) => part.charAt(0).toUpperCase())
       .join('') || 'SV';
+  }
+
+  function profileTopbarTrialBadgeHtml() {
+    const lic = window.__profileTopbarLicenseUi;
+    if (lic && lic.trial_active) {
+      const raw = lic.trial_days_remaining;
+      if (raw != null && raw !== '' && Number.isFinite(Number(raw))) {
+        const days = Math.max(0, Math.floor(Number(raw)));
+        return `<span class="uapp-settings-trial-badge">Trial ${esc(String(days))} dní</span>`;
+      }
+      return '<span class="uapp-settings-trial-badge">Trial</span>';
+    }
+
+    const label = document.getElementById('licenseQuickLabel')?.textContent?.trim() || '';
+    const current = document.getElementById('licenseQuickCurrent')?.textContent?.trim() || '';
+    const isTrial = /trial|zkušeb/i.test(label) || /trial/i.test(current);
+    if (!isTrial) return '';
+
+    const daysMatch = current.match(/(\d+)\s*d(en|ny|ní)/i) || label.match(/(\d+)\s*d(níň)/i);
+    if (daysMatch) {
+      return `<span class="uapp-settings-trial-badge">Trial ${esc(daysMatch[1])} dní</span>`;
+    }
+    return '<span class="uapp-settings-trial-badge">Trial</span>';
+  }
+
+  function renderTopbarProfileButton() {
+    return `
+      <button type="button" class="uapp-settings-profile-btn" data-uapp-action="profile" aria-label="Profil uživatele" data-testid="dashboard-profile">
+        <span class="uapp-settings-avatar" aria-hidden="true">${esc(initials())}</span>
+        <span class="uapp-settings-profile-meta">
+          <strong>${esc(profileName())}</strong>
+          ${profileTopbarTrialBadgeHtml()}
+        </span>
+        <span aria-hidden="true">▾</span>
+      </button>`;
+  }
+
+  function renderTopbarNotificationsButton() {
+    const badge = document.getElementById('desktopNotificationsBadge') || document.getElementById('mobileNotificationsBadge');
+    const count = badge ? String(badge.getAttribute('data-count') || badge.textContent || '0').trim() : '0';
+    return `
+      <button type="button" class="uapp-next-btn uapp-next-icon-btn" data-uapp-action="notifications" aria-label="Oznámení" data-count="${esc(count || '0')}" data-testid="dashboard-notifications">${ICO.bell}</button>`;
   }
 
   function formatDate(value) {
@@ -513,7 +587,7 @@
         </button>
         <button type="button" class="uapp-next-card-action" data-uapp-action="shareVehicle:${id}">
           <span class="uapp-next-card-action-ico" aria-hidden="true">${ICO.share}</span>
-          <span class="uapp-next-card-action-label">Sdílet se servisem</span>
+          <span class="uapp-next-card-action-label">Sdílet</span>
         </button>
         ${withArrow ? `<button type="button" class="uapp-next-card-action uapp-next-card-action--arrow" data-uapp-action="detail:${id}" aria-label="Otevřít detail">›</button>` : ''}
       </div>`;
@@ -708,7 +782,10 @@
     let servicesDiscovery = null;
     if (activeView === 'servicesDirectory' && apiReady()) {
       let clientRef = null;
-      if (STATE.servicesDirectoryUseLocation !== false) {
+      const cachedRef = STATE.servicesRefCoords;
+      if (cachedRef && Number.isFinite(Number(cachedRef.lat)) && Number.isFinite(Number(cachedRef.lon))) {
+        clientRef = { lat: Number(cachedRef.lat), lon: Number(cachedRef.lon) };
+      } else if (STATE.servicesDirectoryUseLocation !== false) {
         if (hasFn('waitForClientGeolocation')) {
           try {
             const geo = await window.waitForClientGeolocation(8000);
@@ -751,6 +828,7 @@
       if (discoveryMeta.reference_label) {
         STATE.servicesLocationLabel = String(discoveryMeta.reference_label);
       }
+      void refreshServicesLocationLabel({ servicesDiscovery });
     }
     const data = {
       summary: summary && typeof summary === 'object' ? summary : {},
@@ -767,8 +845,203 @@
     return data;
   }
 
+  async function fetchServicesGeocodeSuggestions(query) {
+    const q = String(query || '').trim();
+    if (q.length < 2) return { items: [] };
+    return safeApi(
+      `/api/v1/services/geocode-suggest?q=${encodeURIComponent(q)}&limit=8`,
+      { items: [] },
+      20000,
+    );
+  }
+
+  function closeServicesLocationModal() {
+    const modal = document.getElementById('uappSvcLocationModal');
+    if (modal) modal.remove();
+    if (STATE.servicesLocationSuggestDebounce) {
+      clearTimeout(STATE.servicesLocationSuggestDebounce);
+      STATE.servicesLocationSuggestDebounce = null;
+    }
+  }
+
+  async function applyServicesLocationFromItem(item) {
+    if (!item || !Number.isFinite(Number(item.lat)) || !Number.isFinite(Number(item.lon))) return;
+    closeServicesLocationModal();
+    STATE.servicesRefCoords = { lat: Number(item.lat), lon: Number(item.lon) };
+    STATE.servicesLocationLabel = String(item.label || item.subtitle || 'Vybraná adresa');
+    STATE.servicesDirectoryUseLocation = false;
+    STATE.servicesMapBounds = null;
+    STATE.servicesOsmRows = [];
+    STATE.servicesMapRows = [];
+    STATE.servicesDirectoryLimit = 30;
+    await render();
+  }
+
+  async function applyServicesLocationFromGps() {
+    const modal = document.getElementById('uappSvcLocationModal');
+    const gpsBtn = modal?.querySelector('[data-uapp-action="servicesLocationUseGps"]');
+    const status = modal?.querySelector('#uappSvcLocationStatus');
+    if (gpsBtn) {
+      gpsBtn.disabled = true;
+      gpsBtn.textContent = 'Načítám GPS…';
+    }
+    if (status) status.textContent = 'Čekám na polohu z prohlížeče…';
+
+    if (hasFn('clearClientGeoTelemetry')) {
+      try { window.clearClientGeoTelemetry(); } catch (_) {}
+    }
+
+    let geoError = null;
+    try {
+      if (hasFn('waitForClientGeolocation')) {
+        const geo = await window.waitForClientGeolocation(12000, { force: true });
+        if (geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lon))) {
+          STATE.servicesRefCoords = { lat: Number(geo.lat), lon: Number(geo.lon) };
+          STATE.servicesDirectoryUseLocation = true;
+          STATE.servicesLocationLabel = 'Načítám adresu…';
+        }
+      } else if (hasFn('captureClientGeolocation')) {
+        window.captureClientGeolocation(true);
+        await new Promise((resolve) => { window.setTimeout(resolve, 3000); });
+        if (hasFn('getClientGeoTelemetryForHeaders')) {
+          const geo = window.getClientGeoTelemetryForHeaders();
+          if (geo && Number.isFinite(Number(geo.lat)) && Number.isFinite(Number(geo.lon))) {
+            STATE.servicesRefCoords = { lat: Number(geo.lat), lon: Number(geo.lon) };
+            STATE.servicesDirectoryUseLocation = true;
+            STATE.servicesLocationLabel = 'Načítám adresu…';
+          }
+        }
+      }
+    } catch (err) {
+      geoError = String(err?.message || err || 'Polohu se nepodařilo načíst.');
+    }
+
+    if (!STATE.servicesRefCoords) {
+      if (status) status.textContent = geoError || 'Polohu se nepodařilo načíst. Povolte GPS v prohlížeči.';
+      if (gpsBtn) {
+        gpsBtn.disabled = false;
+        gpsBtn.textContent = 'Použít GPS z prohlížeče';
+      }
+      return;
+    }
+
+    closeServicesLocationModal();
+    STATE.servicesMapBounds = null;
+    STATE.servicesOsmRows = [];
+    STATE.servicesMapRows = [];
+    STATE.servicesDirectoryLimit = 30;
+    await render();
+  }
+
+  function openServicesLocationModal() {
+    closeServicesLocationModal();
+    const currentLabel = STATE.servicesLocationLabel || resolveServicesLocationLabel(STATE.latestData || {}) || '';
+    const skipPrefill = !currentLabel
+      || currentLabel === 'Podle adresy v profilu'
+      || currentLabel.startsWith('Načítám');
+    const overlay = document.createElement('div');
+    overlay.id = 'uappSvcLocationModal';
+    overlay.className = 'uapp-svc-modal-overlay';
+    overlay.innerHTML = `
+      <div class="uapp-svc-modal uapp-svc-location-modal" role="dialog" aria-modal="true" aria-labelledby="uappSvcLocationTitle">
+        <div class="uapp-svc-modal-head">
+          <div>
+            <p class="uapp-svc-modal-kicker">Servisy v okolí</p>
+            <h2 id="uappSvcLocationTitle">Nastavit polohu</h2>
+          </div>
+          <button type="button" class="uapp-svc-modal-close" data-uapp-action="servicesLocationClose" aria-label="Zavřít">×</button>
+        </div>
+        <p class="uapp-svc-location-modal-lead">Zadejte město, ulici a číslo popisné. Vyberte přesnou adresu z našeptávače.</p>
+        <label class="uapp-svc-location-field">
+          <span>Adresa nebo místo</span>
+          <input type="search" id="uappSvcLocationInput" autocomplete="off" placeholder="např. Olomoucká 45, Svitavy" value="${esc(skipPrefill ? '' : currentLabel)}">
+        </label>
+        <p class="uapp-svc-location-status" id="uappSvcLocationStatus">Pište alespoň 2 znaky pro našeptávání.</p>
+        <div class="uapp-svc-location-suggest" id="uappSvcLocationSuggest" role="listbox" aria-label="Nalezené adresy" hidden></div>
+        <div class="uapp-svc-location-modal-actions">
+          <button type="button" class="uapp-next-btn uapp-next-btn-secondary" data-uapp-action="servicesLocationUseGps">Použít GPS z prohlížeče</button>
+          <button type="button" class="uapp-next-btn uapp-next-btn-secondary" data-uapp-action="servicesLocationClose">Zrušit</button>
+        </div>
+      </div>`;
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay) closeServicesLocationModal();
+    });
+
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector('#uappSvcLocationInput');
+    const list = overlay.querySelector('#uappSvcLocationSuggest');
+    const status = overlay.querySelector('#uappSvcLocationStatus');
+    let suggestions = [];
+    let suggestToken = 0;
+
+    const renderList = () => {
+      if (!list) return;
+      if (!suggestions.length) {
+        list.innerHTML = '';
+        list.hidden = true;
+        return;
+      }
+      list.hidden = false;
+      list.innerHTML = suggestions.map((item, idx) => `
+        <button type="button" class="uapp-svc-location-suggest-item" role="option" data-uapp-action="servicesLocationPick:${idx}">
+          <strong>${esc(item.label || 'Adresa')}</strong>
+          ${item.subtitle ? `<span>${esc(item.subtitle)}</span>` : ''}
+        </button>
+      `).join('');
+      overlay._suggestions = suggestions;
+    };
+
+    const loadSuggestions = async (q) => {
+      const query = String(q || '').trim();
+      if (query.length < 2) {
+        suggestions = [];
+        renderList();
+        if (status) {
+          status.textContent = query.length
+            ? 'Pište alespoň 2 znaky pro našeptávání.'
+            : 'Zadejte město, ulici nebo číslo popisné.';
+        }
+        return;
+      }
+      const token = ++suggestToken;
+      if (status) status.textContent = 'Hledám adresy…';
+      const payload = await fetchServicesGeocodeSuggestions(query);
+      if (token !== suggestToken) return;
+      suggestions = Array.isArray(payload?.items) ? payload.items : [];
+      if (status) {
+        status.textContent = suggestions.length
+          ? 'Vyberte přesnou adresu ze seznamu.'
+          : 'Nic nenalezeno – zkuste upřesnit zadání (město, ulice, číslo).';
+      }
+      renderList();
+    };
+
+    if (input) {
+      input.addEventListener('input', () => {
+        if (STATE.servicesLocationSuggestDebounce) clearTimeout(STATE.servicesLocationSuggestDebounce);
+        STATE.servicesLocationSuggestDebounce = setTimeout(() => {
+          void loadSuggestions(input.value);
+        }, 320);
+      });
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          if (suggestions[0]) void applyServicesLocationFromItem(suggestions[0]);
+        }
+        if (event.key === 'Escape') closeServicesLocationModal();
+      });
+      window.setTimeout(() => {
+        input.focus();
+        if (input.value.trim().length >= 2) void loadSuggestions(input.value);
+      }, 0);
+    }
+  }
+
   async function loadServicesOsmData(options) {
     const silent = Boolean(options && options.silent);
+    const skipRender = Boolean(options && options.skipRender);
     if (!apiReady() || getActiveView() !== 'servicesDirectory') return;
     const osmToken = ++STATE.servicesOsmLoadToken;
     const ref = STATE.servicesRefCoords
@@ -781,7 +1054,7 @@
       ? STATE.servicesMapCategory
       : '';
     const q = String(STATE.servicesMapSearchQ || '').trim();
-    const bounds = STATE.servicesMapBounds;
+    const bounds = silent ? STATE.servicesMapBounds : null;
 
     if (!silent) {
       STATE.servicesOsmLoading = true;
@@ -797,7 +1070,7 @@
         url = `/api/v1/service-map/search?north=${encodeURIComponent(String(bounds.north))}&south=${encodeURIComponent(String(bounds.south))}&east=${encodeURIComponent(String(bounds.east))}&west=${encodeURIComponent(String(bounds.west))}&limit=100`;
         url += `&lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lon))}`;
       } else {
-        url = `/api/v1/service-map/search?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lon))}&radius_km=${encodeURIComponent(String(radius))}&limit=100`;
+        url = `/api/v1/service-map/search?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lon))}&radius_km=${encodeURIComponent(String(radius))}&limit=500`;
       }
       if (category) url += `&category=${encodeURIComponent(category)}`;
       if (q) url += `&q=${encodeURIComponent(q)}`;
@@ -824,10 +1097,63 @@
     } finally {
       if (osmToken !== STATE.servicesOsmLoadToken) return;
       STATE.servicesOsmLoading = false;
-      if (STATE.latestData && getActiveView() === 'servicesDirectory') {
+      if (!silent && !skipRender && STATE.latestData && getActiveView() === 'servicesDirectory') {
         renderShell(STATE.latestData);
       }
     }
+  }
+
+  async function refreshServicesLocationLabel(data) {
+    const ref = getServicesRefCoords(data || STATE.latestData || {}) || STATE.servicesRefCoords;
+    if (!ref || !Number.isFinite(Number(ref.lat)) || !Number.isFinite(Number(ref.lon))) return;
+    if (!apiReady()) return;
+    const payload = await safeApi(
+      `/api/v1/system/reverse-geocode?lat=${encodeURIComponent(String(ref.lat))}&lon=${encodeURIComponent(String(ref.lon))}`,
+      null,
+    );
+    const label = payload?.location_label || payload?.city || null;
+    if (!label) return;
+    STATE.servicesLocationLabel = String(label);
+    const locEl = document.querySelector('.uapp-svc-widget .uapp-svc-location');
+    if (locEl) locEl.textContent = STATE.servicesLocationLabel;
+    const coordsEl = document.querySelector('.uapp-svc-widget .uapp-svc-location-coords');
+    if (coordsEl && ref) {
+      coordsEl.textContent = `${Number(ref.lat).toFixed(5)}, ${Number(ref.lon).toFixed(5)}`;
+    }
+  }
+
+  function patchServicesDirectoryList(data) {
+    if (getActiveView() !== 'servicesDirectory') return;
+    const allRows = buildMergedServiceCatalog(data);
+    const filtered = filterServicesRows(allRows);
+    const radius = Number(STATE.servicesDirectoryRadius) || 50;
+    const nearbyCount = filtered.filter((row) => {
+      const dist = Number(row.distance_km);
+      return Number.isFinite(dist) && dist <= radius;
+    }).length;
+    const limit = Number(STATE.servicesDirectoryLimit) || 10;
+    const visible = filtered.slice(0, limit);
+    const head = document.querySelector('.uapp-svc-list-head h2');
+    if (head) head.textContent = `Nalezeno ${nearbyCount || filtered.length} servisů do ${radius} km`;
+    const list = document.querySelector('.uapp-svc-list');
+    if (list) {
+      list.innerHTML = visible.length
+        ? visible.map((service) => renderServicesCard(service)).join('')
+        : '<div class="uapp-svc-empty">V okolí nejsou servisy odpovídající filtrům.</div>';
+    }
+    const loading = document.querySelector('.uapp-svc-loading');
+    if (loading) loading.remove();
+    const errEl = document.querySelector('.uapp-svc-osm-error');
+    if (errEl && !STATE.servicesOsmError) errEl.remove();
+    if (STATE.servicesMapRuntime?.map) updateServicesMapMarkers(data);
+    void hydrateServiceAddresses(visible);
+  }
+
+  function getOsmRowCoords(row) {
+    if (!row || typeof row !== 'object') return { lat: NaN, lon: NaN };
+    const lat = Number(row.lat ?? row.coordinates?.lat);
+    const lon = Number(row.lon ?? row.lng ?? row.coordinates?.lon);
+    return { lat, lon };
   }
 
   function mapApiCategoryToShopType(category) {
@@ -851,9 +1177,14 @@
     const lng = Number(item?.lng);
     const category = String(item?.category || 'other');
     const services = Array.isArray(item?.services) ? item.services : [];
+    const locationId = Number(item?.id) || null;
     return {
       id: null,
-      location_id: Number(item?.id) || null,
+      location_id: locationId,
+      osm_id: locationId,
+      lat,
+      lng,
+      lon: lng,
       shop_type: mapApiCategoryToShopType(category),
       category,
       name: item?.name || 'Servis',
@@ -1322,7 +1653,8 @@
     const badgeHtml = badge > 0 ? `<span class="uapp-next-nav-badge">${esc(String(badge))}</span>` : '';
     const lockHtml = locked ? '<span class="uapp-next-nav-lock" aria-hidden="true" title="Vyžaduje vyšší licenci">🔒</span>' : '';
     const lockClass = locked ? ' is-locked' : '';
-    return `<button type="button" class="${active ? 'is-active' : ''}${lockClass}" data-uapp-action="${esc(action)}"${locked ? ' data-uapp-locked="1"' : ''}><span class="uapp-next-nav-ico" aria-hidden="true">${iconSvg}</span><span class="uapp-next-nav-label">${esc(label)}</span>${lockHtml}${badgeHtml}</button>`;
+    const testId = `dashboard-nav-${String(action || 'unknown').replace(/[^a-z0-9]+/gi, '-')}`;
+    return `<button type="button" class="${active ? 'is-active' : ''}${lockClass}" data-uapp-action="${esc(action)}" data-testid="${esc(testId)}"${locked ? ' data-uapp-locked="1"' : ''}><span class="uapp-next-nav-ico" aria-hidden="true">${iconSvg}</span><span class="uapp-next-nav-label">${esc(label)}</span>${lockHtml}${badgeHtml}</button>`;
   }
 
   function reminderReferenceDate(reminder) {
@@ -2153,8 +2485,38 @@
     return `<span class="uapp-doc-file-ico ${cls}" aria-hidden="true">${esc(label)}</span>`;
   }
 
+  function openDocumentPreviewFromParts(action) {
+    const parts = String(action || '').split(':');
+    const kind = parts[0];
+    if (kind === 'report' && hasFn('previewVehicleReportFromHub')) {
+      return window.previewVehicleReportFromHub(Number(parts[1] || 0));
+    }
+    if (kind === 'verified_report' && hasFn('previewVehicleVerifiedReportFromHub')) {
+      return window.previewVehicleVerifiedReportFromHub(Number(parts[1] || 0));
+    }
+    if (kind === 'technical_cert' && hasFn('openVehicleLargeTechnicalCertificatePreview')) {
+      return void window.openVehicleLargeTechnicalCertificatePreview(Number(parts[1] || 0));
+    }
+    let url = '';
+    let fileName = 'doklad';
+    if (kind === 'attachment') {
+      url = decodeURIComponent(parts[2] || '');
+      fileName = decodeURIComponent(parts.slice(3).join(':') || 'doklad');
+    } else if (String(parts[0] || '').includes('%2F') || String(parts[0] || '').startsWith('/')) {
+      url = decodeURIComponent(parts[0] || '');
+      fileName = decodeURIComponent(parts.slice(1).join(':') || 'doklad');
+    } else {
+      url = decodeURIComponent(parts[1] || '');
+      fileName = decodeURIComponent(parts.slice(2).join(':') || 'doklad');
+    }
+    if (url && hasFn('openServiceRecordAttachmentPreview')) {
+      return window.openServiceRecordAttachmentPreview(encodeURIComponent(url), encodeURIComponent(fileName));
+    }
+    return undefined;
+  }
+
   function renderDocumentsDownloadBtn(row) {
-    return `<button type="button" class="uapp-doc-icon-btn" data-uapp-action="docDownload:${row.kind}:${row.vehicleId}:${encodeURIComponent(row.downloadUrl || '')}" aria-label="Stáhnout">${ICO.download}</button>`;
+    return `<button type="button" class="uapp-doc-icon-btn" data-uapp-action="docPreview:${row.kind}:${row.vehicleId}:${encodeURIComponent(row.downloadUrl || '')}:${encodeURIComponent(row.name)}" aria-label="Náhled">${ICO.detail}</button>`;
   }
 
   function renderDocumentsRowMenu(row) {
@@ -2162,6 +2524,8 @@
     const items = [];
     if (row.kind === 'attachment' && row.downloadUrl) {
       items.push(`<button type="button" data-uapp-action="docPreview:${encodeURIComponent(row.downloadUrl)}:${encodeURIComponent(row.name)}">Náhled</button>`);
+    } else if (['report', 'verified_report', 'technical_cert'].includes(row.kind)) {
+      items.push(`<button type="button" data-uapp-action="docPreview:${row.kind}:${row.vehicleId}:${encodeURIComponent(row.downloadUrl || '')}:${encodeURIComponent(row.name)}">Náhled</button>`);
     }
     items.push(`<button type="button" data-uapp-action="docDownload:${row.kind}:${row.vehicleId}:${encodeURIComponent(row.downloadUrl || '')}">Stáhnout</button>`);
     items.push(`<button type="button" data-uapp-action="documentsVehicle:${row.vehicleId}">Otevřít vozidlo</button>`);
@@ -2466,25 +2830,103 @@
     render();
   }
 
-  function buildServiceAddressLine(service) {
-    if (hasFn('buildServiceAddressLine')) {
-      try { return window.buildServiceAddressLine(service); } catch (_) {}
+  function looksLikeCoordinates(text) {
+    return /^\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*$/.test(String(text || ''));
+  }
+
+  function serviceAddressCacheKey(service) {
+    const coords = service?.coordinates;
+    if (coords && Number.isFinite(Number(coords.lat)) && Number.isFinite(Number(coords.lon))) {
+      return `${Number(coords.lat).toFixed(5)},${Number(coords.lon).toFixed(5)}`;
     }
+    return String(service?.row_key || service?.osm_id || service?.location_id || '');
+  }
+
+  function hasUsableServiceAddress(service) {
     const directAddress = String(service?.address || '').trim();
-    if (directAddress) return directAddress;
+    if (directAddress && !looksLikeCoordinates(directAddress)) return true;
     const street = [service?.street, service?.street_number].filter(Boolean).join(' ').trim();
     const cityZip = [service?.zip, service?.city].filter(Boolean).join(' ').trim();
-    return [street, cityZip].filter(Boolean).join(', ') || 'Adresa není uvedena';
+    return Boolean(street || cityZip);
+  }
+
+  function buildServiceAddressLine(service) {
+    if (hasFn('buildServiceAddressLine')) {
+      try {
+        const legacy = window.buildServiceAddressLine(service);
+        if (legacy && legacy !== 'Adresa není uvedena' && !looksLikeCoordinates(legacy)) return legacy;
+      } catch (_) {}
+    }
+    const directAddress = String(service?.address || '').trim();
+    if (directAddress && !looksLikeCoordinates(directAddress)) return directAddress;
+    const street = [service?.street, service?.street_number].filter(Boolean).join(' ').trim();
+    const cityZip = [service?.zip, service?.city].filter(Boolean).join(' ').trim();
+    const line = [street, cityZip].filter(Boolean).join(', ');
+    if (line) return line;
+    const cacheKey = serviceAddressCacheKey(service);
+    if (cacheKey && STATE.serviceAddressCache[cacheKey]) return STATE.serviceAddressCache[cacheKey];
+    return 'Adresa není uvedena';
   }
 
   function formatServiceAddressDisplay(service) {
     const line = buildServiceAddressLine(service);
     if (line && line !== 'Adresa není uvedena') return line;
+    const cacheKey = serviceAddressCacheKey(service);
+    if (cacheKey && STATE.serviceAddressCache[cacheKey]) return STATE.serviceAddressCache[cacheKey];
+    if (String(service?.city || '').trim()) return String(service.city).trim();
+    return 'Načítám adresu…';
+  }
+
+  async function ensureServiceAddressResolved(service) {
+    if (hasUsableServiceAddress(service)) return buildServiceAddressLine(service);
+    const cacheKey = serviceAddressCacheKey(service);
+    if (cacheKey && STATE.serviceAddressCache[cacheKey]) return STATE.serviceAddressCache[cacheKey];
     const coords = service?.coordinates;
-    if (coords && Number.isFinite(Number(coords.lat)) && Number.isFinite(Number(coords.lon))) {
-      return `${Number(coords.lat).toFixed(5)}, ${Number(coords.lon).toFixed(5)}`;
+    if (!coords || !Number.isFinite(Number(coords.lat)) || !Number.isFinite(Number(coords.lon)) || !apiReady()) {
+      return 'Adresa neuvedena';
     }
-    return 'Adresa neuvedena';
+    const payload = await safeApi(
+      `/api/v1/system/reverse-geocode?lat=${encodeURIComponent(String(coords.lat))}&lon=${encodeURIComponent(String(coords.lon))}`,
+      null,
+    );
+    const label = payload?.location_label || payload?.city || null;
+    if (!label) return 'Adresa neuvedena';
+    const text = String(label);
+    if (cacheKey) STATE.serviceAddressCache[cacheKey] = text;
+    return text;
+  }
+
+  function applyResolvedServiceAddress(service, label) {
+    const rowKey = esc(service?.row_key || '');
+    if (rowKey) {
+      document.querySelectorAll(`[data-service-row="${rowKey}"] .uapp-svc-address`).forEach((el) => {
+        el.textContent = label;
+      });
+    }
+    const modal = document.getElementById('uappSvcExternalModal');
+    if (modal && modal.dataset.serviceRowKey === String(service?.row_key || '')) {
+      const addrEl = modal.querySelector('[data-uapp-svc-address]');
+      if (addrEl) addrEl.textContent = label;
+    }
+  }
+
+  async function hydrateServiceAddresses(services) {
+    if (!apiReady() || getActiveView() !== 'servicesDirectory') return;
+    const token = ++STATE.serviceAddressResolveToken;
+    const targets = (Array.isArray(services) ? services : [])
+      .filter((service) => !hasUsableServiceAddress(service))
+      .slice(0, 24);
+    let index = 0;
+    const worker = async () => {
+      while (index < targets.length) {
+        if (token !== STATE.serviceAddressResolveToken || getActiveView() !== 'servicesDirectory') return;
+        const service = targets[index++];
+        const label = await ensureServiceAddressResolved(service);
+        if (token !== STATE.serviceAddressResolveToken) return;
+        applyResolvedServiceAddress(service, label);
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
   }
 
   function formatServiceOfferedLine(service) {
@@ -2579,16 +3021,30 @@
     ];
   }
 
+  const OSM_MAPS_FALLBACK = {
+    provider: 'osm_tiles',
+    configured: true,
+    tile_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors',
+    fallback_allowed: true,
+  };
+
+  function resolveMapsConfigForLeaflet(config) {
+    if (config?.configured && config?.tile_url) return config;
+    if (config?.provider === 'mapy_com' && config?.configured === false) {
+      console.warn('Mapy.com provider selected but API key missing, using OSM fallback.');
+    }
+    if (config?.fallback_allowed !== false) return { ...OSM_MAPS_FALLBACK };
+    return config || OSM_MAPS_FALLBACK;
+  }
+
   async function ensureMapsConfig() {
-    if (STATE.mapsConfig !== undefined) return STATE.mapsConfig;
-    STATE.mapsConfig = await safeApi('/api/v1/system/maps-config', {
-      provider: 'osm_tiles',
-      configured: true,
-      tile_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attribution: '© OpenStreetMap contributors',
-      fallback_message: null,
-    });
-    return STATE.mapsConfig;
+    if (STATE.mapsConfig !== undefined) {
+      return resolveMapsConfigForLeaflet(STATE.mapsConfig);
+    }
+    const result = await safeApi('/api/v1/system/maps-config', OSM_MAPS_FALLBACK);
+    STATE.mapsConfig = result || OSM_MAPS_FALLBACK;
+    return resolveMapsConfigForLeaflet(STATE.mapsConfig);
   }
 
   function loadLeafletAssets() {
@@ -2599,11 +3055,11 @@
         const link = document.createElement('link');
         link.id = 'uappLeafletCss';
         link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        link.href = '/web/vendor/leaflet/leaflet.css';
         document.head.appendChild(link);
       }
       const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.src = '/web/vendor/leaflet/leaflet.js';
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => reject(new Error('Leaflet se nepodařilo načíst'));
@@ -2621,15 +3077,15 @@
           const link = document.createElement('link');
           link.id = 'uappLeafletClusterCss';
           link.rel = 'stylesheet';
-          link.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css';
+          link.href = '/web/vendor/leaflet.markercluster/MarkerCluster.css';
           document.head.appendChild(link);
           const link2 = document.createElement('link');
           link2.rel = 'stylesheet';
-          link2.href = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css';
+          link2.href = '/web/vendor/leaflet.markercluster/MarkerCluster.Default.css';
           document.head.appendChild(link2);
         }
         const script = document.createElement('script');
-        script.src = 'https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js';
+        script.src = '/web/vendor/leaflet.markercluster/leaflet.markercluster.js';
         script.async = true;
         script.onload = () => resolve();
         script.onerror = () => reject(new Error('Leaflet cluster se nepodařilo načíst'));
@@ -2702,14 +3158,15 @@
   function bindLeafletServicesMap(host, ref, radius, rows, mapsConfig) {
     const L = window.L;
     if (!L) throw new Error('Leaflet není k dispozici');
-    if (!mapsConfig?.configured || !mapsConfig?.tile_url) {
+    const layerConfig = resolveMapsConfigForLeaflet(mapsConfig);
+    if (!layerConfig?.tile_url) {
       host.innerHTML = `<div class="uapp-svc-map-fallback" role="alert">${esc(mapsConfig?.fallback_message || 'Mapa není nakonfigurovaná. Servisy lze zobrazit v seznamu.')}</div>`;
       STATE.servicesMapRuntime = { provider: 'fallback' };
       return;
     }
     const map = L.map(host, { zoomControl: true, attributionControl: true }).setView([ref.lat, ref.lon], servicesMapZoomForRadius(radius));
-    L.tileLayer(mapsConfig.tile_url, {
-      attribution: mapsConfig.attribution || '',
+    L.tileLayer(layerConfig.tile_url, {
+      attribution: layerConfig.attribution || '',
       maxZoom: 19,
     }).addTo(map);
     L.circleMarker([ref.lat, ref.lon], {
@@ -2746,7 +3203,17 @@
       east: b.getEast(),
       west: b.getWest(),
     };
-    map.on('moveend', scheduleServicesMapBoundsLoad);
+    map.on('moveend', () => {
+      const rt = STATE.servicesMapRuntime;
+      if (!rt?.map) return;
+      const bounds = rt.map.getBounds();
+      STATE.servicesMapBounds = {
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest(),
+      };
+    });
 
     STATE.servicesMapRuntime = { provider: 'leaflet', map, cluster, markers: rows };
   }
@@ -2909,8 +3376,7 @@
       if (appCoords && Number.isFinite(Number(appCoords.lat)) && Number.isFinite(Number(appCoords.lon))) {
         osmRows.forEach((osmRow) => {
           if (matchedOsmIds.has(osmRow.osm_id)) return;
-          const olat = Number(osmRow.lat);
-          const olon = Number(osmRow.lon);
+          const { lat: olat, lon: olon } = getOsmRowCoords(osmRow);
           if (!Number.isFinite(olat) || !Number.isFinite(olon)) return;
           const dist = haversineKm(Number(appCoords.lat), Number(appCoords.lon), olat, olon);
           if (dist <= 0.25) {
@@ -2935,8 +3401,7 @@
 
     osmRows.forEach((osmRow) => {
       if (matchedOsmIds.has(osmRow.osm_id)) return;
-      const olat = Number(osmRow.lat);
-      const olon = Number(osmRow.lon);
+      const { lat: olat, lon: olon } = getOsmRowCoords(osmRow);
       if (!Number.isFinite(olat) || !Number.isFinite(olon)) return;
       const dist = ref
         ? Math.round(haversineKm(ref.lat, ref.lon, olat, olon) * 10) / 10
@@ -2998,9 +3463,9 @@
     const meta = data?.servicesDiscovery?.meta || {};
     const refSource = String(meta.reference_source || 'none');
     if (meta.reference_label) return String(meta.reference_label);
+    const ref = getServicesRefCoords(data);
     if (refSource === 'browser' || refSource === 'explore_place') {
-      const ref = getServicesRefCoords(data);
-      if (ref) return `GPS poloha (${ref.lat.toFixed(5)}, ${ref.lon.toFixed(5)})`;
+      if (ref) return 'Načítám adresu polohy…';
       return 'Vaše aktuální poloha (GPS)';
     }
     if (refSource === 'profile_address') {
@@ -3009,11 +3474,10 @@
         [profile.street, profile.street_number].filter(Boolean).join(' ').trim(),
         [profile.zip, profile.city].filter(Boolean).join(' ').trim(),
       ].filter(Boolean);
-      if (parts.length) return `Adresa v profilu: ${parts.join(', ')}`;
+      if (parts.length) return parts.join(', ');
       return 'Podle adresy v profilu';
     }
-    const ref = meta.reference_coordinates || {};
-    if (ref.lat != null && ref.lon != null) return 'Vaše poloha';
+    if (ref) return 'Načítám adresu polohy…';
     return 'Poloha není určena';
   }
 
@@ -3177,17 +3641,23 @@
       <div class="uapp-svc-map-wrap" id="uappSvcMapHost" data-map-lat="${esc(String(lat))}" data-map-lon="${esc(String(lon))}" data-map-radius="${esc(String(radius))}">
         <div class="uapp-svc-map-canvas" id="uappSvcMapCanvas" role="region" aria-label="Mapa servisů"></div>
         <div class="uapp-svc-map-legend" aria-label="Legenda mapy">${legend}</div>
-        <div class="uapp-svc-map-controls">
-          <h3>Vzdálenost od polohy</h3>
-          <label class="uapp-svc-map-slider">
-            <input type="range" min="5" max="100" step="5" value="${esc(String(radius))}" data-uapp-svc-filter="radius">
+        <div class="uapp-svc-map-controls-wrap${STATE.servicesMapControlsOpen ? ' is-open' : ''}">
+          <button type="button" class="uapp-svc-map-controls-toggle" data-uapp-action="servicesMapControlsToggle" aria-expanded="${STATE.servicesMapControlsOpen ? 'true' : 'false'}" aria-controls="uappSvcMapControlsPanel" title="Nastavení vzdálenosti">
+            <span aria-hidden="true">◎</span>
             <span>${esc(String(radius))} km</span>
-          </label>
-          <label class="uapp-svc-map-toggle">
-            <input type="checkbox"${STATE.servicesDirectoryUseLocation !== false ? ' checked' : ''} data-uapp-svc-filter="useLocation">
-            <span>Použít aktuální polohu</span>
-          </label>
-          <button type="button" class="uapp-svc-map-refresh" data-uapp-action="servicesRefreshLocation">⟳ Aktualizovat polohu</button>
+          </button>
+          <div class="uapp-svc-map-controls" id="uappSvcMapControlsPanel">
+            <h3>Vzdálenost od polohy</h3>
+            <label class="uapp-svc-map-slider">
+              <input type="range" min="5" max="100" step="5" value="${esc(String(radius))}" data-uapp-svc-filter="radius">
+              <span>${esc(String(radius))} km</span>
+            </label>
+            <label class="uapp-svc-map-toggle">
+              <input type="checkbox"${STATE.servicesDirectoryUseLocation !== false ? ' checked' : ''} data-uapp-svc-filter="useLocation">
+              <span>Použít aktuální polohu</span>
+            </label>
+            <button type="button" class="uapp-svc-map-refresh" data-uapp-action="servicesRefreshLocation">⟳ Aktualizovat polohu</button>
+          </div>
         </div>
       </div>`;
   }
@@ -3254,7 +3724,7 @@
         <dl class="uapp-svc-modal-meta">
           <div><dt>Stav</dt><dd>${service.is_verified ? 'Ověřený' : 'Neověřený'}</dd></div>
           <div><dt>Zdroj</dt><dd>${esc(serviceSourceLabel(service))}</dd></div>
-          <div><dt>Adresa</dt><dd>${esc(formatServiceAddressDisplay(service))}</dd></div>
+          <div><dt>Adresa</dt><dd data-uapp-svc-address>${esc(formatServiceAddressDisplay(service))}</dd></div>
           ${service.opening_hours ? `<div><dt>Otevírací doba</dt><dd>${esc(service.opening_hours)}</dd></div>` : ''}
           ${formatServiceContactRows(service).map((row) => `<div><dt>${esc(row.label)}</dt><dd>${row.href ? `<a href="${esc(row.href)}">${esc(row.value)}</a>` : esc(row.value)}</dd></div>`).join('')}
           ${service.distance_km != null ? `<div><dt>Vzdálenost</dt><dd>${esc(formatServicesDistanceKm(service.distance_km) || '')}</dd></div>` : ''}
@@ -3268,10 +3738,17 @@
           <button type="button" class="uapp-next-btn uapp-next-btn-secondary" data-uapp-action="serviceOsmClose">Zavřít</button>
         </div>
       </div>`;
+    overlay.dataset.serviceRowKey = String(service?.row_key || '');
     overlay.addEventListener('click', (event) => {
       if (event.target === overlay) overlay.remove();
     });
     document.body.appendChild(overlay);
+    if (!hasUsableServiceAddress(service)) {
+      void ensureServiceAddressResolved(service).then((label) => {
+        if (!overlay.isConnected) return;
+        applyResolvedServiceAddress(service, label);
+      });
+    }
   }
 
   function renderServicesDirectoryPage(data) {
@@ -3392,7 +3869,10 @@
             <section class="uapp-svc-widget">
               <h3>Moje poloha</h3>
               <p class="uapp-svc-location">${esc(locationLabel)}</p>
-              <p class="uapp-svc-location-meta">${ref.lat != null && ref.lon != null ? `Přesnost: ± 20 m` : 'Poloha se načte z prohlížeče nebo profilu.'}</p>
+              ${ref.lat != null && ref.lon != null
+                ? `<p class="uapp-svc-location-coords">${esc(ref.lat.toFixed(5))}, ${esc(ref.lon.toFixed(5))}</p>
+                   <p class="uapp-svc-location-meta">${STATE.servicesDirectoryUseLocation === false ? 'Podle zadané adresy' : 'Přesnost: ± 20 m'}</p>`
+                : '<p class="uapp-svc-location-meta">Poloha se načte z prohlížeče nebo profilu.</p>'}
               <button type="button" class="uapp-svc-location-btn" data-uapp-action="servicesRefreshLocation">Změnit polohu</button>
             </section>
             ${tipBanner}
@@ -3416,12 +3896,20 @@
       const key = el.getAttribute('data-uapp-svc-filter');
       const apply = () => {
         if (key === 'radius') {
-          STATE.servicesDirectoryRadius = Number(el.value) || 50;
+          const nextRadius = Number(el.value) || 50;
+          STATE.servicesDirectoryRadius = nextRadius;
           STATE.servicesDirectoryLimit = 30;
+          STATE.servicesMapBounds = null;
           STATE.servicesOsmRows = [];
           STATE.servicesMapRows = [];
-          void loadServicesOsmData();
-          return render();
+          const sliderLabel = el.closest('.uapp-svc-map-slider')?.querySelector('span:last-child');
+          if (sliderLabel) sliderLabel.textContent = `${nextRadius} km`;
+          const toggleLabel = document.querySelector('.uapp-svc-map-controls-toggle span:last-child');
+          if (toggleLabel) toggleLabel.textContent = `${nextRadius} km`;
+          void loadServicesOsmData({ skipRender: true }).then(() => {
+            if (STATE.latestData) patchServicesDirectoryList(STATE.latestData);
+          });
+          return;
         }
         if (key === 'useLocation') {
           STATE.servicesDirectoryUseLocation = Boolean(el.checked);
@@ -3436,10 +3924,15 @@
         }
         if (key === 'searchQ') {
           STATE.servicesMapSearchQ = String(el.value || '');
+          STATE.servicesMapBounds = null;
           STATE.servicesOsmRows = [];
           STATE.servicesMapRows = [];
           if (STATE.servicesSearchDebounce) clearTimeout(STATE.servicesSearchDebounce);
-          STATE.servicesSearchDebounce = setTimeout(() => { void loadServicesOsmData(); }, 450);
+          STATE.servicesSearchDebounce = setTimeout(() => {
+            void loadServicesOsmData({ skipRender: true }).then(() => {
+              if (STATE.latestData) patchServicesDirectoryList(STATE.latestData);
+            });
+          }, 450);
           return;
         }
         if (key === 'sort') {
@@ -3521,35 +4014,38 @@
           ${navButton('Nastavení', ICO.gear, 'settings', nav === 'settings', 0, false)}
         </nav>
         <div class="uapp-next-sidebar-bottom">
-          <button type="button" class="uapp-next-help-card" data-uapp-action="help">
-            <span class="uapp-next-help-card-ico" aria-hidden="true">🎧</span>
-            <span class="uapp-next-help-card-text">Potřebujete pomoc?</span>
+          <button type="button" class="uapp-next-help-card" data-uapp-action="help" data-testid="dashboard-help">
+            <span class="uapp-next-help-card-ico" aria-hidden="true">?</span>
+            <span class="uapp-next-help-card-text">Nápověda</span>
             <span class="uapp-next-help-card-chevron" aria-hidden="true">›</span>
           </button>
-          <button type="button" class="uapp-next-side-action" data-uapp-action="collapse"><span aria-hidden="true">⇤</span><span>Sbalit menu</span></button>
+          <button type="button" class="uapp-next-side-action" data-uapp-action="collapse" data-testid="dashboard-collapse-sidebar"><span aria-hidden="true">⇤</span><span>Sbalit menu</span></button>
         </div>
       </aside>
     `;
   }
 
+  function searchShortcutKbdLabel() {
+    try {
+      const platform = String(navigator.platform || '');
+      const ua = String(navigator.userAgent || '');
+      if (/Mac|iPhone|iPad|iPod/i.test(platform) || /Mac OS X/i.test(ua)) return '⌘ K';
+    } catch (_) {}
+    return 'Ctrl K';
+  }
+
   function renderTopbar() {
-    const badge = document.getElementById('desktopNotificationsBadge') || document.getElementById('mobileNotificationsBadge');
-    const count = badge ? String(badge.getAttribute('data-count') || badge.textContent || '0').trim() : '0';
     return `
-      <header class="uapp-next-topbar" aria-label="Horní lišta">
+      <header class="uapp-next-topbar" aria-label="Horní lišta" data-testid="dashboard-topbar">
         <label class="uapp-next-search">
           <span class="uapp-next-search-icon" aria-hidden="true">${ICO.search}</span>
-          <input id="uappNextSearch" type="search" autocomplete="off" placeholder="Hledat podle SPZ, VIN, značky nebo modelu…">
-          <kbd class="uapp-next-search-kbd" aria-hidden="true">⌘ K</kbd>
+          <input id="uappNextSearch" type="search" autocomplete="off" placeholder="Hledejte podle SPZ, VIN, názvu vozidla…" data-testid="dashboard-search-input">
+          <kbd class="uapp-next-search-kbd" aria-hidden="true">${esc(searchShortcutKbdLabel())}</kbd>
         </label>
-        <button type="button" class="uapp-next-btn uapp-next-btn-primary" data-uapp-action="addVehicle">+ Přidat vozidlo</button>
+        <button type="button" class="uapp-next-btn uapp-next-btn-primary" data-uapp-action="addVehicle" data-testid="dashboard-add-vehicle">+ Přidat vozidlo</button>
         <div class="uapp-next-top-actions">
-          <button type="button" class="uapp-next-btn uapp-next-icon-btn" data-uapp-action="notifications" aria-label="Oznámení" data-count="${esc(count || '0')}">${ICO.bell}</button>
-          <button type="button" class="uapp-next-profile" data-uapp-action="profile" aria-label="Profil uživatele">
-            <span class="uapp-next-avatar" aria-hidden="true">${esc(initials())}</span>
-            <span class="uapp-next-profile-name">${esc(profileName())}</span>
-            <span class="uapp-next-profile-caret" aria-hidden="true">▾</span>
-          </button>
+          ${renderTopbarNotificationsButton()}
+          ${renderTopbarProfileButton()}
         </div>
       </header>
     `;
@@ -3576,10 +4072,10 @@
     const heroVehicle = data.vehicles[0] || null;
     const needsAttention = fleetNeedsAttention(data);
     return `
-      <div class="uapp-next-overview-top">
-        <section class="uapp-next-hero">
+      <div class="uapp-next-overview-top" data-testid="dashboard-hero-row">
+        <section class="uapp-next-hero" data-testid="dashboard-hero">
           <div class="uapp-next-hero-copy">
-            <h1>Dobrý den, ${esc(fullName())} 👋</h1>
+            <h1 data-testid="dashboard-hero-greeting">Dobrý den, ${esc(fullName())} 👋</h1>
             <p class="uapp-next-hero-summary">${heroSummaryHtml(data)}</p>
           </div>
           <div class="uapp-next-hero-visual" aria-hidden="true">
@@ -3591,7 +4087,7 @@
             </div>
           </div>
         </section>
-        <button type="button" class="uapp-next-overall-status" data-uapp-action="attentionOpen" aria-label="Zobrazit, co je potřeba řešit">
+        <button type="button" class="uapp-next-overall-status" data-uapp-action="attentionOpen" aria-label="Zobrazit, co je potřeba řešit" data-testid="dashboard-overall-status">
           <div class="uapp-next-overall-inner">
             <div class="uapp-next-overall-text">
               <h2>Celkový stav</h2>
@@ -3611,10 +4107,11 @@
     const icoMap = { stk: ICO.quickStk, ins: ICO.quickShield, svc: ICO.wrench, docs: ICO.doc };
     const labels = { stk: 'STK / SME', ins: 'Pojištění', svc: 'Servis', docs: 'Dokumenty' };
     const accentClass = { stk: 'uapp-next-quick-card--warn', ins: 'uapp-next-quick-card--ok', svc: 'uapp-next-quick-card--info', docs: 'uapp-next-quick-card--warn' };
-    return `<div class="uapp-next-quick-grid">${Object.keys(cards).map((key) => {
+    const quickTestIds = { stk: 'dashboard-quick-stk', ins: 'dashboard-quick-insurance', svc: 'dashboard-quick-service', docs: 'dashboard-quick-documents' };
+    return `<div class="uapp-next-quick-grid" data-testid="dashboard-quick-grid">${Object.keys(cards).map((key) => {
       const card = cards[key];
       return `
-        <button type="button" class="uapp-next-quick-card ${accentClass[key] || quickToneClass(card.tone)}" data-uapp-action="${esc(card.action)}">
+        <button type="button" class="uapp-next-quick-card ${accentClass[key] || quickToneClass(card.tone)}" data-uapp-action="${esc(card.action)}" data-testid="${esc(quickTestIds[key] || 'dashboard-quick-card')}">
           <span class="uapp-next-quick-card-ico">${icoMap[key] || ICO.quickStk}</span>
           <span class="uapp-next-quick-card-body">
             <span class="uapp-next-quick-card-cat">${labels[key]}</span>
@@ -3637,16 +4134,17 @@
       ? `${Number(vehicle.current_mileage_km).toLocaleString('cs-CZ')} km`
       : '—';
     return `
-      <article class="uapp-next-vehicle-card" data-uapp-vehicle-card data-search-text="${esc([getVehicleName(vehicle), vehicle.plate, vehicle.vin, vehicle.brand, vehicle.model].filter(Boolean).join(' ').toLowerCase())}" data-vehicle-id="${id}">
-        <div class="uapp-next-vehicle-visual">
-          <div class="uapp-next-photo" data-next-photo-wrap="${id}">
-            <img id="uappNextVehiclePhoto-${id}" alt="Fotka vozidla ${esc(getVehicleName(vehicle))}" loading="lazy">
-            <div class="uapp-next-photo-fallback">Bez fotky</div>
+      <article class="uapp-next-vehicle-card" data-uapp-vehicle-card data-search-text="${esc([getVehicleName(vehicle), vehicle.plate, vehicle.vin, vehicle.brand, vehicle.model].filter(Boolean).join(' ').toLowerCase())}" data-vehicle-id="${id}" data-testid="dashboard-vehicle-card-${id}">
+        <button type="button" class="uapp-next-vehicle-open" data-uapp-action="detail:${id}" aria-label="Otevřít detail vozidla ${esc(getVehicleName(vehicle))}">
+          <div class="uapp-next-vehicle-visual">
+            <div class="uapp-next-photo" data-next-photo-wrap="${id}">
+              <img id="uappNextVehiclePhoto-${id}" alt="Fotka vozidla ${esc(getVehicleName(vehicle))}" loading="lazy">
+              <div class="uapp-next-photo-fallback">Bez fotky</div>
+            </div>
+            <span class="${badgeClass(status.tone === 'warn' ? 'warn' : 'ok')}">${esc(status.label)}</span>
           </div>
-          <span class="${badgeClass(status.tone === 'warn' ? 'warn' : 'ok')}">${esc(status.label)}</span>
-        </div>
-        <div class="uapp-next-vehicle-body">
-          <h3 class="uapp-next-vehicle-title">${esc(getVehicleName(vehicle))}</h3>
+          <div class="uapp-next-vehicle-body uapp-next-vehicle-body--open">
+            <h3 class="uapp-next-vehicle-title">${esc(getVehicleName(vehicle))}</h3>
           <div class="uapp-next-vehicle-subrow">
             ${renderPlateBadge(vehicle.plate)}
           </div>
@@ -3659,8 +4157,9 @@
             <div class="uapp-next-status-line"><span>Pojištění</span><strong class="uapp-next-status-val ${toneClass(ins.tone)}">${esc(ins.label)}</strong></div>
             <div class="uapp-next-status-line"><span>Servis</span><strong class="uapp-next-status-val ${toneClass(svc.tone)}">${esc(svc.label)}</strong></div>
           </div>
-          ${renderCardActionBar(id, false)}
-        </div>
+          </div>
+        </button>
+        ${renderCardActionBar(id, false)}
       </article>
     `;
   }
@@ -3671,15 +4170,15 @@
       ? vehicles.map((vehicle) => renderVehicleCard(vehicle, data)).join('')
       : '';
     return `
-      <section class="uapp-next-vehicles-section">
+      <section class="uapp-next-vehicles-section" data-testid="dashboard-vehicles-section">
         <div class="uapp-next-section-head">
           <h2 class="uapp-next-section-title">Moje vozidla</h2>
-          <button type="button" class="uapp-next-section-link" data-uapp-action="vehicles">Zobrazit všechna vozidla →</button>
+          <button type="button" class="uapp-next-section-link" data-uapp-action="vehicles" data-testid="dashboard-view-all-vehicles">Zobrazit všechna vozidla →</button>
         </div>
-        <div class="uapp-next-vehicle-grid">
+        <div class="uapp-next-vehicle-grid" data-testid="dashboard-vehicle-grid">
           ${cards || '<div class="uapp-next-empty uapp-next-empty--inline">Zatím nemáte žádné vozidlo. Přidejte první vozidlo a přehled se naplní reálnými daty.</div>'}
         </div>
-        <button type="button" class="uapp-next-add-card" data-uapp-action="addVehicle">
+        <button type="button" class="uapp-next-add-card" data-uapp-action="addVehicle" data-testid="dashboard-add-vehicle-card">
           <span class="uapp-next-add-plus">+</span>
           <strong>Přidat další vozidlo</strong>
           <span>Rychle přidejte nové vozidlo do své správy</span>
@@ -3831,17 +4330,17 @@
       : '<li class="uapp-next-aside-empty">Zatím nejsou aktivní sdílené přístupy ani servisní kontakty.</li>';
 
     return `
-      <aside class="uapp-next-overview-aside">
-        <section class="uapp-next-aside-card">
+      <aside class="uapp-next-overview-aside" data-testid="dashboard-overview-aside">
+        <section class="uapp-next-aside-card" data-testid="dashboard-aside-deadlines">
           ${asideHead('Blížící se termíny', 'Zobrazit všechny →', 'reminders')}
           <ul class="uapp-next-aside-list">${reminderList}</ul>
-          <button type="button" class="uapp-next-aside-foot-link" data-uapp-action="reminders">Zobrazit všechny připomínky →</button>
+          <button type="button" class="uapp-next-aside-foot-link" data-uapp-action="reminders" data-testid="dashboard-aside-all-reminders">Zobrazit všechny připomínky →</button>
         </section>
-        <section class="uapp-next-aside-card">
+        <section class="uapp-next-aside-card" data-testid="dashboard-aside-activity">
           ${asideHead('Poslední aktivita', 'Zobrazit vše →', 'serviceHistory')}
           <ul class="uapp-next-aside-activity">${activityList}</ul>
         </section>
-        <section class="uapp-next-aside-card">
+        <section class="uapp-next-aside-card" data-testid="dashboard-aside-access">
           ${asideHead('Servisy a přístupy', 'Spravovat přístupy →', 'servicesDirectory')}
           <ul class="uapp-next-aside-access">${serviceList}</ul>
         </section>
@@ -3933,6 +4432,50 @@
       </article>`;
   }
 
+  function renderVehiclesManageHint() {
+    if (!STATE.vehiclesManageHint) return '';
+    const text = STATE.vehiclesManageHint === 'hide'
+      ? 'Skrytí vozidla: otevřete detail vozidla a použijte tlačítko „Odebrat“ — vozidlo se archivuje a zmizí z běžného přehledu.'
+      : 'Odebrání vozidla: otevřete detail vozidla a použijte tlačítko „Odebrat vozidlo“ — historie zůstane v digitálním výpisu.';
+    return `
+      <div class="uapp-next-manage-hint" data-testid="vehicles-manage-hint">
+        <p>${esc(text)}</p>
+        <button type="button" class="uapp-next-manage-hint-close" data-uapp-action="vehiclesManageHintClose" aria-label="Zavřít">×</button>
+      </div>`;
+  }
+
+  function renderVehiclesReorderPanel(vehicles) {
+    const order = (STATE.reorderDraftOrder && STATE.reorderDraftOrder.length)
+      ? STATE.reorderDraftOrder.slice()
+      : vehicles.map((v) => Number(v.id));
+    return `
+      <section class="uapp-next-reorder-panel" data-testid="vehicles-reorder-panel">
+        <div class="uapp-next-reorder-head">
+          <h2>Změnit pořadí vozidel</h2>
+          <p>Přesuňte vozidla šipkami nahoru nebo dolů. Po dokončení uložte pořadí.</p>
+        </div>
+        <ol class="uapp-next-reorder-list">
+          ${order.map((id, idx) => {
+            const vehicle = vehicles.find((v) => Number(v.id) === Number(id));
+            if (!vehicle) return '';
+            return `
+              <li class="uapp-next-reorder-item">
+                <span class="uapp-next-reorder-index">${idx + 1}.</span>
+                <span class="uapp-next-reorder-name">${esc(getVehicleName(vehicle))}</span>
+                <span class="uapp-next-reorder-actions">
+                  <button type="button" data-uapp-action="vehicleReorderUp:${id}" ${idx === 0 ? 'disabled' : ''} aria-label="Posunout nahoru">↑</button>
+                  <button type="button" data-uapp-action="vehicleReorderDown:${id}" ${idx === order.length - 1 ? 'disabled' : ''} aria-label="Posunout dolů">↓</button>
+                </span>
+              </li>`;
+          }).join('')}
+        </ol>
+        <div class="uapp-next-reorder-actions-bar">
+          <button type="button" class="uapp-next-btn uapp-next-btn-primary" data-uapp-action="vehicleReorderSave">Uložit pořadí</button>
+          <button type="button" class="uapp-next-btn uapp-next-btn-secondary" data-uapp-action="vehicleReorderCancel">Zrušit</button>
+        </div>
+      </section>`;
+  }
+
   function renderFilterPill(id, label, count, dotClass) {
     const active = STATE.vehiclesFilter === id ? ' is-active' : '';
     const dot = dotClass ? `<span class="uapp-next-filter-dot ${dotClass}" aria-hidden="true"></span>` : '';
@@ -3943,9 +4486,12 @@
     const counts = getFilterCounts(data);
     const total = counts.all;
     const viewMode = getStoredViewMode();
-    const filtered = sortCatalogVehicles(filterCatalogVehicles(data, STATE.vehiclesFilter, STATE.vehiclesSearchQuery), data, STATE.vehiclesSort);
+    const baseList = filterCatalogVehicles(data, STATE.vehiclesFilter, STATE.vehiclesSearchQuery);
+    const reorderVehicles = filterCatalogVehicles(data, 'all', '');
+    const filtered = sortCatalogVehicles(baseList, data, STATE.vehiclesSort);
     const vehicleWord = total === 1 ? 'vozidlo' : (total > 1 && total < 5 ? 'vozidla' : 'vozidel');
     const gridClass = viewMode === 'list' ? 'uapp-next-garage-grid uapp-next-garage-grid--list' : 'uapp-next-garage-grid';
+    const customOrder = getGarageVehicleOrder();
 
     const cards = filtered.length
       ? filtered.map((vehicle) => renderGarageVehicleCard(vehicle, data, viewMode)).join('')
@@ -3953,6 +4499,8 @@
 
     return `
       <section class="uapp-next-catalog" data-testid="user-app-next-vehicles">
+        ${STATE.vehiclesReorderMode ? renderVehiclesReorderPanel(reorderVehicles) : ''}
+        ${!STATE.vehiclesReorderMode ? renderVehiclesManageHint() : ''}
         <header class="uapp-next-catalog-head">
           <div>
             <h1 class="uapp-next-catalog-title">Moje vozidla</h1>
@@ -3973,18 +4521,20 @@
               <select id="uappNextSortSelect" data-uapp-sort-select>
                 <option value="activity"${STATE.vehiclesSort === 'activity' ? ' selected' : ''}>Poslední aktivity</option>
                 <option value="name"${STATE.vehiclesSort === 'name' ? ' selected' : ''}>Název A–Z</option>
+                ${customOrder.length ? `<option value="custom"${STATE.vehiclesSort === 'custom' ? ' selected' : ''}>Vlastní pořadí</option>` : ''}
               </select>
             </label>
             <div class="uapp-next-view-toggle" role="group" aria-label="Zobrazení vozidel">
               <button type="button" class="${viewMode === 'grid' || viewMode === 'compact' ? 'is-active' : ''}" data-uapp-action="viewMode:grid" aria-label="Mřížka">▦</button>
               <button type="button" class="${viewMode === 'list' ? 'is-active' : ''}" data-uapp-action="viewMode:list" aria-label="Seznam">☰</button>
             </div>
+            ${!STATE.vehiclesReorderMode && total > 1 ? '<button type="button" class="uapp-next-link-btn" data-uapp-action="vehiclesReorderStart">Změnit pořadí</button>' : ''}
           </div>
         </div>
-        <div class="${gridClass}">
+        ${STATE.vehiclesReorderMode ? '' : `<div class="${gridClass}">
           ${cards}
           ${viewMode !== 'list' ? renderAddGarageCard() : ''}
-        </div>
+        </div>`}
         <div class="uapp-next-catalog-summary">
           <div class="uapp-next-summary-stats">
             <div class="uapp-next-summary-stat is-blue"><span aria-hidden="true">▣</span><div><strong>${esc(String(counts.all))}</strong><span>Celkem vozidel</span></div></div>
@@ -4050,10 +4600,10 @@
     if (view === 'home') {
       return `
         ${renderTopbar()}
-        <div class="uapp-next-overview-shell">
+        <div class="uapp-next-overview-shell" data-testid="dashboard-overview-shell">
           ${renderHero(data)}
           ${quickCards(data)}
-          <div class="uapp-next-overview-body">
+          <div class="uapp-next-overview-body" data-testid="dashboard-overview-body">
             <div class="uapp-next-overview-main">
               ${renderVehicles(data)}
             </div>
@@ -4112,6 +4662,7 @@
       mountLegacyTabContent(activeView);
     }
     bindSearch();
+    bindSearchShortcut();
     if (activeView === 'vehicles') {
       hydrateGarageImages(data);
       bindSortSelect();
@@ -4126,6 +4677,8 @@
     } else if (activeView === 'servicesDirectory') {
       bindServicesFilters();
       void bindServicesMap(data);
+      const visibleServices = filterServicesRows(buildMergedServiceCatalog(data)).slice(0, Number(STATE.servicesDirectoryLimit) || 30);
+      void hydrateServiceAddresses(visibleServices);
     } else if (activeView === 'settings') {
       const settingsMount = root.querySelector('#uappNextSettingsMount');
       if (settingsMount && typeof window.UserSettings !== 'undefined') {
@@ -4230,8 +4783,130 @@
     if (!select || select.dataset.uappBound === '1') return;
     select.dataset.uappBound = '1';
     select.addEventListener('change', () => {
-      STATE.vehiclesSort = select.value === 'name' ? 'name' : 'activity';
+      const val = select.value;
+      STATE.vehiclesSort = val === 'name' ? 'name' : (val === 'custom' ? 'custom' : 'activity');
       reRenderCatalog();
+    });
+  }
+
+  function initReorderDraftFromData(data) {
+    const vehicles = filterCatalogVehicles(data || STATE.latestData || {}, 'all', '');
+    const saved = getGarageVehicleOrder();
+    const ids = vehicles.map((v) => Number(v.id)).filter((id) => Number.isFinite(id));
+    if (saved.length) {
+      const known = new Set(ids);
+      const ordered = saved.filter((id) => known.has(id));
+      ids.forEach((id) => { if (!ordered.includes(id)) ordered.push(id); });
+      STATE.reorderDraftOrder = ordered;
+      return;
+    }
+    STATE.reorderDraftOrder = ids;
+  }
+
+  function moveReorderDraftItem(vehicleId, direction) {
+    const order = (STATE.reorderDraftOrder || []).slice();
+    const idx = order.findIndex((id) => Number(id) === Number(vehicleId));
+    if (idx < 0) return;
+    const next = idx + direction;
+    if (next < 0 || next >= order.length) return;
+    const tmp = order[idx];
+    order[idx] = order[next];
+    order[next] = tmp;
+    STATE.reorderDraftOrder = order;
+    reRenderCatalog();
+  }
+
+  async function saveVehicleOrderDraft() {
+    const order = (STATE.reorderDraftOrder || []).slice();
+    if (!order.length) return;
+    if (!apiReady()) throw new Error('Nejste přihlášeni.');
+    await apiCall('/api/v1/user/settings/garage', 'PATCH', { vehicle_order: order });
+    STATE.garageVehicleOrder = order.slice();
+    window.__garageVehicleOrder = order.slice();
+    STATE.vehiclesSort = 'custom';
+    STATE.vehiclesReorderMode = false;
+    STATE.reorderDraftOrder = null;
+    if (hasFn('showToast')) window.showToast('Pořadí vozidel bylo uloženo.', 'success');
+    else if (hasFn('showAlert')) window.showAlert('Pořadí vozidel bylo uloženo.', 'success');
+    reRenderCatalog();
+  }
+
+  function runIntent(intent, payload) {
+    const data = payload || {};
+    if (intent === 'vehicles:reorder') {
+      STATE.viewOverride = 'vehicles';
+      STATE.vehiclesManageHint = null;
+      STATE.vehiclesReorderMode = true;
+      initReorderDraftFromData(STATE.latestData || {});
+      if (hasFn('switchTab')) return window.switchTab('vehicles');
+      return render();
+    }
+    if (intent === 'vehicles:manage') {
+      STATE.viewOverride = 'vehicles';
+      STATE.vehiclesReorderMode = false;
+      STATE.reorderDraftOrder = null;
+      STATE.vehiclesManageHint = data.action === 'hide' ? 'hide' : 'delete';
+      if (hasFn('switchTab')) return window.switchTab('vehicles');
+      return render();
+    }
+    if (intent === 'vehicles:import') {
+      STATE.viewOverride = 'vehicles';
+      if (hasFn('switchTab')) return window.switchTab('vehicles', { expandVehiclesAdd: true });
+      return render();
+    }
+    if (intent === 'documents:upload') {
+      STATE.viewOverride = 'documents';
+      if (hasFn('switchTab')) window.switchTab('documents');
+      return runAction('documentsUpload', null, STATE.latestData || {});
+    }
+    if (intent === 'documents:folder' || intent === 'documents:organize') {
+      STATE.viewOverride = 'documents';
+      if (hasFn('switchTab')) window.switchTab('documents');
+      return runAction('documentsOrganize', null, STATE.latestData || {});
+    }
+    if (intent === 'documents:categories') {
+      STATE.viewOverride = 'documents';
+      STATE.documentsFiltersOpen = true;
+      if (hasFn('switchTab')) window.switchTab('documents');
+      return render();
+    }
+    if (intent === 'documents:cleanup') {
+      STATE.viewOverride = 'documents';
+      if (hasFn('switchTab')) window.switchTab('documents');
+      if (hasFn('showAlert')) window.showAlert('Projděte seznam dokumentů a odstraňte nepotřebné položky u jednotlivých vozidel.', 'info');
+      return render();
+    }
+    if (intent === 'documents:trash') {
+      STATE.viewOverride = 'documents';
+      if (hasFn('switchTab')) window.switchTab('documents');
+      if (hasFn('showAlert')) window.showAlert('Koš dokumentů není samostatná sekce — smazané položky spravujte v detailu vozidla / dokumentech.', 'info');
+      return render();
+    }
+    if (intent === 'services:invites') {
+      STATE.viewOverride = 'servicesDirectory';
+      if (hasFn('switchTab')) return window.switchTab('servicesDirectory');
+      return render();
+    }
+    return false;
+  }
+
+  function focusDashboardSearch() {
+    const input = document.getElementById('uappNextSearch');
+    if (!input) return;
+    input.focus();
+    if (typeof input.select === 'function') input.select();
+  }
+
+  function bindSearchShortcut() {
+    if (document.documentElement.dataset.uappSearchShortcutBound === '1') return;
+    document.documentElement.dataset.uappSearchShortcutBound = '1';
+    document.addEventListener('keydown', (event) => {
+      if (!(event.metaKey || event.ctrlKey) || String(event.key || '').toLowerCase() !== 'k') return;
+      if (!shouldActivate() || getActiveView() === 'settings') return;
+      const tag = String(event.target && event.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (event.target && event.target.isContentEditable)) return;
+      event.preventDefault();
+      focusDashboardSearch();
     });
   }
 
@@ -4264,7 +4939,7 @@
   }
 
   function legacyPanelAnchor(event) {
-    return (event && event.currentTarget) || document.querySelector('.uapp-next-icon-btn[data-uapp-action="notifications"]') || document.querySelector('.uapp-next-profile[data-uapp-action="profile"]');
+    return (event && event.currentTarget) || document.querySelector('.uapp-next-icon-btn[data-uapp-action="notifications"]') || document.querySelector('[data-testid="dashboard-profile"], .uapp-settings-profile-btn[data-uapp-action="profile"]');
   }
 
   function openNotificationsPanel(event) {
@@ -4278,9 +4953,9 @@
     return clickOriginal('#desktopNotificationsButton') || clickOriginal('#mobileNotificationsButton');
   }
 
-  function openProfileMenu() {
+  function openProfileMenu(event) {
     preserveLegacyOverlays();
-    if (hasFn('toggleMobileProfileMenu')) return window.toggleMobileProfileMenu();
+    if (hasFn('toggleMobileProfileMenu')) return window.toggleMobileProfileMenu(event);
     return clickOriginal('#desktopProfileButton') || clickOriginal('#mobileProfileButton');
   }
 
@@ -4337,7 +5012,20 @@
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape') return;
       const floatingRoot = document.getElementById('appFloatingModalRoot');
-      if (floatingRoot && floatingRoot.innerHTML.trim()) return;
+      if (floatingRoot && floatingRoot.innerHTML.trim()) {
+        if (hasFn('closeVehicleDetailFloatingSection') && window.vehicleDetailFloatingSectionState?.sectionId) {
+          event.preventDefault();
+          event.stopPropagation();
+          window.closeVehicleDetailFloatingSection();
+          return;
+        }
+        if (hasFn('unmountFloatingModal')) {
+          event.preventDefault();
+          event.stopPropagation();
+          window.unmountFloatingModal();
+          return;
+        }
+      }
       if (STATE.detailModal.open) {
         if (STATE.detailModal.optionsOpen) {
           STATE.detailModal.optionsOpen = false;
@@ -4461,7 +5149,7 @@
               <li class="${vehicle.plate ? 'is-ok' : 'is-muted'}">${vehicle.plate ? '✓' : '○'} SPZ ${vehicle.plate ? 'evidována' : 'neuvedena'}</li>
               <li class="${vehicle.stk_valid_until ? 'is-ok' : 'is-muted'}">${vehicle.stk_valid_until ? '✓' : '○'} STK ${vehicle.stk_valid_until ? 'evidována' : 'neuvedena'}</li>
             </ul>
-            ${hasFn('downloadVehicleVerifiedReportFromHub') ? `<button type="button" class="uapp-next-btn uapp-next-btn-secondary uapp-next-detail-id-btn" data-uapp-action="detailVerifiedPdf:${Number(vehicle.id)}">Zobrazit protokol kontroly</button>` : ''}
+            ${hasFn('previewVehicleVerifiedReportFromHub') ? `<button type="button" class="uapp-next-btn uapp-next-btn-secondary uapp-next-detail-id-btn" data-uapp-action="detailVerifiedPdf:${Number(vehicle.id)}">Digitální výpis</button>` : ''}
           </div>
         </section>
       </div>
@@ -4481,7 +5169,7 @@
     items.push([`detailTab:access:${id}`, 'Sdílet se servisem']);
     items.push([`detailTab:ops:${id}`, 'Připomínky a STK']);
     items.push([`detailTab:gallery:${id}`, 'Fotogalerie a QR']);
-    if (hasFn('downloadVehicleReportFromHub')) items.push([`detailPdf:${id}`, 'Exportovat PDF report']);
+    if (hasFn('previewVehicleReportFromHub')) items.push([`detailPdf:${id}`, 'Náhled PDF report']);
     if (hasFn('refreshExistingVehicleFromVin')) items.push([`detailVinRefresh:${id}`, 'Obnovit údaje z VIN']);
     return items.map(([action, label]) => (
       `<button type="button" class="uapp-next-detail-options-item" data-uapp-action="${esc(action)}">${esc(label)}</button>`
@@ -4608,7 +5296,7 @@
                   ${hasFn('openAddServiceRecordModal') ? `<button type="button" data-uapp-action="addRecord:${id}">+ Přidat servisní úkon</button>` : ''}
                   <button type="button" data-uapp-action="detailTab:ops:${id}">+ Přidat záznam tachometru</button>
                   <button type="button" data-uapp-action="detailTab:documents:${id}">Nahrát dokument</button>
-                  ${hasFn('downloadVehicleReportFromHub') ? `<button type="button" data-uapp-action="detailPdf:${id}">Exportovat PDF report</button>` : ''}
+                  ${hasFn('previewVehicleReportFromHub') ? `<button type="button" data-uapp-action="detailPdf:${id}">Náhled PDF report</button>` : ''}
                   ${hasFn('openVehicleDetailFloatingSection') ? `<button type="button" data-uapp-action="detailTab:gallery:${id}">Generovat QR historii</button>` : ''}
                 </div>
               </section>
@@ -4728,6 +5416,9 @@
     if (name === 'serviceHistory') {
       closeMobileNav();
       STATE.viewOverride = 'serviceHistory';
+      if (hasFn('switchTab')) {
+        try { window.switchTab('serviceHistory', { skipUnsavedGuard: true }); } catch (_) {}
+      }
       if (hasFn('syncUserTabUrlHistory')) {
         try { window.syncUserTabUrlHistory('serviceHistory'); } catch (_) {}
       }
@@ -4776,30 +5467,27 @@
       return render();
     }
     if (name === 'docPreview') {
-      const parts = String(action || '').split(':');
-      const url = decodeURIComponent(parts[1] || '');
-      const fileName = decodeURIComponent(parts.slice(2).join(':') || 'doklad');
-      if (hasFn('openServiceRecordAttachmentPreview')) {
-        return window.openServiceRecordAttachmentPreview(encodeURIComponent(url), encodeURIComponent(fileName));
-      }
-      return;
+      const payload = String(action || '').includes(':')
+        ? String(action).slice(String(action).indexOf(':') + 1)
+        : '';
+      return openDocumentPreviewFromParts(payload);
     }
     if (name === 'docDownload') {
       const parts = String(action || '').split(':');
       const kind = parts[1];
       const vehicleId = Number(parts[2] || 0);
       const downloadUrl = decodeURIComponent(parts.slice(3).join(':') || '');
-      if (kind === 'attachment' && downloadUrl && hasFn('openServiceRecordAttachmentPreview')) {
-        return window.openServiceRecordAttachmentPreview(encodeURIComponent(downloadUrl), encodeURIComponent('doklad'));
+      if (kind === 'attachment' && downloadUrl) {
+        return openDocumentPreviewFromParts(`attachment:${vehicleId}:${encodeURIComponent(downloadUrl)}:doklad`);
       }
-      if (kind === 'report' && vehicleId && hasFn('downloadVehicleReportFromHub')) {
-        return window.downloadVehicleReportFromHub(vehicleId);
+      if (kind === 'report' && vehicleId) {
+        return openDocumentPreviewFromParts(`report:${vehicleId}`);
       }
-      if (kind === 'verified_report' && vehicleId && hasFn('downloadVehicleVerifiedReportFromHub')) {
-        return window.downloadVehicleVerifiedReportFromHub(vehicleId);
+      if (kind === 'verified_report' && vehicleId) {
+        return openDocumentPreviewFromParts(`verified_report:${vehicleId}`);
       }
-      if (kind === 'technical_cert' && vehicleId && hasFn('downloadLargeTechnicalCertificateFromHub')) {
-        return window.downloadLargeTechnicalCertificateFromHub(vehicleId);
+      if (kind === 'technical_cert' && vehicleId) {
+        return openDocumentPreviewFromParts(`technical_cert:${vehicleId}`);
       }
       if (kind === 'tachometer' && vehicleId) return openVehicleDocuments(vehicleId);
       return;
@@ -4856,24 +5544,49 @@
       STATE.servicesDirectoryTipHidden = true;
       return render();
     }
+    if (name === 'servicesMapControlsToggle') {
+      STATE.servicesMapControlsOpen = !STATE.servicesMapControlsOpen;
+      const wrap = document.querySelector('.uapp-svc-map-controls-wrap');
+      const btn = document.querySelector('.uapp-svc-map-controls-toggle');
+      if (wrap) wrap.classList.toggle('is-open', STATE.servicesMapControlsOpen);
+      if (btn) btn.setAttribute('aria-expanded', STATE.servicesMapControlsOpen ? 'true' : 'false');
+      return;
+    }
     if (name === 'servicesRefreshLocation') {
-      STATE.servicesLocationLabel = '';
-      STATE.servicesRefCoords = null;
-      STATE.servicesOsmRows = [];
-      STATE.servicesMapRows = [];
-      STATE.servicesDirectoryLimit = 30;
-      if (hasFn('clearClientGeoTelemetry')) {
-        try { window.clearClientGeoTelemetry(); } catch (_) {}
-      }
-      return render();
+      openServicesLocationModal();
+      return;
+    }
+    if (name === 'servicesLocationClose') {
+      closeServicesLocationModal();
+      return;
+    }
+    if (name === 'servicesLocationUseGps') {
+      void applyServicesLocationFromGps();
+      return;
+    }
+    if (name === 'servicesLocationPick' && rawId !== undefined && rawId !== '') {
+      const modal = document.getElementById('uappSvcLocationModal');
+      const items = modal?._suggestions || [];
+      const idx = Number(rawId);
+      const item = items[idx];
+      if (item) void applyServicesLocationFromItem(item);
+      return;
     }
     if (name === 'servicesMapCategory') {
-      STATE.servicesMapCategory = rawId || 'all';
-      STATE.servicesMapVerifiedOnly = rawId === 'verified';
+      const nextCategory = rawId || 'all';
+      STATE.servicesMapCategory = nextCategory;
+      STATE.servicesMapVerifiedOnly = nextCategory === 'verified';
+      STATE.servicesMapBounds = null;
       STATE.servicesOsmRows = [];
       STATE.servicesMapRows = [];
-      void loadServicesOsmData();
-      return render();
+      document.querySelectorAll('.uapp-svc-chip[data-uapp-action^="servicesMapCategory:"]').forEach((btn) => {
+        const chipKey = (btn.getAttribute('data-uapp-action') || '').split(':')[1] || 'all';
+        btn.classList.toggle('is-active', chipKey === nextCategory);
+      });
+      void loadServicesOsmData({ skipRender: true }).then(() => {
+        if (STATE.latestData) patchServicesDirectoryList(STATE.latestData);
+      });
+      return;
     }
     if (name === 'serviceMapReport' && id) {
       const reportType = window.prompt('Typ hlášení: wrong_phone, closed, duplicate, fake, wrong_category, wrong_location', 'wrong_category');
@@ -4984,7 +5697,7 @@
       return clickOriginal('#btnOpenAddVehicleModal');
     }
     if (name === 'notifications') return openNotificationsPanel(event);
-    if (name === 'profile') return openProfileMenu();
+    if (name === 'profile') return openProfileMenu(event);
     if (name === 'detail' && id) return openUserVehicleDetailModal(id);
     if (name === 'addRecord' && id) {
       if (hasFn('openAddServiceRecordModal')) return window.openAddServiceRecordModal(id);
@@ -5037,9 +5750,32 @@
         return openDetailLegacyTab(tabKey, vid);
       }
     }
-    if (name === 'detailPdf' && id && hasFn('downloadVehicleReportFromHub')) return window.downloadVehicleReportFromHub(id);
-    if (name === 'detailVerifiedPdf' && id && hasFn('downloadVehicleVerifiedReportFromHub')) return window.downloadVehicleVerifiedReportFromHub(id);
+    if (name === 'detailPdf' && id && hasFn('previewVehicleReportFromHub')) return window.previewVehicleReportFromHub(id);
+    if (name === 'detailVerifiedPdf' && id && hasFn('previewVehicleVerifiedReportFromHub')) return window.previewVehicleVerifiedReportFromHub(id);
     if (name === 'detailQrOpen' && id) return openDetailLegacyTab('gallery', id);
+    if (name === 'vehiclesReorderStart') {
+      STATE.vehiclesReorderMode = true;
+      STATE.vehiclesManageHint = null;
+      initReorderDraftFromData(STATE.latestData || {});
+      return reRenderCatalog();
+    }
+    if (name === 'vehiclesManageHintClose') {
+      STATE.vehiclesManageHint = null;
+      return reRenderCatalog();
+    }
+    if (name === 'vehicleReorderCancel') {
+      STATE.vehiclesReorderMode = false;
+      STATE.reorderDraftOrder = null;
+      return reRenderCatalog();
+    }
+    if (name === 'vehicleReorderSave') {
+      void saveVehicleOrderDraft().catch((err) => {
+        window.alert(String(err?.message || err || 'Uložení pořadí selhalo.'));
+      });
+      return;
+    }
+    if (name === 'vehicleReorderUp' && id) return moveReorderDraftItem(id, -1);
+    if (name === 'vehicleReorderDown' && id) return moveReorderDraftItem(id, 1);
     if (name === 'filter') {
       const key = String(rawId || 'all');
       if (['all', 'ok', 'attention', 'service', 'archived'].includes(key)) {
@@ -5078,19 +5814,32 @@
     try {
       const data = await loadData();
       if (token !== STATE.renderToken || !shouldActivate()) return;
-      renderShell(data);
       if (view === 'servicesDirectory') {
-        void loadServicesOsmData();
+        await loadServicesOsmData({ skipRender: true });
+        if (token !== STATE.renderToken || !shouldActivate()) return;
+        await refreshServicesLocationLabel(data);
       }
+      renderShell(data);
     } catch (err) {
       console.error('[USER_APP_NEXT] render failed', err);
       if (token !== STATE.renderToken || !shouldActivate()) return;
       if (root) {
         root.replaceChildren();
-        const errEl = document.createElement('div');
+        const errWrap = document.createElement('div');
+        errWrap.className = 'uapp-next-error-state';
+        errWrap.setAttribute('data-testid', 'dashboard-load-error');
+        const errEl = document.createElement('p');
         errEl.className = 'uapp-next-loading';
-        errEl.textContent = 'Nepodařilo se načíst sekci. Zkuste obnovit stránku.';
-        root.appendChild(errEl);
+        errEl.textContent = 'Nepodařilo se načíst sekci. Zkuste to znovu nebo obnovte stránku.';
+        const retryBtn = document.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'uapp-next-btn uapp-next-btn-primary';
+        retryBtn.textContent = 'Zkusit znovu';
+        retryBtn.setAttribute('data-testid', 'dashboard-retry-load');
+        retryBtn.addEventListener('click', () => { void render(); });
+        errWrap.appendChild(errEl);
+        errWrap.appendChild(retryBtn);
+        root.appendChild(errWrap);
       }
     }
   }
@@ -5176,17 +5925,29 @@
     document.addEventListener('click', (event) => {
       const trigger = event.target && event.target.closest && event.target.closest('[data-uapp-action]');
       if (!trigger || trigger.disabled || trigger.getAttribute('aria-disabled') === 'true') return;
+      const action = trigger.getAttribute('data-uapp-action');
+      if (action === 'profile' || action === 'notifications') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') {
+          event.stopImmediatePropagation();
+        }
+        if (action === 'profile') openProfileMenu(event);
+        else openNotificationsPanel(event);
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       if (typeof event.stopImmediatePropagation === 'function') {
         event.stopImmediatePropagation();
       }
-      runAction(trigger.getAttribute('data-uapp-action'), event);
-    });
+      runAction(action, event);
+    }, true);
 
     window.UserAppNext = {
       render,
       runAction,
+      runIntent,
       openVehicleSection,
       openUserVehicleDetailModal,
       closeUserVehicleDetailModal,
@@ -5209,9 +5970,14 @@
     installHooks();
     window.setTimeout(() => {
       if (!shouldActivate() && document.body.classList.contains('route-app-view') && isAuthed() && !isServiceMode()) {
-        const homeTab = document.getElementById('homeTab');
-        if (homeTab && homeTab.classList.contains('active')) {
-          STATE.viewOverride = 'home';
+        const pathname = String(window.location.pathname || '');
+        if (/\/service-history(?:\/|$)/i.test(pathname)) {
+          STATE.viewOverride = 'serviceHistory';
+        } else {
+          const homeTab = document.getElementById('homeTab');
+          if (homeTab && homeTab.classList.contains('active')) {
+            STATE.viewOverride = 'home';
+          }
         }
       }
       if (shouldActivate()) render();
