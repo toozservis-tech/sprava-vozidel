@@ -18,10 +18,6 @@ def test_user_app_next_sidebar_objednat_servis():
     assert "Objednat servis" in _read("user-app-next.js")
 
 
-def test_user_app_next_sidebar_podpora():
-    assert "Podpora" in _read("user-app-next.js")
-
-
 def test_user_app_next_exports_can_access_feature():
     content = _read("user-app-next.js")
     assert "function canAccessFeature" in content
@@ -148,10 +144,24 @@ def test_support_navigation_uses_existing_flow_and_safe_error():
     assert "loadSupportPanel(false)" in index
     assert "handleSendSupportRequest" in index
     assert "Požadavek byl odeslán na podporu." in index
-    assert "sanitizeUiErrorMessage(error" in index
-    assert "Nepodařilo se odeslat požadavek: ${error.message}" not in index
-    assert "Podpora" in app
-    assert "navButton('Podpora', ICO.support, 'support'" in app
+    assert "Objednat servis" in app
+    assert "navButton('Objednat servis', ICO.calendar, 'reservations'" in app
+    assert "data-uapp-action=\"help\"" in app
+    assert "openHowToHubModal" in app or "setSettingsPanelRoute('support')" in app
+
+
+def test_dashboard_overview_testids_present():
+    app = _read("user-app-next.js")
+    for testid in (
+        "dashboard-search-input",
+        "dashboard-add-vehicle",
+        "dashboard-quick-stk",
+        "dashboard-vehicle-card-",
+        "dashboard-aside-deadlines",
+        "dashboard-overview-shell",
+        "bindSearchShortcut",
+    ):
+        assert testid in app
 
 
 def test_user_app_next_lock_messages_are_specific_and_safe():

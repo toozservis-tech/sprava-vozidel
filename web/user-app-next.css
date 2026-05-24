@@ -1,8 +1,8 @@
 :root {
-  --uapp-bg: #f5f7fa;
+  --uapp-bg: #f8f9fb;
   --uapp-card: #ffffff;
   --uapp-primary: #0b1f7a;
-  --uapp-primary-bright: #0b4bf2;
+  --uapp-primary-bright: #0033ab;
   --uapp-text: #101828;
   --uapp-muted: #667085;
   --uapp-border: rgba(16, 24, 40, 0.08);
@@ -870,6 +870,27 @@ body.user-app-next-view-invoices #homeTab.active {
   box-shadow: 0 22px 56px rgba(16, 24, 40, 0.12);
 }
 
+.uapp-next-vehicle-open {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.uapp-next-vehicle-open:hover .uapp-next-vehicle-title {
+  color: var(--uapp-primary-bright);
+}
+
+.uapp-next-vehicle-body--open {
+  width: 100%;
+}
+
 .uapp-next-vehicle-visual {
   position: relative;
   height: 148px;
@@ -1203,9 +1224,9 @@ body.user-app-next-view-invoices #homeTab.active {
   display: grid;
   justify-items: center;
   gap: 0.25rem;
-  border: 2px dashed rgba(16, 24, 40, 0.12);
+  border: 2px dashed rgba(11, 75, 242, 0.35);
   border-radius: var(--uapp-radius-md);
-  background: #fafbfc;
+  background: #f8faff;
   color: var(--uapp-text);
   font: inherit;
   cursor: pointer;
@@ -4760,8 +4781,28 @@ body.user-app-next-view-documents .uapp-next-canvas {
 }
 
 .uapp-next-help-card-ico {
-  font-size: 1rem;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: var(--uapp-primary-bright);
+  font-size: 0.82rem;
+  font-weight: 800;
   line-height: 1;
+}
+
+.uapp-next-error-state {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: start;
+  padding: 1.25rem;
+  max-width: 36rem;
+}
+
+.uapp-next-error-state .uapp-next-loading {
+  margin: 0;
 }
 
 .uapp-next-help-card-chevron {
