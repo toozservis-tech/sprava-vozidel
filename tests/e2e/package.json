@@ -4,7 +4,7 @@
   "description": "E2E tests for Správa vozidel",
   "scripts": {
     "bootstrap": "bash ./bootstrap-e2e.sh",
-    "test": "bash ./run-playwright.sh test",
+    "test:audit": "bash ./run-playwright.sh test --project=ui-audit-bot-chromium",
     "test:headed": "bash ./run-playwright.sh test --headed",
     "test:ui": "bash ./run-playwright.sh test --ui",
     "test:debug": "bash ./run-playwright.sh test --debug",
