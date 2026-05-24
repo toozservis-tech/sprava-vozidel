@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TooZ Hub 2 – Developer Admin Dashboard</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <!-- Přihlašovací obrazovka -->
+  <div id="login-screen" class="hidden">
+    <div class="login-container">
+      <h1>🚗 TooZ Hub 2</h1>
+      <h2>Developer Admin Dashboard</h2>
+      <form id="login-form" onsubmit="handleAdminLogin(event); return false;">
+        <div class="form-group">
+          <label for="admin-email">Email:</label>
+          <input type="email" id="admin-email" placeholder="vas@email.cz" required>
+        </div>
+        <div class="form-group">
+          <label for="admin-password">Heslo:</label>
+          <input type="password" id="admin-password" placeholder="Heslo" required>
+        </div>
+        <div id="login-error" class="error hidden"></div>
+        <button type="submit" class="btn-login">Přihlásit se</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hlavní dashboard -->
+  <div id="dashboard-screen" class="hidden">
+    <!-- Horní navigační lišta -->
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <span class="logo">🚗</span>
+        <span class="brand-text">TooZ Hub 2 – Developer Admin</span>
+      </div>
+      <div class="navbar-stats">
+        <span id="summary-users" class="stat-badge">👥 Uživatelé: <strong>0</strong></span>
+        <span id="summary-vehicles" class="stat-badge">🚗 Vozidla: <strong>0</strong></span>
+        <span id="summary-services" class="stat-badge">🛠 Servisy: <strong>0</strong></span>
+        <span id="summary-records" class="stat-badge">📋 Záznamy: <strong>0</strong></span>
+      </div>
+      <button id="logout-btn" class="btn-logout" onclick="handleAdminLogout()">Odhlásit se</button>
+    </nav>
+
+    <!-- Hlavní layout: Sidebar + Content -->
+    <div class="main-container">
+      <!-- Levý sidebar -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <button data-section="overview" class="nav-item active">
+            <span class="nav-icon">📊</span>
+            <span class="nav-text">Přehled</span>
+          </button>
+          <button data-section="users" class="nav-item">
+            <span class="nav-icon">👥</span>
+            <span class="nav-text">Uživatelé</span>
+          </button>
+          <button data-section="vehicles" class="nav-item">
+            <span class="nav-icon">🚗</span>
+            <span class="nav-text">Vozidla</span>
+          </button>
+          <button data-section="services" class="nav-item">
+            <span class="nav-icon">🛠</span>
+            <span class="nav-text">Servisy</span>
+          </button>
+          <button data-section="records" class="nav-item">
+            <span class="nav-icon">📋</span>
+            <span class="nav-text">Záznamy</span>
+          </button>
+          <button data-section="audit" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span class="nav-text">Audit log</span>
+          </button>
+          <div class="nav-divider"></div>
+          <button data-section="system" class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-text">Systémové nástroje</span>
+          </button>
+          <button data-section="settings" class="nav-item">
+            <span class="nav-icon">🔧</span>
+            <span class="nav-text">Nastavení</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Hlavní obsah -->
+      <main class="content-area">
+        <div id="global-error" class="global-error hidden"></div>
+
+        <!-- Sekce: Přehled -->
+        <section id="section-overview" class="content-section active">
+          <div class="section-header">
+            <h1>Přehled systému</h1>
+          </div>
+          <div id="overview-stats" class="stats-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+          <div class="section-header section-header-secondary">
+            <h2>Poslední aktivita</h2>
+          </div>
+          <div id="recent-activity" class="activity-list">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Uživatelé -->
+        <section id="section-users" class="content-section">
+          <div class="section-header">
+            <h1>Uživatelé</h1>
+            <button class="btn-primary" onclick="showUserModal()">+ Přidat uživatele</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="user-search" placeholder="🔍 Hledat uživatele..." class="search-input" />
+          </div>
+          <div id="users-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Vozidla -->
+        <section id="section-vehicles" class="content-section">
+          <div class="section-header">
+            <h1>Vozidla</h1>
+            <button class="btn-primary" onclick="showVehicleModal()">+ Přidat vozidlo</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="vehicle-search" placeholder="🔍 Hledat vozidlo..." class="search-input" />
+          </div>
+          <div id="vehicles-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Servisy -->
+        <section id="section-services" class="content-section">
+          <div class="section-header">
+            <h1>Servisy</h1>
+            <button class="btn-primary" onclick="showServiceModal()">+ Přidat servis</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="service-search" placeholder="🔍 Hledat servis..." class="search-input" />
+          </div>
+          <div id="services-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Záznamy -->
+        <section id="section-records" class="content-section">
+          <div class="section-header">
+            <h1>Servisní záznamy</h1>
+            <button class="btn-primary" onclick="showRecordModal()">+ Přidat záznam</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="record-search" placeholder="🔍 Hledat záznam..." class="search-input" />
+          </div>
+          <div id="records-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Audit log -->
+        <section id="section-audit" class="content-section">
+          <div class="section-header">
+            <h1>Audit log</h1>
+          </div>
+          <div class="section-toolbar">
+            <select id="audit-entity-type" class="filter-select" title="Filtrovat podle typu entity">
+              <option value="">Všechny typy</option>
+              <option value="user">Uživatelé</option>
+              <option value="vehicle">Vozidla</option>
+              <option value="service">Servisy</option>
+              <option value="service_record">Servisní záznamy</option>
+            </select>
+            <select id="audit-action" class="filter-select" title="Filtrovat podle akce">
+              <option value="">Všechny akce</option>
+              <option value="CREATE_RESERVATION">Vytvoření rezervace</option>
+              <option value="CREATE_REMINDER">Vytvoření připomínky</option>
+            </select>
+            <button class="btn-secondary" onclick="loadAuditLog()">Filtrovat</button>
+          </div>
+          <div id="audit-log-list" class="audit-log-list">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Systémové nástroje -->
+        <section id="section-system" class="content-section">
+          <div class="section-header">
+            <h1>Systémové nástroje</h1>
+          </div>
+          <div class="tools-grid">
+            <div class="tool-card">
+              <h3>🔍 Reindexace</h3>
+              <p>Přepočítá počty a validuje vazby v databázi</p>
+              <button class="btn-secondary" onclick="runReindex()">Spustit reindexaci</button>
+              <div id="reindex-result" class="tool-result"></div>
+            </div>
+            <div class="tool-card">
+              <h3>🔧 Oprava databáze</h3>
+              <p>Provede základní kontrolu a opravu databáze</p>
+              <button class="btn-secondary" onclick="runRepair()">Spustit opravu</button>
+              <div id="repair-result" class="tool-result"></div>
+            </div>
+            <div class="tool-card">
+              <h3>📊 Informace o databázi</h3>
+              <p>Zobrazí informace o velikosti, tabulkách a schématu</p>
+              <button class="btn-secondary" onclick="loadDbInfo()">Načíst informace</button>
+              <div id="db-info-result" class="tool-result"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sekce: Nastavení -->
+        <section id="section-settings" class="content-section">
+          <div class="section-header">
+            <h1>Nastavení aplikace</h1>
+            <button class="btn-primary" onclick="initDefaultSettings()">Inicializovat výchozí nastavení</button>
+          </div>
+          
+          <div id="settings-loading" class="loading">Načítání nastavení...</div>
+          <div id="settings-error" class="error hidden"></div>
+          
+          <div id="settings-content" class="settings-content hidden">
+            <!-- Tabs pro kategorie -->
+            <div class="settings-tabs">
+              <button class="settings-tab active" data-category="general" onclick="showSettingsCategory('general')">
+                <span class="tab-icon">⚙️</span> Obecné
+              </button>
+              <button class="settings-tab" data-category="security" onclick="showSettingsCategory('security')">
+                <span class="tab-icon">🔒</span> Bezpečnost
+              </button>
+              <button class="settings-tab" data-category="database" onclick="showSettingsCategory('database')">
+                <span class="tab-icon">💾</span> Databáze
+              </button>
+              <button class="settings-tab" data-category="server" onclick="showSettingsCategory('server')">
+                <span class="tab-icon">🖥️</span> Server
+              </button>
+              <button class="settings-tab" data-category="email" onclick="showSettingsCategory('email')">
+                <span class="tab-icon">📧</span> E-maily
+              </button>
+              <button class="settings-tab" data-category="logging" onclick="showSettingsCategory('logging')">
+                <span class="tab-icon">📝</span> Logování
+              </button>
+              <button class="settings-tab" data-category="ui" onclick="showSettingsCategory('ui')">
+                <span class="tab-icon">🎨</span> Vzhled
+              </button>
+              <button class="settings-tab" data-category="api" onclick="showSettingsCategory('api')">
+                <span class="tab-icon">🔌</span> API
+              </button>
+              <button class="settings-tab" data-category="system" onclick="showSettingsCategory('system')">
+                <span class="tab-icon">🖥️</span> Systémové
+              </button>
+            </div>
+            
+            <!-- Obsah kategorií -->
+            <div id="settings-categories" class="settings-categories">
+              <!-- Naplní se JavaScriptem -->
+            </div>
+            
+            <div class="settings-footer">
+              <button class="btn-primary" onclick="saveAllSettings()">Uložit všechna nastavení</button>
+              <button class="btn-secondary" onclick="resetSettingsCategory()">Obnovit kategorii</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modaly pro CRUD operace -->
+  <!-- Modal: Přidat/Upravit uživatele -->
+  <div id="user-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="user-modal-title">Přidat uživatele</h2>
+        <button class="modal-close" onclick="closeUserModal()">&times;</button>
+      </div>
+      <form id="user-form" onsubmit="saveUser(event); return false;">
+        <input type="hidden" id="user-id" />
+        <div class="form-group">
+          <label for="user-email">Email *</label>
+          <input type="email" id="user-email" required />
+        </div>
+        <div class="form-group">
+          <label for="user-name">Jméno</label>
+          <input type="text" id="user-name" />
+        </div>
+        <div class="form-group">
+          <label for="user-password">Heslo <span id="user-password-hint">(povinné při vytvoření)</span></label>
+          <input type="password" id="user-password" />
+        </div>
+        <div class="form-group">
+          <label for="user-role">Role *</label>
+          <select id="user-role" required>
+            <option value="user">Uživatel</option>
+            <option value="service">Servis</option>
+            <option value="developer_admin">Developer Admin</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeUserModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Přidat/Upravit vozidlo -->
+  <div id="vehicle-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="vehicle-modal-title">Přidat vozidlo</h2>
+        <button class="modal-close" onclick="closeVehicleModal()">&times;</button>
+      </div>
+      <form id="vehicle-form" onsubmit="saveVehicle(event); return false;">
+        <input type="hidden" id="vehicle-id" />
+        <div class="form-group">
+          <label for="vehicle-user-email">Email vlastníka *</label>
+          <input type="email" id="vehicle-user-email" required />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-nickname">Název</label>
+          <input type="text" id="vehicle-nickname" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-brand">Značka</label>
+          <input type="text" id="vehicle-brand" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-model">Model</label>
+          <input type="text" id="vehicle-model" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-year">Rok</label>
+          <input type="number" id="vehicle-year" min="1900" max="2100" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-plate">SPZ</label>
+          <input type="text" id="vehicle-plate" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-vin">VIN</label>
+          <input type="text" id="vehicle-vin" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeVehicleModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Přidat/Upravit servis -->
+  <div id="service-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="service-modal-title">Přidat servis</h2>
+        <button class="modal-close" onclick="closeServiceModal()">&times;</button>
+      </div>
+      <form id="service-form" onsubmit="saveService(event); return false;">
+        <input type="hidden" id="service-id" />
+        <div class="form-group">
+          <label for="service-email">Email *</label>
+          <input type="email" id="service-email" required />
+        </div>
+        <div class="form-group">
+          <label for="service-name">Název *</label>
+          <input type="text" id="service-name" required />
+        </div>
+        <div class="form-group">
+          <label for="service-city">Město</label>
+          <input type="text" id="service-city" />
+        </div>
+        <div class="form-group">
+          <label for="service-phone">Telefon</label>
+          <input type="text" id="service-phone" />
+        </div>
+        <div class="form-group">
+          <label for="service-ico">IČO</label>
+          <input type="text" id="service-ico" />
+        </div>
+        <div class="form-group">
+          <label for="service-password">Heslo <span id="service-password-hint">(povinné při vytvoření)</span></label>
+          <input type="password" id="service-password" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeServiceModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Přidat/Upravit záznam -->
+  <div id="record-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="record-modal-title">Přidat záznam</h2>
+        <button class="modal-close" onclick="closeRecordModal()">&times;</button>
+      </div>
+      <form id="record-form" onsubmit="saveRecord(event); return false;">
+        <input type="hidden" id="record-id" />
+        <div class="form-group">
+          <label for="record-service-id">Servis *</label>
+          <select id="record-service-id" required></select>
+        </div>
+        <div class="form-group">
+          <label for="record-vehicle-id">Vozidlo *</label>
+          <select id="record-vehicle-id" required></select>
+        </div>
+        <div class="form-group">
+          <label for="record-description">Popis *</label>
+          <textarea id="record-description" required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="record-performed-at">Datum provedení *</label>
+          <input type="datetime-local" id="record-performed-at" required />
+        </div>
+        <div class="form-group">
+          <label for="record-mileage">Nájezd (km)</label>
+          <input type="number" id="record-mileage" min="0" />
+        </div>
+        <div class="form-group">
+          <label for="record-price">Cena (Kč)</label>
+          <input type="number" id="record-price" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label for="record-category">Kategorie</label>
+          <input type="text" id="record-category" />
+        </div>
+        <div class="form-group">
+          <label for="record-note">Poznámka</label>
+          <textarea id="record-note"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeRecordModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
+
+
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TooZ Hub 2 – Developer Admin Dashboard</title>
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <!-- Přihlašovací obrazovka -->
+  <div id="login-screen" class="hidden">
+    <div class="login-container">
+      <h1>🚗 TooZ Hub 2</h1>
+      <h2>Developer Admin Dashboard</h2>
+      <form id="login-form" onsubmit="handleAdminLogin(event); return false;">
+        <div class="form-group">
+          <label for="admin-email">Email:</label>
+          <input type="email" id="admin-email" placeholder="vas@email.cz" required>
+        </div>
+        <div class="form-group">
+          <label for="admin-password">Heslo:</label>
+          <input type="password" id="admin-password" placeholder="Heslo" required>
+        </div>
+        <div id="login-error" class="error hidden"></div>
+        <button type="submit" class="btn-login">Přihlásit se</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hlavní dashboard -->
+  <div id="dashboard-screen" class="hidden">
+    <!-- Horní navigační lišta -->
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <span class="logo">🚗</span>
+        <span class="brand-text">TooZ Hub 2 – Developer Admin</span>
+      </div>
+      <div class="navbar-stats">
+        <span id="summary-users" class="stat-badge">👥 Uživatelé: <strong>0</strong></span>
+        <span id="summary-vehicles" class="stat-badge">🚗 Vozidla: <strong>0</strong></span>
+        <span id="summary-services" class="stat-badge">🛠 Servisy: <strong>0</strong></span>
+        <span id="summary-records" class="stat-badge">📋 Záznamy: <strong>0</strong></span>
+      </div>
+      <button id="logout-btn" class="btn-logout" onclick="handleAdminLogout()">Odhlásit se</button>
+    </nav>
+
+    <!-- Hlavní layout: Sidebar + Content -->
+    <div class="main-container">
+      <!-- Levý sidebar -->
+      <aside class="sidebar">
+        <nav class="sidebar-nav">
+          <button data-section="overview" class="nav-item active">
+            <span class="nav-icon">📊</span>
+            <span class="nav-text">Přehled</span>
+          </button>
+          <button data-section="users" class="nav-item">
+            <span class="nav-icon">👥</span>
+            <span class="nav-text">Uživatelé</span>
+          </button>
+          <button data-section="vehicles" class="nav-item">
+            <span class="nav-icon">🚗</span>
+            <span class="nav-text">Vozidla</span>
+          </button>
+          <button data-section="services" class="nav-item">
+            <span class="nav-icon">🛠</span>
+            <span class="nav-text">Servisy</span>
+          </button>
+          <button data-section="records" class="nav-item">
+            <span class="nav-icon">📋</span>
+            <span class="nav-text">Záznamy</span>
+          </button>
+          <button data-section="audit" class="nav-item">
+            <span class="nav-icon">📜</span>
+            <span class="nav-text">Audit log</span>
+          </button>
+          <div class="nav-divider"></div>
+          <button data-section="system" class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-text">Systémové nástroje</span>
+          </button>
+          <button data-section="settings" class="nav-item">
+            <span class="nav-icon">🔧</span>
+            <span class="nav-text">Nastavení</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- Hlavní obsah -->
+      <main class="content-area">
+        <div id="global-error" class="global-error hidden"></div>
+
+        <!-- Sekce: Přehled -->
+        <section id="section-overview" class="content-section active">
+          <div class="section-header">
+            <h1>Přehled systému</h1>
+          </div>
+          <div id="overview-stats" class="stats-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+          <div class="section-header section-header-secondary">
+            <h2>Poslední aktivita</h2>
+          </div>
+          <div id="recent-activity" class="activity-list">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Uživatelé -->
+        <section id="section-users" class="content-section">
+          <div class="section-header">
+            <h1>Uživatelé</h1>
+            <button class="btn-primary" onclick="showUserModal()">+ Přidat uživatele</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="user-search" placeholder="🔍 Hledat uživatele..." class="search-input" />
+          </div>
+          <div id="users-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Vozidla -->
+        <section id="section-vehicles" class="content-section">
+          <div class="section-header">
+            <h1>Vozidla</h1>
+            <button class="btn-primary" onclick="showVehicleModal()">+ Přidat vozidlo</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="vehicle-search" placeholder="🔍 Hledat vozidlo..." class="search-input" />
+          </div>
+          <div id="vehicles-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Servisy -->
+        <section id="section-services" class="content-section">
+          <div class="section-header">
+            <h1>Servisy</h1>
+            <button class="btn-primary" onclick="showServiceModal()">+ Přidat servis</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="service-search" placeholder="🔍 Hledat servis..." class="search-input" />
+          </div>
+          <div id="services-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Záznamy -->
+        <section id="section-records" class="content-section">
+          <div class="section-header">
+            <h1>Servisní záznamy</h1>
+            <button class="btn-primary" onclick="showRecordModal()">+ Přidat záznam</button>
+          </div>
+          <div class="section-toolbar">
+            <input type="text" id="record-search" placeholder="🔍 Hledat záznam..." class="search-input" />
+          </div>
+          <div id="records-cards-container" class="cards-grid">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Audit log -->
+        <section id="section-audit" class="content-section">
+          <div class="section-header">
+            <h1>Audit log</h1>
+          </div>
+          <div class="section-toolbar">
+            <select id="audit-entity-type" class="filter-select" title="Filtrovat podle typu entity">
+              <option value="">Všechny typy</option>
+              <option value="user">Uživatelé</option>
+              <option value="vehicle">Vozidla</option>
+              <option value="service">Servisy</option>
+              <option value="service_record">Servisní záznamy</option>
+            </select>
+            <select id="audit-action" class="filter-select" title="Filtrovat podle akce">
+              <option value="">Všechny akce</option>
+              <option value="CREATE_RESERVATION">Vytvoření rezervace</option>
+              <option value="CREATE_REMINDER">Vytvoření připomínky</option>
+            </select>
+            <button class="btn-secondary" onclick="loadAuditLog()">Filtrovat</button>
+          </div>
+          <div id="audit-log-list" class="audit-log-list">
+            <!-- Naplní se JavaScriptem -->
+          </div>
+        </section>
+
+        <!-- Sekce: Systémové nástroje -->
+        <section id="section-system" class="content-section">
+          <div class="section-header">
+            <h1>Systémové nástroje</h1>
+          </div>
+          <div class="tools-grid">
+            <div class="tool-card">
+              <h3>🔍 Reindexace</h3>
+              <p>Přepočítá počty a validuje vazby v databázi</p>
+              <button class="btn-secondary" onclick="runReindex()">Spustit reindexaci</button>
+              <div id="reindex-result" class="tool-result"></div>
+            </div>
+            <div class="tool-card">
+              <h3>🔧 Oprava databáze</h3>
+              <p>Provede základní kontrolu a opravu databáze</p>
+              <button class="btn-secondary" onclick="runRepair()">Spustit opravu</button>
+              <div id="repair-result" class="tool-result"></div>
+            </div>
+            <div class="tool-card">
+              <h3>📊 Informace o databázi</h3>
+              <p>Zobrazí informace o velikosti, tabulkách a schématu</p>
+              <button class="btn-secondary" onclick="loadDbInfo()">Načíst informace</button>
+              <div id="db-info-result" class="tool-result"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Sekce: Nastavení -->
+        <section id="section-settings" class="content-section">
+          <div class="section-header">
+            <h1>Nastavení aplikace</h1>
+            <button class="btn-primary" onclick="initDefaultSettings()">Inicializovat výchozí nastavení</button>
+          </div>
+          
+          <div id="settings-loading" class="loading">Načítání nastavení...</div>
+          <div id="settings-error" class="error hidden"></div>
+          
+          <div id="settings-content" class="settings-content hidden">
+            <!-- Tabs pro kategorie -->
+            <div class="settings-tabs">
+              <button class="settings-tab active" data-category="general" onclick="showSettingsCategory('general')">
+                <span class="tab-icon">⚙️</span> Obecné
+              </button>
+              <button class="settings-tab" data-category="security" onclick="showSettingsCategory('security')">
+                <span class="tab-icon">🔒</span> Bezpečnost
+              </button>
+              <button class="settings-tab" data-category="database" onclick="showSettingsCategory('database')">
+                <span class="tab-icon">💾</span> Databáze
+              </button>
+              <button class="settings-tab" data-category="server" onclick="showSettingsCategory('server')">
+                <span class="tab-icon">🖥️</span> Server
+              </button>
+              <button class="settings-tab" data-category="email" onclick="showSettingsCategory('email')">
+                <span class="tab-icon">📧</span> E-maily
+              </button>
+              <button class="settings-tab" data-category="logging" onclick="showSettingsCategory('logging')">
+                <span class="tab-icon">📝</span> Logování
+              </button>
+              <button class="settings-tab" data-category="ui" onclick="showSettingsCategory('ui')">
+                <span class="tab-icon">🎨</span> Vzhled
+              </button>
+              <button class="settings-tab" data-category="api" onclick="showSettingsCategory('api')">
+                <span class="tab-icon">🔌</span> API
+              </button>
+              <button class="settings-tab" data-category="system" onclick="showSettingsCategory('system')">
+                <span class="tab-icon">🖥️</span> Systémové
+              </button>
+            </div>
+            
+            <!-- Obsah kategorií -->
+            <div id="settings-categories" class="settings-categories">
+              <!-- Naplní se JavaScriptem -->
+            </div>
+            
+            <div class="settings-footer">
+              <button class="btn-primary" onclick="saveAllSettings()">Uložit všechna nastavení</button>
+              <button class="btn-secondary" onclick="resetSettingsCategory()">Obnovit kategorii</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modaly pro CRUD operace -->
+  <!-- Modal: Přidat/Upravit uživatele -->
+  <div id="user-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="user-modal-title">Přidat uživatele</h2>
+        <button class="modal-close" onclick="closeUserModal()">&times;</button>
+      </div>
+      <form id="user-form" onsubmit="saveUser(event); return false;">
+        <input type="hidden" id="user-id" />
+        <div class="form-group">
+          <label for="user-email">Email *</label>
+          <input type="email" id="user-email" required />
+        </div>
+        <div class="form-group">
+          <label for="user-name">Jméno</label>
+          <input type="text" id="user-name" />
+        </div>
+        <div class="form-group">
+          <label for="user-password">Heslo <span id="user-password-hint">(povinné při vytvoření)</span></label>
+          <input type="password" id="user-password" />
+        </div>
+        <div class="form-group">
+          <label for="user-role">Role *</label>
+          <select id="user-role" required>
+            <option value="user">Uživatel</option>
+            <option value="service">Servis</option>
+            <option value="developer_admin">Developer Admin</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeUserModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Přidat/Upravit vozidlo -->
+  <div id="vehicle-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="vehicle-modal-title">Přidat vozidlo</h2>
+        <button class="modal-close" onclick="closeVehicleModal()">&times;</button>
+      </div>
+      <form id="vehicle-form" onsubmit="saveVehicle(event); return false;">
+        <input type="hidden" id="vehicle-id" />
+        <div class="form-group">
+          <label for="vehicle-user-email">Email vlastníka *</label>
+          <input type="email" id="vehicle-user-email" required />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-nickname">Název</label>
+          <input type="text" id="vehicle-nickname" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-brand">Značka</label>
+          <input type="text" id="vehicle-brand" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-model">Model</label>
+          <input type="text" id="vehicle-model" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-year">Rok</label>
+          <input type="number" id="vehicle-year" min="1900" max="2100" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-plate">SPZ</label>
+          <input type="text" id="vehicle-plate" />
+        </div>
+        <div class="form-group">
+          <label for="vehicle-vin">VIN</label>
+          <input type="text" id="vehicle-vin" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeVehicleModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Přidat/Upravit servis -->
+  <div id="service-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="service-modal-title">Přidat servis</h2>
+        <button class="modal-close" onclick="closeServiceModal()">&times;</button>
+      </div>
+      <form id="service-form" onsubmit="saveService(event); return false;">
+        <input type="hidden" id="service-id" />
+        <div class="form-group">
+          <label for="service-email">Email *</label>
+          <input type="email" id="service-email" required />
+        </div>
+        <div class="form-group">
+          <label for="service-name">Název *</label>
+          <input type="text" id="service-name" required />
+        </div>
+        <div class="form-group">
+          <label for="service-city">Město</label>
+          <input type="text" id="service-city" />
+        </div>
+        <div class="form-group">
+          <label for="service-phone">Telefon</label>
+          <input type="text" id="service-phone" />
+        </div>
+        <div class="form-group">
+          <label for="service-ico">IČO</label>
+          <input type="text" id="service-ico" />
+        </div>
+        <div class="form-group">
+          <label for="service-password">Heslo <span id="service-password-hint">(povinné při vytvoření)</span></label>
+          <input type="password" id="service-password" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeServiceModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Přidat/Upravit záznam -->
+  <div id="record-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="record-modal-title">Přidat záznam</h2>
+        <button class="modal-close" onclick="closeRecordModal()">&times;</button>
+      </div>
+      <form id="record-form" onsubmit="saveRecord(event); return false;">
+        <input type="hidden" id="record-id" />
+        <div class="form-group">
+          <label for="record-service-id">Servis *</label>
+          <select id="record-service-id" required></select>
+        </div>
+        <div class="form-group">
+          <label for="record-vehicle-id">Vozidlo *</label>
+          <select id="record-vehicle-id" required></select>
+        </div>
+        <div class="form-group">
+          <label for="record-description">Popis *</label>
+          <textarea id="record-description" required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="record-performed-at">Datum provedení *</label>
+          <input type="datetime-local" id="record-performed-at" required />
+        </div>
+        <div class="form-group">
+          <label for="record-mileage">Nájezd (km)</label>
+          <input type="number" id="record-mileage" min="0" />
+        </div>
+        <div class="form-group">
+          <label for="record-price">Cena (Kč)</label>
+          <input type="number" id="record-price" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label for="record-category">Kategorie</label>
+          <input type="text" id="record-category" />
+        </div>
+        <div class="form-group">
+          <label for="record-note">Poznámka</label>
+          <textarea id="record-note"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeRecordModal()">Zrušit</button>
+          <button type="submit" class="btn-primary">Uložit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

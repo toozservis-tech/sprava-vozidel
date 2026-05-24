@@ -1,0 +1,22 @@
+run_id: 20260310T211534Z
+profile: full
+base_url: http://127.0.0.1:8000
+overall_status: PASS
+failed_step: None
+artifacts_dir: /opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z
+playwright_report_path: /opt/toozhub2/app/artifacts/qa/playwright-report/index.html
+playwright_trace_dir: /opt/toozhub2/app/tests/e2e/test-results
+
+steps:
+- A0_server_boot_sanity: PASS, required=True, duration=0s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A0_server_boot_sanity.log
+- A1_lint_type_build: SKIPPED (No lint/type/build configuration files detected.), required=False, duration=0s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A1_lint_type_build.log
+- A2_python_compile_sanity: PASS, required=True, duration=0s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A2_python_compile_sanity.log
+- A3_health_route_pytest: PASS, required=True, duration=0s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A3_health_route_pytest.log
+- A4_playwright_runtime_check: PASS, required=True, duration=1s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A4_playwright_runtime_check.log
+- B1_security_runtime_routes: PASS, required=True, duration=0s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/B1_security_runtime_routes.log
+- B2_security_pytest_regressions: PASS, required=True, duration=3s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/B2_security_pytest_regressions.log
+- C1_core_e2e_smoke: PASS, required=True, duration=38s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/C1_core_e2e_smoke.log
+- C2_admin_e2e_smoke: SKIPPED (E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD not set.), required=False, duration=0s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/C2_admin_e2e_smoke.log
+- D1_responsive_e2e: PASS, required=True, duration=61s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/D1_responsive_e2e.log
+- E1_cross_browser_chromium_firefox: PASS, required=True, duration=120s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/E1_cross_browser_chromium_firefox.log
+- E2_cross_browser_webkit: SKIPPED (PW_ENABLE_WEBKIT is not set to 1.), required=False, duration=0s, log=/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/E2_cross_browser_webkit.log

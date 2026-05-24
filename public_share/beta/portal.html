@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beta portál | Správa vozidel</title>
+  <meta name="description" content="Portál pro schválené beta testery služby Správa vozidel: stav účasti, aktivita, feedback a hlášení.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/beta/beta.css">
+</head>
+<body>
+  <div class="beta-shell portal-shell">
+    <header class="beta-topbar">
+      <a href="/beta" class="beta-brand">
+        <span class="beta-brand-mark">SV</span>
+        <span>
+          Beta – Správa vozidel
+          <span class="beta-brand-sub">stav účasti, feedback a odměny</span>
+        </span>
+      </a>
+      <div class="beta-topbar-actions">
+        <a href="/web/index.html" class="btn btn-secondary">Hlavní aplikace</a>
+        <a href="/beta" class="btn btn-primary">Beta nábor</a>
+      </div>
+    </header>
+
+    <main class="beta-main">
+      <section class="status-banner" id="portalStatusBanner">
+        <strong>Načítám beta stav</strong>
+        <p>Pokud jste přihlášeni v hlavní aplikaci, portál automaticky načte beta kontext a umožní poslat feedback.</p>
+      </section>
+
+      <section class="auth-gate hidden" id="portalAuthGate">
+        <h2>Nejdřív se přihlaste</h2>
+        <p class="helper-copy" id="portalAuthStatus">
+          Beta portál používá stejný přístupový token jako hlavní aplikace Správa vozidel. Přihlaste se v hlavní aplikaci a potom stránku obnovte.
+        </p>
+        <div class="form-actions" style="margin-top:16px;">
+          <a href="/web/index.html" class="btn btn-primary">Přihlásit se do Správa vozidel</a>
+          <a href="/beta" class="btn btn-secondary">Poslat beta přihlášku</a>
+        </div>
+      </section>
+
+      <section class="portal-grid hidden" id="portalApp">
+        <div class="portal-column">
+          <article class="beta-panel">
+            <div class="section-head" style="margin-bottom:18px;">
+              <div>
+                <h2>Beta účet</h2>
+                <p>Přehled stavu účasti a navázání na reálný účet nebo tenant.</p>
+              </div>
+            </div>
+
+            <div class="portal-metric-grid">
+              <div class="portal-metric">
+                <span>Activity score</span>
+                <strong id="metricActivityScore">-</strong>
+              </div>
+              <div class="portal-metric">
+                <span>Impact score</span>
+                <strong id="metricImpactScore">-</strong>
+              </div>
+              <div class="portal-metric">
+                <span>Feedback + bugy</span>
+                <strong id="metricFeedbackCount">-</strong>
+              </div>
+              <div class="portal-metric">
+                <span>Poslední aktivita</span>
+                <strong id="metricLastActive" style="font-size:20px;letter-spacing:-0.03em;">-</strong>
+              </div>
+            </div>
+
+            <div class="helper-grid" style="margin-top:18px;">
+              <div class="helper-card">
+                <strong>Navázaný účet</strong>
+                <p class="helper-copy" id="portalLinkedAccount">-</p>
+              </div>
+              <div class="helper-card">
+                <strong>Navázaný tenant</strong>
+                <p class="helper-copy" id="portalLinkedTenant">-</p>
+              </div>
+              <div class="helper-card">
+                <strong>Typ účastníka</strong>
+                <p class="helper-copy" id="portalParticipantType">-</p>
+              </div>
+              <div class="helper-card">
+                <strong>Reward stav</strong>
+                <p class="helper-copy" id="portalRewardStatus">-</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="beta-panel">
+            <div class="section-head">
+              <div>
+                <h2>Moje beta přihláška</h2>
+                <p>Aktuální onboarding stav vůči developer admin workflow.</p>
+              </div>
+            </div>
+            <div id="portalApplicationSummary"></div>
+          </article>
+
+          <article class="beta-panel hidden" id="portalFeedbackPanel">
+            <div class="section-head">
+              <div>
+                <h2>Poslat feedback nebo bug report</h2>
+                <p>Čím konkrétnější a provozně relevantnější vstup pošlete, tím lépe se promítne do impact skóre.</p>
+              </div>
+            </div>
+
+            <form id="portalFeedbackForm" class="beta-form" novalidate>
+              <div class="field-row">
+                <label class="field">
+                  <span>Typ</span>
+                  <select name="category" required>
+                    <option value="feedback">Feedback</option>
+                    <option value="bug_report">Bug report</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Závažnost</span>
+                  <select name="severity" required>
+                    <option value="medium">Střední</option>
+                    <option value="low">Nízká</option>
+                    <option value="high">Vysoká</option>
+                    <option value="critical">Kritická</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="field-row">
+                <label class="field">
+                  <span>Nadpis</span>
+                  <input type="text" name="title" placeholder="Např. Rezervace neudrží stav po reloadu" required>
+                </label>
+                <label class="field">
+                  <span>Oblast produktu</span>
+                  <input type="text" name="context_area" placeholder="Např. reservations / service / onboarding / mobile">
+                </label>
+              </div>
+
+              <label class="field">
+                <span>Popis</span>
+                <textarea name="message" placeholder="Popište reprodukci, očekávání, reálný dopad nebo návrh zlepšení." required></textarea>
+              </label>
+
+              <label class="field">
+                <span>Route / URL kontext</span>
+                <input type="text" name="route_path" placeholder="/web/index.html, /beta/portal, konkrétní tok nebo obrazovka">
+              </label>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Uložit do beta programu</button>
+                <a href="/web/index.html" class="btn btn-secondary">Zpět do aplikace</a>
+              </div>
+              <div class="portal-feedback-status" id="portalFeedbackStatus" aria-live="polite"></div>
+            </form>
+          </article>
+        </div>
+
+        <div class="portal-column">
+          <article class="beta-panel">
+            <div class="section-head">
+              <div>
+                <h2>Historie feedbacku</h2>
+                <p>Vše, co jste poslali přes beta portál, včetně statusu a admin poznámek.</p>
+              </div>
+            </div>
+            <div class="portal-history" id="portalFeedbackHistory">
+              <div class="empty-copy">Načítám historii...</div>
+            </div>
+          </article>
+
+          <article class="beta-panel">
+            <span class="card-tag gold-tag">Jak se hodnotí lifetime Premium</span>
+            <div class="helper-grid" style="margin-top:16px;">
+              <div class="helper-card">
+                <strong>Reálná aktivita</strong>
+                <p class="helper-copy">Počítají se loginy, vytvořená vozidla, záznamy, rezervace i poslední aktivita v čase.</p>
+              </div>
+              <div class="helper-card">
+                <strong>Skutečný feedback</strong>
+                <p class="helper-copy">Výhodu mají vstupy, které vedou k review, plánování nebo reálnému fixu. Ne jen krátké poznámky bez kontextu.</p>
+              </div>
+              <div class="helper-card">
+                <strong>Developer rozhodnutí</strong>
+                <p class="helper-copy">Lifetime Premium přiděluje výhradně developer admin. Reward není automatický a eviduje se v auditu.</p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/public/beta/portal.js"></script>
+</body>
+</html>

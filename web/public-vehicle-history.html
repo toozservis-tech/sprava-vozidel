@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Veřejná historie vozidla</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #0f141b;
+      --panel: #19212b;
+      --panel-soft: #202b38;
+      --text: #f8fafc;
+      --muted: rgba(226, 232, 240, 0.72);
+      --line: rgba(148, 163, 184, 0.18);
+      --primary: #4b82ff;
+      --ok: #22c55e;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #eef2f8;
+        --panel: #ffffff;
+        --panel-soft: #f8fafc;
+        --text: #0f172a;
+        --muted: rgba(51, 65, 85, 0.76);
+        --line: rgba(15, 23, 42, 0.1);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .page {
+      width: min(820px, 100%);
+      margin: 0 auto;
+      padding: 18px 14px calc(24px + env(safe-area-inset-bottom));
+      display: grid;
+      gap: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.16);
+    }
+    .hero h1, .card h2, .card h3 { margin: 0 0 8px; }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+    .empty {
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: 16px;
+    }
+    .cta-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      min-height: 46px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      color: #eff6ff;
+      background: linear-gradient(135deg, var(--primary), #255ef0);
+    }
+    .btn.secondary {
+      color: var(--text);
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+    }
+    .ok { color: var(--ok); }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+      .cta-row { flex-direction: column; }
+      .btn { width: 100%; }
+    }
+    /* Veřejná historie — stejné BEM jako aplikace (service-history-*) */
+    .service-history-list--public {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    .service-history-list--public .service-history-item {
+      border-bottom: 1px solid var(--line);
+    }
+    .service-history-list--public .service-history-item:last-child { border-bottom: none; }
+    .service-history-list--public .service-history-item__summary {
+      display: grid;
+      grid-template-columns: minmax(3.75rem, 4.6rem) minmax(0, 1fr) auto;
+      gap: 0.35rem 0.4rem;
+      align-items: start;
+      padding: 0.4rem 0 0.45rem;
+    }
+    @media (min-width: 360px) {
+      .service-history-list--public .service-history-item__summary {
+        grid-template-columns: minmax(4.1rem, 5rem) minmax(0, 1fr) auto;
+        gap: 0.4rem 0.5rem;
+        padding: 0.45rem 0.05rem 0.5rem;
+      }
+    }
+    @media (min-width: 640px) {
+      .service-history-list--public .service-history-item__summary {
+        grid-template-columns: minmax(4.5rem, 5.5rem) minmax(0, 1fr) auto;
+        padding: 0.5rem 0.1rem 0.55rem;
+      }
+    }
+    .service-history-list--public .service-history-item__date {
+      font-weight: 700;
+      font-size: 0.8rem;
+      line-height: 1.2;
+      color: var(--text);
+    }
+    .service-history-list--public .service-history-item__km {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.08rem;
+    }
+    .service-history-list--public .service-history-item__main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.12rem;
+    }
+    .service-history-list--public .service-history-item__type-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.15rem;
+      font-size: 0.78rem;
+      line-height: 1.3;
+    }
+    .service-history-list--public .service-history-item__type {
+      font-weight: 700;
+      color: var(--text);
+    }
+    .service-history-list--public .service-history-item__desc {
+      font-size: 0.74rem;
+      line-height: 1.35;
+      color: var(--muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      width: 100%;
+    }
+    .service-history-list--public .service-history-item__trailing {
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding-top: 0.05rem;
+    }
+    .service-history-list--public .service-history-item__expand {
+      -webkit-tap-highlight-color: transparent;
+      width: 2.75rem;
+      min-width: 2.75rem;
+      min-height: 2.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      border-radius: 0.55rem;
+      cursor: pointer;
+      color: var(--muted);
+      padding: 0;
+    }
+    .service-history-list--public .service-history-item__expand:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+    .service-history-list--public .service-history-item__chev {
+      display: block;
+      width: 0.42rem;
+      height: 0.42rem;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg) translate(0, -0.05rem);
+      transition: transform 0.2s ease;
+    }
+    .service-history-list--public .service-history-item.is-open .service-history-item__chev {
+      transform: rotate(225deg) translate(0.1rem, -0.05rem);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .service-history-list--public .service-history-item__chev { transition: none; }
+    }
+    .service-history-list--public .service-history-item__detail {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.22s ease-out, opacity 0.18s ease-out;
+      opacity: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .service-history-list--public .service-history-item.is-open .service-history-item__detail {
+      grid-template-rows: 1fr;
+      opacity: 1;
+      pointer-events: auto;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .service-history-list--public .service-history-item__detail { transition: none; }
+    }
+    .service-history-list--public .service-history-item__detail-inner {
+      min-height: 0;
+      overflow: hidden;
+      padding: 0 0 0.55rem;
+    }
+    .service-history-detail--public .service-history-detail__body {
+      padding: 0.55rem 0.45rem 0.6rem;
+      border-radius: 0.55rem;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+      font-size: 0.88rem;
+      line-height: 1.45;
+      color: var(--text);
+    }
+    .service-history-detail--public .service-history-detail__meta-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 0.18rem;
+    }
+    .service-history-detail--public .service-history-detail__price-value {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: var(--ok);
+    }
+    .service-history-detail--public .service-history-detail__text {
+      color: var(--text);
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+    .service-history-detail--public .service-history-detail__grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.45rem 0.65rem;
+      margin-top: 0.45rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 399px) {
+      .service-history-detail--public .service-history-detail__grid-2 { grid-template-columns: 1fr; }
+    }
+    .service-history-detail--public .service-history-detail__meta-block {
+      margin-bottom: 0.45rem;
+    }
+    .service-history-detail--public .service-history-detail__prose-block {
+      margin-bottom: 0.45rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="page" id="app">
+    <section class="card hero">
+      <h1>Veřejná historie vozidla</h1>
+      <p class="muted">Načítám veřejnou servisní historii…</p>
+    </section>
+  </main>
+  <script>
+    function fmtDate(value) {
+      if (!value) return 'Neuvedeno';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleDateString('cs-CZ');
+    }
+
+    function fmtDateTime(value) {
+      if (!value) return 'Neuvedeno';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleString('cs-CZ');
+    }
+
+    function fmtMoney(value) {
+      if (value == null || value === '') return 'Neuvedeno';
+      const n = Number(value);
+      if (!Number.isFinite(n)) return String(value);
+      return `${n.toLocaleString('cs-CZ')} Kč`;
+    }
+
+    function esc(s) {
+      if (s == null) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function publicHistorySortRecords(records) {
+      return records.slice().sort((a, b) => {
+        const ta = new Date(a?.performed_at || 0).getTime();
+        const tb = new Date(b?.performed_at || 0).getTime();
+        if (ta !== tb) return tb - ta;
+        return Number(b?.id || 0) - Number(a?.id || 0);
+      });
+    }
+
+    function publicHistoryDetailHtml(rec) {
+      return `
+        <div class="service-history-detail service-history-detail--accordion service-history-detail--public">
+          <div class="service-history-detail__body">
+            <div class="service-history-detail__meta-block">
+              <div class="service-history-detail__meta-label">Cena</div>
+              <div class="service-history-detail__price-value">${esc(fmtMoney(rec.total_price))}</div>
+            </div>
+            ${rec.description ? `
+            <div class="service-history-detail__prose-block">
+              <div class="service-history-detail__meta-label">Popis</div>
+              <div class="service-history-detail__text">${esc(rec.description)}</div>
+            </div>` : ''}
+            ${rec.notes_customer_visible ? `
+            <div class="service-history-detail__prose-block">
+              <div class="service-history-detail__meta-label">Poznámka pro zákazníka</div>
+              <div class="service-history-detail__text">${esc(rec.notes_customer_visible)}</div>
+            </div>` : ''}
+            <div class="service-history-detail__grid-2">
+              <div>
+                <div class="service-history-detail__meta-label">Datum a čas</div>
+                <div class="service-history-detail__text">${esc(fmtDateTime(rec.performed_at))}</div>
+              </div>
+              <div>
+                <div class="service-history-detail__meta-label">Nájezd</div>
+                <div class="service-history-detail__text">${rec.mileage != null && rec.mileage !== '' ? esc(`${Number(rec.mileage).toLocaleString('cs-CZ')} km`) : 'Neuvedeno'}</div>
+              </div>
+            </div>
+            <div class="service-history-detail__prose-block">
+              <div class="service-history-detail__meta-label">Stav</div>
+              <div class="service-history-detail__text">${esc(String(rec.record_status || '—'))}</div>
+            </div>
+            <div class="service-history-detail__prose-block">
+              <div class="service-history-detail__meta-label">Servis</div>
+              <div class="service-history-detail__text">${esc(rec.service_identity?.name || 'Neuvedeno')}</div>
+              <div class="muted" style="font-size:0.82rem;margin-top:0.25rem;">${rec.service_identity?.verified_status ? '<span class="ok">Ověřený servis</span>' : 'Neověřený servis'} · IČO: ${esc(rec.service_identity?.ico || 'Neuvedeno')}</div>
+            </div>
+            ${rec.service_type ? `
+            <div class="service-history-detail__prose-block">
+              <div class="service-history-detail__meta-label">Typ servisu</div>
+              <div class="service-history-detail__text">${esc(rec.service_type)}</div>
+            </div>` : ''}
+            ${rec.recommended_next_service_text ? `
+            <div class="service-history-detail__prose-block">
+              <div class="service-history-detail__meta-label">Další servis</div>
+              <div class="service-history-detail__text">${esc(rec.recommended_next_service_text)}</div>
+            </div>` : ''}
+            ${rec.recommended_next_service_date ? `
+            <div class="service-history-detail__prose-block">
+              <div class="service-history-detail__meta-label">Doporučený termín</div>
+              <div class="service-history-detail__text">${esc(fmtDate(rec.recommended_next_service_date))}</div>
+            </div>` : ''}
+            ${rec.public_quote_url ? `<div class="cta-row" style="margin-top:0.5rem;"><a class="btn secondary" href="${esc(rec.public_quote_url)}" rel="noopener noreferrer" target="_blank">Zobrazit nabídku</a></div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function publicHistoryListHtml(records) {
+      const sorted = publicHistorySortRecords(records);
+      return sorted.map((record, i) => {
+        const id = `ph-${i}-${String(record.id != null ? record.id : i)}`;
+        const dateLabel = fmtDate(record.performed_at);
+        const km = record.mileage != null && record.mileage !== ''
+          ? `${Number(record.mileage).toLocaleString('cs-CZ')} km`
+          : '—';
+        const desc = esc(String(record.description || 'Bez popisu').replace(/\s+/g, ' ').trim());
+        const typeLabel = esc(record.category || 'Servisní záznam');
+        return `
+        <article class="service-history-item" data-idx="${i}">
+          <div class="service-history-item__summary">
+            <div class="service-history-item__left">
+              <div class="service-history-item__date">${esc(dateLabel)}</div>
+              <div class="service-history-item__km">${esc(km)}</div>
+            </div>
+            <div class="service-history-item__main">
+              <div class="service-history-item__type-row">
+                <span class="service-history-item__type">${typeLabel}</span>
+              </div>
+              <div class="service-history-item__desc">${desc}</div>
+            </div>
+            <div class="service-history-item__trailing">
+              <button type="button" class="service-history-item__expand" id="btn-${id}" aria-expanded="false" aria-controls="reg-${id}" title="Rozbalit detail" aria-label="Rozbalit detail záznamu">
+                <span class="service-history-item__chev" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+          <div class="service-history-item__detail" id="reg-${id}" role="region" aria-hidden="true" aria-labelledby="btn-${id}">
+            <div class="service-history-item__detail-inner">
+              ${publicHistoryDetailHtml(record)}
+            </div>
+          </div>
+        </article>
+        `;
+      }).join('');
+    }
+
+    function publicHistoryBind(root) {
+      if (!root) return;
+      root.querySelectorAll('.service-history-item__expand').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const item = btn.closest('.service-history-item');
+          const list = btn.closest('.service-history-list');
+          if (!item || !list) return;
+          const wasOpen = item.classList.contains('is-open');
+          list.querySelectorAll('.service-history-item.is-open').forEach((it) => {
+            if (it === item) return;
+            it.classList.remove('is-open');
+            const b = it.querySelector('.service-history-item__expand');
+            const d = it.querySelector('.service-history-item__detail');
+            if (b) b.setAttribute('aria-expanded', 'false');
+            if (d) d.setAttribute('aria-hidden', 'true');
+          });
+          if (wasOpen) {
+            item.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
+            item.querySelector('.service-history-item__detail')?.setAttribute('aria-hidden', 'true');
+            return;
+          }
+          item.classList.add('is-open');
+          btn.setAttribute('aria-expanded', 'true');
+          item.querySelector('.service-history-item__detail')?.setAttribute('aria-hidden', 'false');
+        });
+      });
+    }
+
+    function tokenFromLocation() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('token') || '';
+    }
+
+    /** Základ URL backendu: nastavte při deployi např. window.__API_BASE__ = 'https://hub.example.cz' (bez koncového /). */
+    function resolvePublicApiBaseUrl() {
+      try {
+        const raw = typeof window !== 'undefined' ? window.__API_BASE__ : '';
+        return String(raw || '').trim().replace(/\/+$/, '');
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function publicVehicleHistoryFetchUrl(token) {
+      const path = `/api/public/vehicle-history/${encodeURIComponent(token)}`;
+      const base = resolvePublicApiBaseUrl();
+      if (!base) return path;
+      return `${base}${path}`;
+    }
+
+    async function sharePage() {
+      if (!navigator.share) return;
+      await navigator.share({
+        title: 'Veřejná historie vozidla',
+        url: window.location.href,
+      });
+    }
+
+    async function boot() {
+      const app = document.getElementById('app');
+      const token = tokenFromLocation();
+      if (!token) {
+        app.innerHTML = '<section class="card"><h1>Chybí token</h1><p class="muted">Odkaz veřejné historie je neplatný.</p></section>';
+        return;
+      }
+
+      try {
+        const response = await fetch(publicVehicleHistoryFetchUrl(token));
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.detail || 'Veřejnou historii se nepodařilo načíst.');
+        }
+        const records = Array.isArray(payload.records) ? payload.records : [];
+        app.innerHTML = `
+          <section class="card hero">
+            <div class="pill">${payload.public_mode === 'full' ? 'Plný veřejný režim' : payload.public_mode === 'verified' ? 'Ověřený veřejný režim' : 'Základní veřejný režim'}</div>
+            <h1>${payload.vehicle_label || 'Vozidlo'}</h1>
+            <p class="muted">VIN: ${payload.vin || 'Neuvedeno'}</p>
+            <div class="grid">
+              <div class="card">
+                <h3>Technické údaje</h3>
+                <p class="muted">Rok výroby: ${payload.year || 'Neuvedeno'}</p>
+                <p class="muted">Motor: ${payload.engine || 'Neuvedeno'}</p>
+              </div>
+              <div class="card">
+                <h3>Doporučený další servis</h3>
+                <p>${payload.recommended_next_service_text || 'Zatím bez doporučení.'}</p>
+                <p class="muted">Termín: ${fmtDate(payload.recommended_next_service_date)}</p>
+              </div>
+            </div>
+            <div class="cta-row">
+              ${navigator.share ? '<button class="btn" id="shareBtn">Sdílet odkaz</button>' : ''}
+              <button class="btn secondary" onclick="window.print()">Tisk</button>
+            </div>
+          </section>
+          <section class="card">
+            <h2>Servisní historie</h2>
+            ${records.length
+              ? `<div class="service-history-list service-history-list--public">${publicHistoryListHtml(records)}</div>`
+              : '<div class="empty">Ve veřejné historii zatím nejsou publikované žádné důvěryhodné servisní záznamy.</div>'}
+          </section>
+        `;
+        publicHistoryBind(document.querySelector('.service-history-list--public'));
+        const shareBtn = document.getElementById('shareBtn');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', () => sharePage().catch(() => {}));
+        }
+      } catch (error) {
+        app.innerHTML = `
+          <section class="card">
+            <h1>Historii se nepodařilo načíst</h1>
+            <p class="muted">${String(error?.message || error)}</p>
+          </section>
+        `;
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

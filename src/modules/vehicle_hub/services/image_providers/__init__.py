@@ -1,0 +1,1 @@
+"""Vehicle image provider adapters."""

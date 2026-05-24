@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Správa vozidel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: visible; min-height: calc(100vh - 40px); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .content { padding: 30px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 4px; font-weight: 600; color: #333; font-size: 14px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #667eea; }
+        .form-compact { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .form-compact .form-group.full-width { grid-column: 1 / -1; }
+        .form-compact .form-group:nth-child(1) { grid-column: 1 / -1; }
+        .form-compact .form-group:nth-child(2), .form-compact .form-group:nth-child(3) { grid-column: span 2; }
+        .form-compact .form-group:nth-child(4), .form-compact .form-group:nth-child(5), .form-compact .form-group:nth-child(6), .form-compact .form-group:nth-child(7), .form-compact .form-group:nth-child(8) { grid-column: span 1; }
+        .form-compact .form-group:nth-child(9) { grid-column: 1 / -1; }
+        @media (max-width: 1200px) { .form-compact { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px) { .form-compact { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 480px) { .form-compact { grid-template-columns: 1fr; } }
+        .btn { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .btn:hover { background: #5568d3; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .hidden { display: none; }
+        .alert { padding: 12px; border-radius: 6px; margin-bottom: 15px; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        #addVehicleTab { padding: 12px; }
+        #addVehicleTab h2 { font-size: 1.2em; margin-bottom: 12px; }
+        #addVehicleTab .form-group label { font-size: 11px; margin-bottom: 2px; }
+        #addVehicleTab .form-group input, #addVehicleTab .form-group textarea { padding: 5px 8px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 Správa vozidel</h1>
+            <p>Správa vozidel a servisních záznamů</p>
+        </div>
+        <div class="content">
+            <div id="authSection">
+                <div id="alertContainer"></div>
+                <div id="loginForm">
+                    <h2>Přihlášení</h2>
+                    <div class="form-group"><label>Email:</label><input type="email" id="loginEmail" placeholder="email@example.com"></div>
+                    <div class="form-group"><label>Heslo:</label><input type="password" id="loginPassword" placeholder="Heslo"></div>
+                    <button class="btn" onclick="handleLogin()">Přihlášit se</button>
+                    <button class="btn btn-secondary" onclick="showRegister()">Registrace</button>
+                </div>
+                <div id="registerForm" class="hidden">
+                    <h2>Registrace</h2>
+                    <div class="form-group"><label>Email:</label><input type="email" id="regEmail"></div>
+                    <div class="form-group"><label>Heslo:</label><input type="password" id="regPassword"></div>
+                    <div class="form-group"><label>Potvrzení hesla:</label><input type="password" id="regPasswordConfirm"></div>
+                    <div class="form-group"><label>IČO:</label><div style="display: flex; gap: 10px;"><input type="text" id="regIco" maxlength="8" style="flex: 1;"><button class="btn" onclick="loadAresData()">Načíst z ARES</button></div></div>
+                    <div class="form-group"><label>DIČ:</label><input type="text" id="regDic"></div>
+                    <div class="form-group"><label>Ulice:</label><input type="text" id="regStreet"></div>
+                    <div class="form-group"><label>Číslo popisné:</label><input type="text" id="regStreetNumber"></div>
+                    <div class="form-group"><label>Město:</label><input type="text" id="regCity"></div>
+                    <div class="form-group"><label>PSČ:</label><input type="text" id="regZip"></div>
+                    <div class="form-group"><label>Telefon:</label><input type="text" id="regPhone"></div>
+                    <div class="form-group"><label>Název firmy:</label><input type="text" id="regName"></div>
+                    <button class="btn" onclick="handleRegister()">Registrovat</button>
+                    <button class="btn btn-secondary" onclick="showLogin()">Zpět</button>
+                </div>
+            </div>
+            <div id="dashboard" class="hidden">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <div><strong>Přihlášen jako:</strong> <span id="userEmail"></span></div>
+                    <button class="btn btn-secondary" onclick="handleLogout()">Odhlásit se</button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="btn" onclick="switchTab('vehicles')">Vozidla</button>
+                    <button class="btn" onclick="switchTab('addVehicle')">Přidat vozidlo</button>
+                </div>
+                <div id="vehiclesTab">
+                    <h2>Moje vozidla</h2>
+                    <div id="vehiclesContainer">Načítám vozidla...</div>
+                </div>
+                <div id="addVehicleTab" class="hidden">
+                    <h2>Přidat nové vozidlo</h2>
+                    <div class="form-compact">
+                        <div class="form-group full-width"><label>VIN (17 znaků):</label><input type="text" id="vehicleVin" maxlength="17" placeholder="Zadejte VIN - automaticky se načtou data"></div>
+                        <div class="form-group"><label>SPZ *:</label><input type="text" id="vehiclePlate" required></div>
+                        <div class="form-group"><label>Značka:</label><input type="text" id="vehicleBrand"></div>
+                        <div class="form-group"><label>Rok:</label><input type="number" id="vehicleYear" min="1900" max="2100"></div>
+                        <div class="form-group"><label>Název vozidla *:</label><input type="text" id="vehicleName" required></div>
+                        <div class="form-group"><label>Model:</label><input type="text" id="vehicleModel"></div>
+                        <div class="form-group"><label>Motor:</label><input type="text" id="vehicleEngine"></div>
+                        <div class="form-group"><label>Kód motoru:</label><input type="text" id="vehicleEngineCode"></div>
+                        <div class="form-group full-width"><label>Poznámky:</label><textarea id="vehicleNotes" rows="3"></textarea></div>
+                    </div>
+                    <button class="btn" onclick="handleAddVehicle()" style="margin-top: 12px;">Přidat vozidlo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const DEFAULT_API_URL = 'http://127.0.0.1:8001';
+        let API_URL = localStorage.getItem('API_URL') || DEFAULT_API_URL;
+        let currentUser = null;
+        
+        function getApiUrl() {
+            const saved = localStorage.getItem('API_URL');
+            if (saved && saved.startsWith('http')) return saved;
+            if (window.location.hostname.includes('toozservis.cz') || window.location.hostname.includes('webnode.com')) {
+                return 'https://hub.toozservis.cz';
+            }
+            return window.location.origin || DEFAULT_API_URL;
+        }
+        
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            API_URL = getApiUrl();
+            const headers = { 'Content-Type': 'application/json' };
+            if (currentUser?.email) headers['X-User-Email'] = currentUser.email;
+            const options = { method, headers, mode: 'cors', cache: 'no-cache' };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_URL}${endpoint}`, options);
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ detail: `HTTP ${response.status}` }));
+                throw new Error(error.detail || 'Chyba při komunikaci s API');
+            }
+            return await response.json();
+        }
+        
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => container.innerHTML = '', 5000);
+        }
+        
+        async function handleLogin() {
+            try {
+                const user = await apiCall('/user/login', 'POST', { email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value });
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                showDashboard();
+                showAlert('Přihlášení úspěšné!', 'success');
+            } catch (error) { showAlert(error.message || 'Nepodařilo se přihlásit', 'error'); }
+        }
+        
+        async function handleRegister() {
+            try {
+                const user = await apiCall('/user/register', 'POST', {
+                    email: document.getElementById('regEmail').value,
+                    password: document.getElementById('regPassword').value,
+                    ico: document.getElementById('regIco').value || null,
+                    name: document.getElementById('regName').value || null,
+                    dic: document.getElementById('regDic').value || null,
+                    street: document.getElementById('regStreet').value || null,
+                    street_number: document.getElementById('regStreetNumber').value || null,
+                    city: document.getElementById('regCity').value || null,
+                    zip: document.getElementById('regZip').value || null,
+                    phone: document.getElementById('regPhone').value || null
+                });
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                showDashboard();
+                showAlert('Registrace úspěšná!', 'success');
+            } catch (error) { showAlert(error.message || 'Nepodařilo se zaregistrovat', 'error'); }
+        }
+        
+        async function loadAresData() {
+            const ico = document.getElementById('regIco').value.trim();
+            if (!ico || ico.length !== 8) { showAlert('IČO musí mít 8 číslic', 'error'); return; }
+            try {
+                const data = await apiCall(`/user/ares?ico=${ico}`, 'GET');
+                if (data.sidlo) {
+                    document.getElementById('regName').value = data.obchodniJmeno || data.nazev || '';
+                    document.getElementById('regDic').value = data.dic || '';
+                    document.getElementById('regStreet').value = data.sidlo.nazevUlice || '';
+                    document.getElementById('regStreetNumber').value = data.sidlo.cisloDomovni ? String(data.sidlo.cisloDomovni) + (data.sidlo.cisloOrientacni ? '/' + String(data.sidlo.cisloOrientacni) : '') : '';
+                    document.getElementById('regCity').value = data.sidlo.nazevObce || '';
+                    document.getElementById('regZip').value = data.sidlo.psc ? String(data.sidlo.psc) : '';
+                }
+                showAlert('Data z ARES byla načtena', 'success');
+            } catch (error) { showAlert('Nepodařilo se načíst data z ARES: ' + error.message, 'error'); }
+        }
+        
+        function showDashboard() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('userEmail').textContent = currentUser.email;
+            loadVehicles();
+        }
+        
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            showLogin();
+        }
+        
+        function showLogin() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        }
+        
+        function showRegister() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+        }
+        
+        function switchTab(tab) {
+            document.getElementById('vehiclesTab').classList.toggle('hidden', tab !== 'vehicles');
+            document.getElementById('addVehicleTab').classList.toggle('hidden', tab !== 'addVehicle');
+        }
+        
+        async function loadVehicles() {
+            const container = document.getElementById('vehiclesContainer');
+            try {
+                const vehicles = await apiCall('/vehicles', 'GET');
+                if (!vehicles || vehicles.length === 0) {
+                    container.innerHTML = '<p>Zatím nemáte žádná vozidla.</p>';
+                    return;
+                }
+                container.innerHTML = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">' +
+                    vehicles.map(v => `<div style="border: 1px solid #ddd; padding: 15px; border-radius: 8px;">
+                        <h3>${v.nickname || 'Bez názvu'}</h3>
+                        <p><strong>SPZ:</strong> ${v.plate || 'Nezadáno'}</p>
+                        <p><strong>VIN:</strong> ${v.vin || 'Nezadáno'}</p>
+                        ${v.brand ? `<p><strong>Značka:</strong> ${v.brand}</p>` : ''}
+                        ${v.model ? `<p><strong>Model:</strong> ${v.model}</p>` : ''}
+                        ${v.year ? `<p><strong>Rok:</strong> ${v.year}</p>` : ''}
+                    </div>`).join('') + '</div>';
+            } catch (error) {
+                container.innerHTML = `<p class="alert alert-error">Chyba: ${error.message}</p>`;
+            }
+        }
+        
+        async function loadVinData() {
+            const vin = document.getElementById('vehicleVin').value.trim().toUpperCase();
+            document.getElementById('vehicleVin').value = vin;
+            if (vin.length !== 17) { showAlert('VIN musí mít 17 znaků', 'error'); return; }
+            try {
+                showAlert('Načítám data z VIN...', 'info');
+                const data = await apiCall('/vehicles/decode-vin', 'POST', { vin });
+                if (data.plate) document.getElementById('vehiclePlate').value = data.plate;
+                if (data.name) document.getElementById('vehicleName').value = data.name;
+                if (data.brand) document.getElementById('vehicleBrand').value = data.brand;
+                if (data.model) document.getElementById('vehicleModel').value = data.model;
+                if (data.year) document.getElementById('vehicleYear').value = data.year;
+                if (data.engine) document.getElementById('vehicleEngine').value = data.engine;
+                if (data.engine_code) document.getElementById('vehicleEngineCode').value = data.engine_code;
+                if (data.tyres && data.tyres.length > 0) {
+                    const tyresText = '\nPneumatiky:\n' + data.tyres.map(t => '  • ' + t).join('\n');
+                    document.getElementById('vehicleNotes').value = (document.getElementById('vehicleNotes').value.trim() + tyresText).trim();
+                }
+                showAlert('Data z VIN byla načtena', 'success');
+            } catch (error) { showAlert('Nepodařilo se načíst data z VIN: ' + error.message, 'error'); }
+        }
+        
+        async function handleAddVehicle() {
+            try {
+                const vehicle = await apiCall('/vehicles', 'POST', {
+                    vin: document.getElementById('vehicleVin').value.trim() || null,
+                    plate: document.getElementById('vehiclePlate').value.trim(),
+                    name: document.getElementById('vehicleName').value.trim(),
+                    brand: document.getElementById('vehicleBrand').value.trim() || null,
+                    model: document.getElementById('vehicleModel').value.trim() || null,
+                    year: document.getElementById('vehicleYear').value ? parseInt(document.getElementById('vehicleYear').value) : null,
+                    engine: document.getElementById('vehicleEngine').value.trim() || null,
+                    engine_code: document.getElementById('vehicleEngineCode').value.trim() || null,
+                    notes: document.getElementById('vehicleNotes').value.trim() || null
+                });
+                showAlert('Vozidlo bylo přidáno!', 'success');
+                ['vehicleVin', 'vehiclePlate', 'vehicleName', 'vehicleBrand', 'vehicleModel', 'vehicleYear', 'vehicleEngine', 'vehicleEngineCode', 'vehicleNotes'].forEach(id => document.getElementById(id).value = '');
+                await loadVehicles();
+                switchTab('vehicles');
+            } catch (error) { showAlert('Nepodařilo se přidat vozidlo: ' + error.message, 'error'); }
+        }
+        
+        // Poslouchat zprávy z parent window (pokud jsme v iframe)
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'SET_API_URL' && event.data.apiUrl) {
+                API_URL = event.data.apiUrl;
+                localStorage.setItem('API_URL', API_URL);
+            }
+        });
+        
+        // Odeslat výšku parent window při změně obsahu
+        function notifyParentHeight() {
+            if (window.parent !== window) {
+                const height = Math.max(
+                    document.body.scrollHeight,
+                    document.body.offsetHeight,
+                    document.documentElement.clientHeight,
+                    document.documentElement.scrollHeight,
+                    document.documentElement.offsetHeight
+                );
+                window.parent.postMessage({ type: 'RESIZE', height: height }, '*');
+            }
+        }
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            API_URL = getApiUrl();
+            const saved = localStorage.getItem('currentUser');
+            if (saved) {
+                try {
+                    currentUser = JSON.parse(saved);
+                    showDashboard();
+                } catch (e) { localStorage.removeItem('currentUser'); }
+            }
+            
+            // Přidat event listenery až po načtení DOM
+            const vehicleVinInput = document.getElementById('vehicleVin');
+            if (vehicleVinInput) {
+                vehicleVinInput.addEventListener('input', (e) => {
+                    const vin = e.target.value.trim().toUpperCase();
+                    e.target.value = vin;
+                    if (vin.length === 17) setTimeout(() => loadVinData(), 500);
+                });
+            }
+            
+            const regIcoInput = document.getElementById('regIco');
+            if (regIcoInput) {
+                regIcoInput.addEventListener('input', (e) => {
+                    const ico = e.target.value.trim();
+                    if (ico.length === 8 && /^\d+$/.test(ico)) setTimeout(() => loadAresData(), 500);
+                });
+            }
+            
+            // Sledovat změny v DOM a upozornit parent
+            const observer = new MutationObserver(notifyParentHeight);
+            observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+            
+            notifyParentHeight();
+        });
+        
+        window.addEventListener('resize', notifyParentHeight);
+    </script>
+    <script src="/web/support-widget.js"></script>
+</body>
+</html>
+
+</html>
+
+</html>

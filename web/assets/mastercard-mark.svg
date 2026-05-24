@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60" role="img" aria-labelledby="mcTitle mcDesc">
+  <title id="mcTitle">Mastercard</title>
+  <desc id="mcDesc">Mastercard payment mark</desc>
+  <rect width="100" height="60" fill="none"/>
+  <circle cx="40" cy="30" r="18" fill="#EB001B"/>
+  <circle cx="60" cy="30" r="18" fill="#F79E1B"/>
+  <path d="M50 14a18 18 0 0 1 0 32a18 18 0 0 1 0-32z" fill="#FF5F00"/>
+</svg>

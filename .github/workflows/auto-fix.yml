@@ -1,0 +1,124 @@
+name: Auto-Fix Failed Workflows
+
+on:
+  workflow_run:
+    workflows: ["QA Tests", "Production Smoke Tests"]
+    types:
+      - completed
+  schedule:
+    # Kontrola každých 30 minut
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  analyze-and-fix:
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests pyyaml
+      
+      - name: Analyze failed workflow
+        id: analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+        run: |
+          python3 .github/scripts/analyze_failed_workflow.py
+      
+      - name: Create fix branch
+        if: steps.analyze.outputs.has_errors == 'true'
+        run: |
+          git config user.name "Auto-Fix Bot"
+          git config user.email "auto-fix@toozhub2.local"
+          BRANCH_NAME="auto-fix/$(date +%s)"
+          git checkout -b $BRANCH_NAME
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+      
+      - name: Apply fixes
+        if: steps.analyze.outputs.has_errors == 'true' && steps.analyze.outputs.can_auto_fix == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ERROR_ANALYSIS: ${{ steps.analyze.outputs.error_analysis }}
+        run: |
+          python3 .github/scripts/apply_fixes.py
+      
+      - name: Commit and push fixes
+        if: steps.analyze.outputs.has_errors == 'true' && steps.analyze.outputs.can_auto_fix == 'true'
+        run: |
+          git add .
+          git commit -m "Auto-fix: ${{ steps.analyze.outputs.fix_summary }}" || exit 0
+          git push origin $BRANCH_NAME
+      
+      - name: Create Pull Request
+        if: steps.analyze.outputs.has_errors == 'true' && steps.analyze.outputs.can_auto_fix == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: $BRANCH_NAME
+          title: "🤖 Auto-Fix: ${{ steps.analyze.outputs.fix_summary }}"
+          body: |
+            ## Auto-Fix Applied
+            
+            This PR was automatically created to fix issues found in failed workflow runs.
+            
+            **Error Analysis:**
+            ```
+            ${{ steps.analyze.outputs.error_analysis }}
+            ```
+            
+            **Fixes Applied:**
+            - ${{ steps.analyze.outputs.fix_summary }}
+            
+            **Review and merge if fixes look correct.**
+          labels: "auto-fix,ci"
+          delete-branch: true
+      
+      - name: Create Issue for manual fixes
+        if: steps.analyze.outputs.has_errors == 'true' && steps.analyze.outputs.can_auto_fix == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔧 Manual Fix Required: ${{ steps.analyze.outputs.fix_summary }}`,
+              body: `## Workflow Failed - Manual Fix Required
+              
+              **Workflow:** ${{ github.event.workflow_run.name }}
+              **Run ID:** ${{ github.event.workflow_run.id }}
+              
+              **Error Analysis:**
+              \`\`\`
+              ${{ steps.analyze.outputs.error_analysis }}
+              \`\`\`
+              
+              **Status:** Cannot auto-fix - requires manual intervention
+              
+              Please review the error and fix manually.`,
+              labels: ['bug', 'ci', 'needs-attention']
+            })
+

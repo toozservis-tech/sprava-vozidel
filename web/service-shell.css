@@ -1,0 +1,2794 @@
+.service-app-root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.service-app-root.hidden {
+  display: none !important;
+}
+
+/* Theme tokens na body: floating modály (.app-floating-modal-root) jsou mimo .service-shell-root
+   a musí dědit stejné --service-* proměnné jako hlavní shell. */
+/* Výchozí servisní shell = tmavý motiv; .service-shell-theme-light přepne na světlý */
+body.service-shell-app {
+  background: #09090b !important;
+  color: var(--service-text);
+  --service-rail-width: 228px;
+  --service-bg: #09090b;
+  --service-panel: #18181b;
+  --service-panel-soft: rgba(39, 39, 42, 0.6);
+  --service-panel-alt: #141416;
+  --service-border: #27272a;
+  --service-line: #27272a;
+  --service-text: #fafafa;
+  --service-text-soft: #a1a1aa;
+  --service-text-muted: #71717a;
+  --service-pill: #27272a;
+  --service-pill-active: #3f3f46;
+  --service-primary: #3b82f6;
+  --service-primary-strong: #2563eb;
+  --service-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --service-queue-bg: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  --service-radius: 12px;
+  --service-radius-sm: 8px;
+}
+
+body.service-shell-app.service-shell-theme-light {
+  background: #f4f4f5 !important;
+  --service-bg: #f4f4f5;
+  --service-panel: #ffffff;
+  --service-panel-soft: #f4f4f5;
+  --service-panel-alt: #fafafa;
+  --service-border: #e4e4e7;
+  --service-line: #e4e4e7;
+  --service-text: #09090b;
+  --service-text-soft: #3f3f46;
+  --service-text-muted: #71717a;
+  --service-pill: #f4f4f5;
+  --service-pill-active: #e4e4e7;
+  --service-primary: #2563eb;
+  --service-primary-strong: #1d4ed8;
+  --service-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --service-queue-bg: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+html.service-shell-mobile-nav-open,
+body.service-shell-mobile-nav-open {
+  height: 100%;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body.service-shell-app .container,
+body.service-shell-app .content,
+body.service-shell-app .content.page-container {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.service-shell-root {
+  min-height: 100vh;
+  background: var(--service-bg);
+  color: var(--service-text);
+  padding: 20px 24px 20px calc(var(--service-rail-width) + 24px);
+}
+
+.service-shell-root,
+.service-shell-root * {
+  box-sizing: border-box;
+}
+
+/* Reset globálních tagů z admin.css/app.css, aby byly čitelné v tmavém rozhraní */
+:is(.service-shell-root, .service-shell-modal, .service-shell-bottom-sheet-panel) :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--service-text);
+}
+:is(.service-shell-root, .service-shell-modal, .service-shell-bottom-sheet-panel) :where(p) {
+  color: var(--service-text-soft);
+}
+:is(.service-shell-root, .service-shell-modal, .service-shell-bottom-sheet-panel) :where(label, th, td, li, dt, dd) {
+  color: inherit;
+}
+
+.service-shell-app-shell {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+}
+
+.service-shell-header,
+.service-shell-page-head,
+.service-shell-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+
+.service-shell-header {
+  background: var(--service-panel);
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius);
+  box-shadow: var(--service-shadow);
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+
+.service-shell-brandline,
+.service-shell-toolbar,
+.service-shell-nav,
+.service-shell-userbox-wrap,
+.service-shell-userbox,
+.service-shell-table-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.service-shell-brandline {
+  gap: 18px;
+  min-width: 0;
+}
+
+.service-shell-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--service-text);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.service-shell-brand-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+  filter: drop-shadow(0 6px 14px rgba(234, 88, 12, 0.25));
+}
+
+.service-shell-brand-text {
+  background: linear-gradient(105deg, #ea580c 0%, #f97316 38%, #2563eb 72%, #1d4ed8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+body.service-shell-app.service-shell-theme-light .service-shell-brand-text {
+  background: linear-gradient(105deg, #c2410c 0%, #ea580c 42%, #1d4ed8 78%, #1e40af 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.service-shell-toolbar .workspace-mode-switch {
+  margin-left: 0;
+  margin-right: 0;
+  flex-shrink: 0;
+  border-color: var(--service-border);
+  background: var(--service-pill);
+}
+
+.service-shell-toolbar .workspace-mode-switch-btn {
+  color: var(--service-text-soft);
+}
+
+.service-shell-toolbar .workspace-mode-switch-btn + .workspace-mode-switch-btn {
+  box-shadow: -1px 0 0 var(--service-line);
+}
+
+.service-shell-toolbar .workspace-mode-switch-btn:hover:not(.is-active) {
+  background: var(--service-pill-active);
+  color: var(--service-text);
+}
+
+.service-shell-toolbar .workspace-mode-switch-btn.is-active[data-workspace-mode="user"] {
+  background: rgba(234, 88, 12, 0.28);
+  color: var(--service-text);
+}
+
+.service-shell-toolbar .workspace-mode-switch-btn.is-active[data-workspace-mode="service"] {
+  background: rgba(59, 130, 246, 0.32);
+  color: var(--service-text);
+}
+
+body.service-shell-app.service-shell-theme-light .service-shell-toolbar .workspace-mode-switch-btn.is-active[data-workspace-mode="user"],
+body.service-shell-app.service-shell-theme-light .service-shell-toolbar .workspace-mode-switch-btn.is-active[data-workspace-mode="service"] {
+  color: #0f172a;
+}
+
+.service-shell-nav {
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 100%;
+}
+
+.service-shell-nav-section {
+  display: contents;
+}
+
+.service-shell-nav-section-title {
+  display: none;
+}
+
+.service-shell-nav-btn,
+.service-shell-filter-chip,
+.service-shell-icon-btn,
+.service-shell-search,
+.service-shell-sort,
+.service-shell-select {
+  border-radius: var(--service-radius-sm);
+  border: 1px solid var(--service-border);
+  background: var(--service-pill);
+  color: var(--service-text-soft);
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.service-shell-nav-btn,
+.service-shell-filter-chip {
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.service-shell-nav-btn.active,
+.service-shell-nav-btn:hover,
+.service-shell-filter-chip.active,
+.service-shell-filter-chip:hover,
+.service-shell-icon-btn:hover {
+  background: var(--service-pill-active);
+  color: var(--service-text);
+}
+
+.service-shell-toolbar {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.service-shell-navbar-clock.navbar-digital-clock {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 8px 14px;
+  border-radius: var(--service-radius-sm);
+  border: 1px solid var(--service-border);
+  background: var(--service-pill);
+  color: var(--service-text);
+  align-self: center;
+  white-space: nowrap;
+}
+
+.service-shell-userbox-wrap {
+  position: relative;
+}
+
+.service-shell-icon-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.service-shell-icon-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Oznámení v servisní horní liště: širší kvůli odznaku počtu (stejné chování jako app shell). */
+.service-shell-icon-btn.app-notifications-button.service-shell-topbar-notifications {
+  position: relative;
+  width: auto;
+  min-width: 42px;
+  padding: 0 10px;
+}
+
+.service-topbar .service-shell-icon-btn.app-notifications-button .app-notifications-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.service-shell-userbox {
+  appearance: none;
+  text-align: left;
+  border: 1px solid var(--service-border);
+  background: var(--service-pill);
+  border-radius: var(--service-radius);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.service-shell-account-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 280px;
+  padding: 16px;
+  border-radius: var(--service-radius);
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-alt);
+  box-shadow: var(--service-shadow);
+  display: grid;
+  gap: 10px;
+  z-index: 40;
+}
+
+.service-shell-account-summary {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--service-line);
+}
+
+.service-shell-account-summary span {
+  color: var(--service-text-muted);
+  font-size: 0.92rem;
+}
+
+.service-shell-account-license-hit {
+  display: block;
+  width: 100%;
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  text-align: left;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--service-primary, #3b82f6);
+  cursor: pointer;
+  border: 1px dashed rgba(59, 130, 246, 0.45);
+  border-radius: var(--service-radius-sm);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.service-shell-account-license-hit:hover,
+.service-shell-account-license-hit:focus-visible {
+  background: rgba(59, 130, 246, 0.12);
+  outline: none;
+}
+
+.service-shell-account-action {
+  width: 100%;
+  border: 1px solid var(--service-border);
+  background: var(--service-pill);
+  color: var(--service-text);
+  border-radius: var(--service-radius-sm);
+  padding: 12px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.service-shell-account-action.danger {
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.28);
+  background: rgba(127, 29, 29, 0.24);
+}
+
+.service-shell-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--service-radius-sm);
+  background: linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%);
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.service-shell-usertext {
+  display: grid;
+  gap: 2px;
+}
+
+.service-shell-usertext strong {
+  color: var(--service-text);
+}
+
+.service-shell-usertext span,
+.service-shell-subtitle,
+.service-shell-muted,
+.service-shell-list-note,
+.service-shell-side-card p,
+.service-shell-queue-card p {
+  color: var(--service-text-muted);
+}
+
+.service-shell-primary-btn {
+  border: 0;
+  border-radius: var(--service-radius-sm);
+  min-height: 36px;
+  padding: 0 18px;
+  font-weight: 800;
+  color: #eff6ff;
+  background: var(--service-primary);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+  cursor: pointer;
+}
+
+.service-shell-userbox:hover,
+.service-shell-account-action:hover,
+.service-shell-primary-btn:hover {
+  transform: translateY(-1px);
+}
+
+.service-shell-page-head {
+  margin-bottom: 24px;
+}
+
+.service-shell-page-head h1 {
+  margin: 0;
+  color: var(--service-text);
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+
+.service-shell-kpis,
+.service-shell-stat-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.service-shell-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.service-shell-stat-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 22px;
+}
+
+.service-shell-kpi,
+.service-shell-card,
+.service-shell-side-card,
+.service-shell-queue-card,
+.service-shell-mini-card {
+  background: var(--service-panel);
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius);
+  box-shadow: var(--service-shadow);
+}
+
+.service-shell-kpi.summary-card,
+.service-shell-side-card.list-card,
+.service-shell-queue-card.detail-card,
+.service-shell-mini-card.summary-card,
+.service-shell-card.detail-card {
+  background: var(--service-panel);
+}
+
+.service-shell-kpi {
+  padding: 22px;
+  display: grid;
+  gap: 16px;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.service-shell-kpi.active,
+.service-shell-kpi:hover {
+  transform: translateY(-2px);
+  border-color: rgba(75, 130, 255, 0.34);
+  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(75, 130, 255, 0.14);
+}
+
+.service-shell-kpi:focus-visible,
+.service-shell-clickable-row:focus-visible,
+.service-shell-queue-tile:focus-visible,
+.service-shell-list-row:focus-visible,
+.service-shell-nav-btn:focus-visible,
+.service-shell-filter-chip:focus-visible,
+.service-shell-primary-btn:focus-visible,
+.service-shell-icon-btn:focus-visible,
+.service-shell-userbox:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.9);
+  outline-offset: 2px;
+}
+
+.service-shell-kpi-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.service-shell-kpi-icon,
+.service-shell-kpi-arrow,
+.service-shell-queue-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--service-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--service-panel-soft);
+  color: var(--service-text);
+}
+
+.service-shell-kpi-icon.success {
+  background: rgba(22, 101, 52, 0.24);
+  color: #22c55e;
+}
+
+.service-shell-kpi-icon.warning {
+  background: rgba(146, 64, 14, 0.26);
+  color: #f59e0b;
+}
+
+.service-shell-kpi-icon.danger {
+  background: rgba(127, 29, 29, 0.26);
+  color: #f87171;
+}
+
+.service-shell-kpi-title,
+.service-shell-card-title,
+.service-shell-side-card h3,
+.service-shell-queue-card h3,
+.service-shell-mini-card h3 {
+  margin: 0;
+  color: var(--service-text);
+  font-weight: 800;
+}
+
+.service-shell-kpi-value,
+.service-shell-stat-value {
+  margin: 0;
+  color: var(--service-text);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.service-shell-kpi-value {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.service-shell-stat-value {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.service-shell-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.72fr) minmax(330px, 0.88fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.service-shell-main,
+.service-shell-side,
+.service-shell-list {
+  display: grid;
+  gap: 22px;
+}
+
+.service-shell-side {
+  position: sticky;
+  top: 22px;
+}
+
+.service-shell-card,
+.service-shell-side-card,
+.service-shell-queue-card,
+.service-shell-mini-card {
+  padding: 20px;
+}
+
+.service-shell-table-wrap {
+  overflow-x: auto;
+}
+
+.service-shell-table,
+.service-shell-data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.service-shell-table th,
+.service-shell-table td,
+.service-shell-data-table th,
+.service-shell-data-table td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.service-shell-table thead th,
+.service-shell-data-table thead th {
+  color: var(--service-text-muted);
+  border-bottom: 1px solid var(--service-line);
+}
+
+.service-shell-table tbody td,
+.service-shell-data-table tbody td {
+  color: var(--service-text-soft);
+  border-bottom: 1px solid var(--service-line);
+}
+
+.service-shell-table tbody tr,
+.service-shell-data-table tbody tr {
+  cursor: pointer;
+}
+
+.service-shell-table tbody tr:hover,
+.service-shell-data-table tbody tr:hover {
+  background: var(--service-pill);
+}
+
+.service-shell-row-primary {
+  display: grid;
+  gap: 4px;
+}
+
+.service-shell-tech {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--service-text);
+}
+
+.service-shell-tech-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.16);
+  color: var(--service-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.service-shell-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.service-shell-badge.awaiting {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.service-shell-badge.in_progress {
+  background: rgba(59, 130, 246, 0.16);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.service-shell-badge.completed {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.service-shell-badge.issue {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.service-shell-table-tools {
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.service-shell-card-list {
+  display: grid;
+  gap: 14px;
+}
+
+.service-shell-invoice-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.service-shell-invoice-toolbar .service-shell-search {
+  min-width: min(360px, 100%);
+}
+
+.service-shell-invoice-overview,
+.service-shell-invoice-two-column {
+  display: grid;
+  gap: 16px;
+}
+
+.service-shell-invoice-overview {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 18px;
+}
+
+.service-shell-invoice-overview > div,
+.service-shell-invoice-panel {
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-soft);
+  border-radius: var(--service-radius);
+}
+
+.service-shell-invoice-overview > div {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.service-shell-invoice-overview strong {
+  color: var(--service-text);
+  font-size: 1.05rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.service-shell-invoice-editor {
+  gap: 18px;
+}
+
+.service-shell-invoice-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.service-shell-invoice-panel--accent {
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.12), transparent 45%),
+    var(--service-panel-soft);
+}
+
+.service-shell-invoice-two-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-shell-invoice-compact-options {
+  align-items: end;
+}
+
+.service-shell-inline-check {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius-sm);
+  background: var(--service-pill);
+  color: var(--service-text-soft);
+  font-weight: 800;
+}
+
+.service-shell-inline-check input {
+  width: 18px !important;
+  min-height: 18px !important;
+  padding: 0 !important;
+}
+
+.service-shell-invoice-lines {
+  display: grid;
+  gap: 12px;
+}
+
+.service-shell-invoice-line-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(90px, 0.7fr) minmax(70px, 0.55fr) minmax(120px, 1fr) minmax(90px, 0.7fr) 46px;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius-sm);
+  background: var(--service-panel-alt);
+}
+
+.service-shell-invoice-line-row label {
+  display: grid;
+  gap: 6px;
+}
+
+.service-shell-invoice-line-row label span {
+  color: var(--service-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.service-shell-invoice-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.service-shell-invoice-totals > div {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: var(--service-radius-sm);
+  border: 1px solid var(--service-border);
+  background: var(--service-pill);
+}
+
+.service-shell-invoice-totals span {
+  color: var(--service-text-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.service-shell-invoice-totals strong {
+  color: var(--service-text);
+  font-size: 1.05rem;
+}
+
+.service-shell-list-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--service-radius);
+  background: var(--service-panel-soft);
+  border: 1px solid var(--service-border);
+  color: var(--service-text);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.service-shell-list-card:hover,
+.service-shell-list-card:focus-visible {
+  background: var(--service-pill-active);
+  border-color: rgba(37, 99, 235, 0.24);
+  transform: translateY(-1px);
+}
+
+.service-shell-list-card-top,
+.service-shell-list-card-actions,
+.service-shell-card-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.service-shell-list-card-top h3 {
+  margin: 0;
+  color: var(--service-text);
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.service-shell-list-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.service-shell-list-card-row {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: var(--service-radius-sm);
+  background: var(--service-panel-alt);
+  border: 1px solid var(--service-border);
+}
+
+.service-shell-list-card-row span {
+  color: var(--service-text-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.service-shell-list-card-row strong {
+  min-width: 0;
+  color: var(--service-text);
+  font-size: 0.94rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.service-shell-more-actions {
+  position: relative;
+}
+
+.service-shell-more-actions summary {
+  min-height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius-sm);
+  background: var(--service-pill);
+  color: var(--service-text-soft);
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+
+.service-shell-more-actions summary::-webkit-details-marker {
+  display: none;
+}
+
+.service-shell-more-actions[open] summary {
+  background: var(--service-pill-active);
+  color: var(--service-text);
+}
+
+.service-shell-more-actions button {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 150px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius-sm);
+  background: var(--service-panel-alt);
+  color: var(--service-text);
+  box-shadow: var(--service-shadow);
+  font-weight: 800;
+  z-index: 20;
+}
+
+.service-shell-bottom-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.service-shell-bottom-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2, 6, 23, 0.56);
+  pointer-events: auto;
+}
+
+.service-shell-bottom-sheet-panel {
+  position: relative;
+  z-index: 1;
+  width: min(620px, 100%);
+  max-height: min(88vh, 680px);
+  overflow-y: auto;
+  display: grid;
+  gap: 18px;
+  padding: 10px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  border-radius: 24px 24px 0 0;
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-alt);
+  box-shadow: 0 -24px 70px rgba(2, 6, 23, 0.34);
+  pointer-events: auto;
+}
+
+.service-shell-bottom-sheet-handle {
+  width: 46px;
+  height: 5px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--service-line);
+}
+
+.service-shell-bottom-sheet-controls,
+.service-shell-touch-control {
+  display: grid;
+  gap: 10px;
+}
+
+.service-shell-touch-control > span {
+  color: var(--service-text-muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.service-shell-segmented {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.service-shell-segmented button {
+  min-height: 38px;
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius-sm);
+  background: var(--service-pill);
+  color: var(--service-text-soft);
+  font-weight: 850;
+}
+
+.service-shell-segmented button.active {
+  background: var(--service-pill-active);
+  color: var(--service-text);
+  border-color: rgba(37, 99, 235, 0.34);
+}
+
+.service-shell-bottom-sheet-apply {
+  width: 100%;
+  justify-content: center;
+}
+
+.service-shell-tools-grid,
+.service-shell-modal-actions {
+  display: grid;
+  gap: 18px;
+}
+
+.service-shell-tools-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.service-shell-modal-actions {
+  grid-auto-flow: column;
+  justify-content: end;
+  gap: 10px;
+}
+
+.service-shell-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(7, 10, 14, 0.72);
+  backdrop-filter: blur(12px);
+}
+
+.service-shell-modal {
+  width: min(840px, 100%);
+  max-height: min(calc(100vh - 36px), 920px);
+  overflow: auto;
+  border-radius: var(--service-radius);
+  border: 1px solid var(--service-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)) , var(--service-panel);
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.18);
+}
+
+.service-shell-modal--wide {
+  width: min(1180px, 100%);
+}
+
+.service-shell-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid var(--service-line);
+  background: var(--service-panel);
+  backdrop-filter: blur(18px);
+}
+
+body.service-shell-theme-light .service-shell-modal-header {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.service-shell-modal-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.service-shell-modal-kicker {
+  margin: 0;
+  color: var(--service-primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.service-shell-modal-title {
+  margin: 0;
+  color: var(--service-text);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.service-shell-modal-description {
+  margin: 0;
+  color: var(--service-text-soft);
+  max-width: 72ch;
+}
+
+.service-shell-modal-close {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius-sm);
+  background: var(--service-pill);
+  color: var(--service-text);
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.service-shell-modal-close:hover {
+  transform: translateY(-1px);
+  background: var(--service-pill-active);
+}
+
+.service-shell-modal-body {
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+}
+
+.service-shell-modal-toolbar,
+.service-shell-modal-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.service-shell-modal-summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--service-border);
+  background: var(--service-pill);
+  color: var(--service-text-soft);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.service-shell-detail-pills,
+.service-shell-modal-detail-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.service-shell-detail-pills {
+  grid-template-columns: repeat(auto-fit, minmax(160px, max-content));
+}
+
+.service-shell-detail-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--service-border);
+  background: var(--service-pill);
+  color: var(--service-text-soft);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.service-shell-modal-detail-grid.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-shell-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 24px 24px;
+}
+
+.service-shell-modal-footer--inline {
+  padding: 0;
+  justify-content: flex-start;
+}
+
+.service-shell-modal-state {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 18px;
+  border-radius: var(--service-radius);
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-soft);
+}
+
+.service-shell-modal-state p,
+.service-shell-modal-state strong {
+  margin: 0;
+}
+
+.service-shell-modal-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 2px solid var(--service-border);
+  border-top-color: var(--service-primary);
+  animation: serviceShellModalSpin 0.8s linear infinite;
+}
+
+.service-shell-modal-state-error {
+  grid-template-columns: 1fr;
+}
+
+.service-shell-modal .btn,
+.service-shell-modal input,
+.service-shell-modal select,
+.service-shell-modal textarea {
+  font: inherit;
+}
+
+.service-shell-modal .btn {
+  min-height: 36px;
+  cursor: pointer;
+}
+
+.service-dashboard-modal-form,
+.service-shell-modal .form-group {
+  display: grid;
+  gap: 10px;
+}
+
+.service-dashboard-modal-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.service-dashboard-modal-grid.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-shell-modal label {
+  color: var(--service-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.service-shell-modal input,
+.service-shell-modal select,
+.service-shell-modal textarea {
+  width: 100%;
+  min-height: 38px;
+  padding: 12px 14px;
+  border-radius: var(--service-radius-sm);
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-soft);
+  color: var(--service-text);
+}
+
+.service-shell-modal textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.service-shell-modal input:disabled,
+.service-shell-modal select:disabled,
+.service-shell-modal textarea:disabled {
+  opacity: 0.86;
+  cursor: not-allowed;
+}
+
+.service-shell-modal-audit {
+  padding: 12px 14px;
+  text-align: left;
+}
+
+@keyframes serviceShellModalSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.service-shell-search,
+.service-shell-sort,
+.service-shell-select {
+  height: 48px;
+  padding: 0 16px;
+}
+
+.service-shell-search {
+  min-width: 220px;
+}
+
+.service-shell-list {
+  gap: 12px;
+}
+
+.service-shell-list-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: var(--service-radius);
+  background: var(--service-panel-soft);
+  border: 1px solid var(--service-border);
+}
+
+.service-shell-clickable-row,
+.service-shell-list-row.service-shell-clickable-row,
+.service-shell-queue-tile.service-shell-clickable-row {
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.service-shell-clickable-row:hover,
+.service-shell-list-row.service-shell-clickable-row:hover,
+.service-shell-queue-tile.service-shell-clickable-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(75, 130, 255, 0.26);
+  background: rgba(75, 130, 255, 0.08);
+}
+
+.service-shell-list-title {
+  margin: 0;
+  color: var(--service-text);
+  font-size: 0.9rem;
+}
+
+.service-shell-action-note,
+.service-shell-list-value {
+  flex-shrink: 0;
+  color: var(--service-text);
+  font-weight: 700;
+}
+
+.service-shell-action-note {
+  margin: 4px 0 0;
+  color: var(--service-primary);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.service-shell-queue-card {
+  background: var(--service-queue-bg);
+  border-color: rgba(125, 211, 252, 0.12);
+}
+
+.service-shell-queue-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.service-shell-queue-tile {
+  border-radius: var(--service-radius-sm);
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.service-shell-inline-alert {
+  margin-top: 18px;
+  border-radius: var(--service-radius-sm);
+  padding: 16px 18px;
+  background: var(--service-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.service-shell-inline-error {
+  margin-top: 18px;
+  border-radius: var(--service-radius-sm);
+  padding: 16px 18px;
+  background: rgba(127, 29, 29, 0.24);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  color: #fca5a5;
+}
+
+body.service-shell-theme-light .service-shell-inline-error {
+  background: rgba(254, 226, 226, 0.6);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #991b1b;
+}
+
+.service-shell-empty {
+  padding: 28px 18px;
+  text-align: center;
+  color: var(--service-text-muted);
+}
+
+.service-shell-mobile-menu-btn,
+.service-shell-mobile-vehicle-card {
+  display: none;
+}
+
+.service-shell-record-card-list,
+.service-shell-record-card {
+  display: grid;
+  gap: 12px;
+}
+
+.service-shell-record-card {
+  padding: 16px;
+  border-radius: var(--service-radius);
+  background: var(--service-panel-soft);
+  border: 1px solid var(--service-border);
+}
+
+.service-shell-record-card-head,
+.service-shell-record-card-meta,
+.service-shell-mobile-vehicle-head,
+.service-shell-mobile-vehicle-actions,
+.service-shell-mobile-vehicle-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.service-shell-record-card-meta,
+.service-shell-mobile-vehicle-meta {
+  color: var(--service-text-muted);
+  font-size: 0.9rem;
+}
+
+.service-shell-mobile-kicker {
+  margin: 0 0 4px;
+  color: var(--service-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.service-shell-qr-panel {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+
+.service-shell-qr-visual {
+  width: min(100%, 320px);
+  padding: 16px;
+  border-radius: var(--service-radius);
+  background: #fff;
+}
+
+.service-shell-qr-visual svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.service-shell-qr-link {
+  width: 100%;
+  word-break: break-word;
+  padding: 12px 14px;
+  border-radius: var(--service-radius-sm);
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-soft);
+  color: var(--service-text-soft);
+}
+
+.service-shell-qr-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.service-shell-qr-actions .btn {
+  width: 100%;
+}
+
+.service-shell-mobile-form-top {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border-radius: var(--service-radius);
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-soft);
+}
+
+.service-shell-skeleton {
+  min-height: 140px;
+  border-radius: var(--service-radius);
+  background: linear-gradient(90deg, var(--service-panel-soft), var(--service-panel), var(--service-panel-soft));
+  background-size: 200% 100%;
+  animation: serviceShellShimmer 1.3s infinite linear;
+}
+
+@keyframes serviceShellShimmer {
+  100% { background-position: -200% 0; }
+}
+
+.service-shell-quote-list-toolbar {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 14px;
+  border-radius: var(--service-radius-sm);
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-alt);
+}
+
+.service-shell-quote-list-toolbar-row {
+  display: grid;
+  gap: 6px;
+}
+
+.service-shell-quote-filter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--service-text-muted);
+}
+
+.service-shell-quote-filter {
+  width: 100%;
+  min-height: 38px;
+  padding: 10px 12px;
+  border-radius: var(--service-radius-sm);
+  border: 1px solid var(--service-border);
+  background: var(--service-panel-soft);
+  color: var(--service-text);
+  font-size: 1rem;
+}
+
+.service-shell-quote-list-count {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
+  color: var(--service-text-soft);
+}
+
+.service-shell-quote-card-list {
+  display: grid;
+  gap: 14px;
+}
+
+.service-shell-quote-card {
+  padding: 16px;
+  border-radius: var(--service-radius);
+  background: var(--service-panel-soft);
+  border: 1px solid var(--service-border);
+  display: grid;
+  gap: 12px;
+}
+
+.service-shell-quote-card-top {
+  display: grid;
+  gap: 12px;
+}
+
+.service-shell-quote-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.service-shell-quote-card-id {
+  font-size: 1.05rem;
+}
+
+.service-shell-badge.service-shell-badge--quote {
+  flex-shrink: 0;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.service-shell-quote-card-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.service-shell-quote-stat {
+  padding: 10px 12px;
+  border-radius: var(--service-radius-sm);
+  background: var(--service-panel-alt);
+  border: 1px solid var(--service-border);
+}
+
+.service-shell-quote-stat-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--service-text-muted);
+  margin-bottom: 4px;
+}
+
+.service-shell-quote-stat-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--service-text);
+}
+
+.service-shell-quote-card-links {
+  font-size: 0.88rem;
+  color: var(--service-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.service-shell-quote-card-links-sep {
+  opacity: 0.45;
+}
+
+.service-shell-quote-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.service-shell-quote-action {
+  min-height: 38px;
+  font-weight: 600;
+}
+
+.service-shell-quote-debug {
+  font-size: 0.82rem;
+  color: var(--service-text-muted);
+  border-radius: 12px;
+  padding: 4px 8px;
+  border: 1px dashed var(--service-border);
+}
+
+.service-shell-quote-debug summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--service-text-soft);
+  padding: 6px 4px;
+}
+
+.service-shell-quote-debug-dl {
+  margin: 8px 0 4px;
+  display: grid;
+  gap: 8px;
+}
+
+.service-shell-quote-debug-dl dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--service-text-muted);
+  margin: 0;
+}
+
+.service-shell-quote-debug-dl dd {
+  margin: 2px 0 0;
+}
+
+.service-shell-quote-debug-dl code {
+  display: block;
+  word-break: break-all;
+  font-size: 0.78rem;
+  color: var(--service-text-soft);
+}
+
+@media (max-width: 1279px) {
+  .service-shell-header,
+  .service-shell-page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .service-shell-layout,
+  .service-shell-kpis,
+  .service-shell-stat-grid,
+  .service-shell-queue-grid,
+  .service-shell-tools-grid,
+  .service-shell-modal-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .service-shell-side {
+    position: static;
+  }
+}
+
+@media (max-width: 900px) {
+  .service-shell-root {
+    padding: 14px max(12px, env(safe-area-inset-left, 0px)) calc(88px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  .service-shell-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    padding: 12px max(12px, env(safe-area-inset-left, 0px)) 12px max(12px, env(safe-area-inset-right, 0px));
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .service-shell-brandline,
+  .service-shell-toolbar {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .service-shell-brandline {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
+    row-gap: 8px;
+    align-items: center;
+  }
+
+  .service-shell-mobile-menu-btn,
+  .service-shell-mobile-vehicle-card {
+    display: inline-flex;
+  }
+
+  .service-shell-mobile-menu-btn {
+    flex: 0 0 auto;
+  }
+
+  .service-shell-brand {
+    grid-column: 2;
+    justify-content: center;
+    font-size: 1.05rem;
+    letter-spacing: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .service-shell-brand-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Toolbar v toku dokumentu — absolutní pozice překrývala vycentrovaný název a přepínač Účet/Servis. */
+  .service-shell-toolbar {
+    position: static;
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 8px;
+    margin-top: 2px;
+    border-top: 1px solid var(--service-line);
+    box-sizing: border-box;
+  }
+
+  .service-shell-toolbar .workspace-mode-switch {
+    flex: 1 0 100%;
+    max-width: 100%;
+    justify-content: center;
+    order: -1;
+    box-sizing: border-box;
+  }
+
+  .service-shell-toolbar > .service-shell-icon-btn:not(.service-shell-theme-toggle-btn),
+  .service-shell-toolbar > .service-shell-primary-btn {
+    display: none;
+  }
+
+  .service-shell-usertext {
+    display: none;
+  }
+
+  .service-shell-userbox {
+    padding: 6px;
+    border-radius: var(--service-radius-sm);
+  }
+
+  .service-shell-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* Po klepnutí na menu: overlay menu přes obsah stránky (neposouvá layout). */
+  .service-shell-nav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: none;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid var(--service-border);
+    background: var(--service-panel);
+    box-shadow: var(--service-shadow);
+    z-index: 40;
+    scrollbar-width: thin;
+  }
+
+  .service-shell-nav.mobile-open {
+    display: flex;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px max(12px, env(safe-area-inset-left, 0px)) 24px max(12px, env(safe-area-inset-right, 0px));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .service-shell-nav-section {
+    display: grid;
+    gap: 8px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--service-line);
+  }
+
+  .service-shell-nav-section:first-child {
+    padding-top: 0;
+  }
+
+  .service-shell-nav-section:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .service-shell-nav-section-title {
+    display: block;
+    color: var(--service-text-muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .service-shell-nav.mobile-open .service-shell-nav-btn {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .service-shell-nav-btn,
+  .service-shell-filter-chip,
+  .service-shell-primary-btn,
+  .service-shell-modal .btn,
+  .service-shell-modal input,
+  .service-shell-modal select,
+  .service-shell-modal textarea {
+    min-height: 52px;
+    font-size: 1rem;
+  }
+
+  .service-shell-primary-btn {
+    min-width: 52px;
+    padding: 0 18px;
+  }
+
+  .service-shell-list-head,
+  .service-shell-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .service-shell-card-head-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .service-shell-filter-open-btn,
+  .service-shell-card-head-actions .btn-primary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .service-shell-card-list {
+    gap: 12px;
+  }
+
+  .service-shell-list-card {
+    padding: 14px;
+    border-radius: var(--service-radius-sm);
+  }
+
+  .service-shell-list-card-top {
+    align-items: flex-start;
+  }
+
+  .service-shell-list-card-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .service-shell-list-card-actions {
+    align-items: stretch;
+  }
+
+  .service-shell-list-card-actions .service-shell-primary-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .service-shell-bottom-sheet-panel .service-shell-card-head {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .service-shell-mobile-vehicle-card {
+    position: sticky;
+    top: 88px;
+    z-index: 20;
+    display: grid;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 16px;
+    border-radius: var(--service-radius);
+    background: var(--service-panel);
+    border: 1px solid var(--service-border);
+    box-shadow: var(--service-shadow);
+  }
+
+  .service-shell-page-head h1 {
+    font-size: 2rem;
+  }
+
+  .service-shell-side {
+    gap: 14px;
+  }
+
+  .service-shell-table-wrap {
+    overflow: visible;
+  }
+
+  .service-shell-data-table thead {
+    display: none;
+  }
+
+  .service-shell-data-table,
+  .service-shell-data-table tbody,
+  .service-shell-data-table tr,
+  .service-shell-data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .service-shell-data-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .service-shell-data-table tbody tr {
+    padding: 14px;
+    border-radius: var(--service-radius);
+    background: var(--service-panel-soft);
+    border: 1px solid var(--service-border);
+    display: grid;
+    gap: 8px;
+  }
+
+  .service-shell-data-table tbody td {
+    border: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .service-shell-data-table tbody td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--service-text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  .service-dashboard-modal-grid.cols-2,
+  .service-shell-modal-detail-grid.cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .service-shell-modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .service-shell-modal--mobile-flow {
+    width: 100%;
+    max-width: none;
+    max-height: 100vh;
+    min-height: 100vh;
+    border-radius: 0;
+    border: 0;
+  }
+
+  .service-shell-modal--mobile-flow .service-shell-modal-header {
+    position: sticky;
+    top: 0;
+    padding: 12px 14px;
+  }
+
+  .service-shell-modal--mobile-flow .service-shell-modal-body {
+    padding: 16px 16px 120px;
+    overflow: visible;
+  }
+
+  .service-shell-modal--mobile-flow .service-shell-modal-footer {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 5;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(17, 19, 21, 0.96);
+    border-top: 1px solid var(--service-line);
+    backdrop-filter: blur(18px);
+  }
+
+  body.service-shell-theme-light .service-shell-modal--mobile-flow .service-shell-modal-footer {
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .service-shell-mobile-action-bar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .service-shell-mobile-action-bar--stack,
+  .service-shell-qr-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .service-shell-record-form textarea {
+    min-height: 120px;
+  }
+
+  .service-shell-quote-items {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 16px;
+  }
+
+  .service-shell-quote-item-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .service-shell-quote-item-row input {
+    width: 100%;
+    min-height: 38px;
+  }
+
+  .service-shell-invoice-overview,
+  .service-shell-invoice-two-column,
+  .service-shell-invoice-totals {
+    grid-template-columns: 1fr;
+  }
+
+  .service-shell-invoice-line-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .service-shell-invoice-line-row .service-shell-icon-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .service-shell-root {
+    padding: 18px 14px 28px;
+  }
+
+  .service-shell-page-head h1 {
+    font-size: 2.3rem;
+  }
+
+  .service-shell-search,
+  .service-shell-sort,
+  .service-shell-select {
+    width: 100%;
+  }
+
+  .service-shell-modal-overlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .service-shell-modal,
+  .service-shell-modal--wide {
+    width: 100%;
+    max-height: calc(100vh - 10px);
+    border-radius: 24px 24px 18px 18px;
+  }
+
+  .service-shell-modal-header,
+  .service-shell-modal-body,
+  .service-shell-modal-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .service-shell-invoice-line-row,
+  .service-dashboard-modal-grid.cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-shell-root {
+    padding: 12px max(10px, env(safe-area-inset-left, 0px)) 24px max(10px, env(safe-area-inset-right, 0px));
+  }
+
+  .service-shell-header {
+    padding: 10px max(10px, env(safe-area-inset-left, 0px)) 10px max(10px, env(safe-area-inset-right, 0px));
+  }
+
+  .service-shell-page-head h1 {
+    font-size: 1.75rem;
+    line-height: 1.05;
+  }
+
+  .service-shell-card,
+  .service-shell-side-card,
+  .service-shell-queue-card,
+  .service-shell-mini-card {
+    padding: 16px;
+    border-radius: var(--service-radius-sm);
+  }
+
+  .service-shell-stat-grid,
+  .service-shell-kpis {
+    gap: 10px;
+  }
+
+  .service-shell-list-card-top h3 {
+    font-size: 1rem;
+  }
+
+  .service-shell-list-card-row {
+    padding: 9px 10px;
+  }
+
+  .service-shell-list-card-row strong,
+  .service-shell-list-title,
+  .service-shell-list-value {
+    font-size: 0.92rem;
+  }
+
+  .service-shell-segmented {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .service-shell-brand {
+    font-size: 0.95rem;
+  }
+
+  .service-shell-icon-btn,
+  .service-shell-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .service-shell-brandline {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+
+  .service-shell-list-card {
+    padding: 12px;
+  }
+
+  .service-shell-badge {
+    padding: 7px 10px;
+    font-size: 0.78rem;
+  }
+
+  .service-shell-primary-btn,
+  .service-shell-filter-chip,
+  .service-shell-more-actions summary {
+    min-height: 38px;
+    font-size: 0.94rem;
+  }
+}
+
+/* SaaS Dashboard Re-design */
+.service-shell-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.service-shell-kpi-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: var(--service-panel);
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.service-shell-kpi-card:hover {
+  border-color: var(--service-text-muted);
+  transform: translateY(-2px);
+  box-shadow: var(--service-shadow);
+}
+
+.service-shell-kpi-card.is-active {
+  background: var(--service-panel-alt);
+  border-color: var(--service-primary);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.service-shell-kpi-card-content {
+  display: grid;
+  gap: 6px;
+  z-index: 2;
+}
+
+.service-shell-kpi-card-title {
+  color: var(--service-text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.service-shell-kpi-card-value {
+  color: var(--service-text);
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.service-shell-kpi-card-note {
+  color: var(--service-text-soft);
+  font-size: 0.85rem;
+}
+
+.service-shell-kpi-card-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: transparent;
+  transition: background 0.2s ease;
+}
+
+.service-shell-kpi-card--success .service-shell-kpi-card-indicator { background: #22c55e; }
+.service-shell-kpi-card--warning .service-shell-kpi-card-indicator { background: #f59e0b; }
+.service-shell-kpi-card--danger .service-shell-kpi-card-indicator { background: #ef4444; }
+.service-shell-kpi-card--info .service-shell-kpi-card-indicator { background: #3b82f6; }
+
+.service-shell-metrics-ticker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+  background: var(--service-panel);
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius);
+  padding: 16px;
+}
+
+.service-shell-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px;
+  border-right: 1px solid var(--service-border);
+}
+
+.service-shell-metric:last-child {
+  border-right: none;
+}
+
+.service-shell-metric-label {
+  color: var(--service-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.service-shell-metric-value {
+  color: var(--service-text);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .service-shell-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .service-shell-metrics-ticker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .service-shell-metric:nth-child(2) {
+    border-right: none;
+  }
+  .service-shell-metric {
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .service-shell-metrics-ticker {
+    grid-template-columns: 1fr;
+  }
+  .service-shell-metric {
+    border-right: none;
+    border-bottom: 1px solid var(--service-border);
+    padding: 12px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .service-shell-metric:last-child {
+    border-bottom: none;
+  }
+}
+
+
+@media (min-width: 1400px) {
+  .service-shell-layout.service-shell-layout--dashboard {
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr) minmax(320px, 0.8fr);
+  }
+  .service-shell-layout--dashboard .service-shell-side {
+    grid-column: 2 / 4;
+    display: block;
+    column-count: 2;
+    column-gap: 22px;
+  }
+  .service-shell-layout--dashboard .service-shell-side > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 22px;
+    display: inline-block;
+    width: 100%;
+  }
+  .service-shell-layout--dashboard .service-shell-side > *:last-child {
+    margin-bottom: 0;
+  }
+  .service-shell-dashboard-actions {
+    column-span: all;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Servisní levý panel („workbench“) — široký sloupec, řádky ikona + text,
+   monochromatické SVG ikony (viz service-shell.js). Odlišný od starého „korálkového“ vzhledu.
+   ---------------------------------------------------------------------------- */
+.service-nav {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  width: var(--service-rail-width, 228px);
+  height: 100vh;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px 10px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: visible;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background: var(--service-panel-alt);
+  border-right: 1px solid var(--service-border);
+  box-shadow: none;
+}
+
+.service-nav::before {
+  content: '';
+  display: block;
+  height: 1px;
+  margin: 0 4px 12px;
+  background: linear-gradient(90deg, transparent, var(--service-border), transparent);
+  opacity: 0.85;
+}
+
+.service-nav-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.service-nav-item {
+  width: 100%;
+  min-height: 0;
+  padding: 10px 12px;
+  margin: 0;
+  border: none;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--service-text-soft);
+  background: transparent;
+  border-left: 3px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.service-nav-item-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--service-text-muted);
+  line-height: 0;
+}
+
+.service-nav-item-icon svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.service-nav-item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-align: left;
+  word-break: break-word;
+  color: inherit;
+}
+
+.service-nav-item:hover,
+.service-nav-slot:focus-within > .service-nav-item {
+  background: var(--service-panel-soft);
+  color: var(--service-text);
+}
+
+.service-nav-item:hover .service-nav-item-icon,
+.service-nav-slot:focus-within .service-nav-item-icon {
+  color: var(--service-text-soft);
+}
+
+.service-nav-item.active {
+  background: color-mix(in srgb, var(--service-primary) 22%, transparent);
+  color: var(--service-text);
+  border-left-color: var(--service-primary);
+}
+
+.service-nav-item.active .service-nav-item-icon {
+  color: var(--service-primary);
+}
+
+body.service-shell-app.service-shell-theme-light .service-nav-item.active {
+  background: color-mix(in srgb, var(--service-primary) 14%, var(--service-panel));
+}
+
+.service-nav-submenu {
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 0;
+  min-width: 232px;
+  width: max-content;
+  max-width: min(92vw, 300px);
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--service-panel);
+  border: 1px solid var(--service-border);
+  box-shadow: var(--service-shadow);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+  z-index: 200;
+}
+
+.service-nav-slot.has-submenu:hover .service-nav-submenu,
+.service-nav-slot.has-submenu:focus-within .service-nav-submenu,
+.service-nav-slot.has-submenu.is-submenu-open .service-nav-submenu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.service-nav-submenu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--service-text-soft);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.service-nav-submenu-item:hover,
+.service-nav-submenu-item:focus-visible {
+  background: var(--service-pill-active);
+  color: var(--service-text);
+  outline: none;
+}
+
+.service-nav-submenu-item.is-active {
+  background: color-mix(in srgb, var(--service-primary) 18%, transparent);
+  color: var(--service-text);
+}
+
+body.service-shell-app.service-shell-theme-light .service-nav-submenu-item.is-active {
+  background: color-mix(in srgb, var(--service-primary) 12%, var(--service-panel));
+}
+
+@media (max-width: 900px) {
+  .service-nav {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 4px;
+    border-right: 0;
+    border-top: 1px solid var(--service-border);
+    background: var(--service-panel);
+  }
+
+  .service-nav::before {
+    display: none;
+  }
+
+  .service-shell-root {
+    padding: 14px max(12px, env(safe-area-inset-left, 0px))
+      calc(96px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
+  }
+
+  .service-nav-slot {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: min(120px, 28vw);
+    max-width: 160px;
+  }
+
+  .service-nav-item {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 6px;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 10px;
+    font-size: 0.65rem;
+    gap: 6px;
+  }
+
+  .service-nav-item.active {
+    border-left-color: transparent;
+    border-bottom-color: var(--service-primary);
+  }
+
+  .service-nav-item-label {
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .service-nav-submenu {
+    left: 50%;
+    top: auto;
+    bottom: calc(100% + 10px);
+    transform: translate(-50%, 6px);
+    max-height: min(50vh, 320px);
+    overflow-y: auto;
+  }
+
+  .service-nav-slot.has-submenu:hover .service-nav-submenu,
+  .service-nav-slot.has-submenu:focus-within .service-nav-submenu,
+  .service-nav-slot.has-submenu.is-submenu-open .service-nav-submenu {
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Horní lišta servisního shellu (ServiceTopBar) — tématické barvy */
+.service-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-height: 64px;
+  padding: 14px 20px;
+  margin-bottom: 24px;
+  background: var(--service-panel);
+  border: 1px solid var(--service-border);
+  border-radius: var(--service-radius);
+  box-shadow: var(--service-shadow);
+}
+
+.service-topbar-left,
+.service-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.service-topbar .service-shell-navbar-clock,
+.service-topbar .navbar-digital-clock {
+  margin-left: 8px;
+  color: var(--service-text-muted) !important;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+
+/* Rychlé akce nad frontou zakázek na přehledu */
+.service-shell-dashboard-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.service-shell-dashboard-cta .service-shell-primary-btn {
+  min-height: 40px;
+}
+
+.service-shell-dashboard-cta .service-shell-filter-chip {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Toast stack — servisní akce (zákazník / přístup k vozidlu) */
+.service-shell-toast-host {
+  position: fixed;
+  z-index: 120000;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(92vw, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.service-shell-toast {
+  pointer-events: auto;
+  border-radius: var(--service-radius-sm, 10px);
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(17, 19, 21, 0.96);
+  color: #f5f7fb;
+  animation: serviceShellToastIn 0.22s ease-out;
+}
+
+.service-shell-toast--out {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.service-shell-toast-title {
+  display: block;
+  font-weight: 650;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+}
+
+.service-shell-toast-body {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+.service-shell-toast--success {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.service-shell-toast--warning {
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.service-shell-toast--error {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.service-shell-toast--info {
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+body.service-shell-theme-light .service-shell-toast {
+  background: rgba(255, 255, 255, 0.98);
+  color: #0f172a;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.12);
+}
+
+@keyframes serviceShellToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.service-shell-list-card--highlight {
+  outline: 2px solid rgba(96, 165, 250, 0.75);
+  outline-offset: 2px;
+}
+
+body.service-shell-theme-light .service-shell-list-card--highlight {
+  outline-color: rgba(37, 99, 235, 0.65);
+}

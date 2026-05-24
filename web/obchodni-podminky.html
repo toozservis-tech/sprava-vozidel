@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Obchodní podmínky | Správa vozidel</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #334155;
+      --border: #dbe5f0;
+      --accent: #1d4ed8;
+      --warn-bg: #fff7ed;
+      --warn-border: #fdba74;
+      --warn-text: #9a3412;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    .wrap {
+      width: min(1080px, calc(100% - 24px));
+      margin: 22px auto 36px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 10px; font-size: 1.75rem; }
+    h2 { margin: 0 0 10px; font-size: 1.2rem; }
+    h3 { margin: 14px 0 8px; font-size: 1.02rem; }
+    p, li { color: var(--muted); }
+    ul { margin: 8px 0; padding-left: 18px; }
+    a { color: var(--accent); }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .links a {
+      display: inline-block;
+      text-decoration: none;
+      font-weight: 700;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #eff6ff;
+      font-size: 0.92rem;
+    }
+    .id-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 8px 14px;
+      margin-top: 8px;
+    }
+    .id-item strong { color: var(--text); }
+    .small { font-size: 0.92rem; }
+    .warning {
+      border: 1px solid var(--warn-border);
+      background: var(--warn-bg);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: var(--warn-text);
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.94em;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Obchodní podmínky digitální služby Správa vozidel</h1>
+      <p class="small">
+        Tyto obchodní podmínky upravují smluvní vztah mezi poskytovatelem a zákazníkem při poskytování
+        online digitální služby Správa vozidel (dále jen „Služba“).
+      </p>
+      <div class="id-grid">
+        <div class="id-item"><strong>Poskytovatel:</strong> ToozServis Auto/Pneu Tomáš Zachurčok (TooZ Servis)</div>
+        <div class="id-item"><strong>IČO:</strong> 87854716</div>
+        <div class="id-item"><strong>Sídlo:</strong> Gorkého 2351/19a, 568 02 Svitavy, Česká republika</div>
+        <div class="id-item"><strong>E-mail pro právní komunikaci:</strong> <a href="mailto:info@toozservis.cz">info@toozservis.cz</a></div>
+        <div class="id-item"><strong>Telefon:</strong> <a href="tel:+420731552299">+420 731 552 299</a></div>
+        <div class="id-item"><strong>DPH:</strong> Neplátce DPH</div>
+      </div>
+      <div class="links">
+        <a href="platebni-podminky.html">Platební podmínky</a>
+        <a href="reklamacni-rad.html">Reklamační řád</a>
+        <a href="ochrana-osobnich-udaju.html">Ochrana osobních údajů</a>
+        <a href="cookies.html">Cookies</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>1. Vymezení pojmů</h2>
+      <ul>
+        <li><strong>Služba</strong>: webová digitální služba Správa vozidel pro správu vozidel, servisních záznamů, připomínek, rezervací, dokumentů a souvisejících funkcí.</li>
+        <li><strong>Zákazník</strong>: fyzická nebo právnická osoba, která službu používá.</li>
+        <li><strong>Spotřebitel</strong>: fyzická osoba, která při uzavírání smlouvy nejedná v rámci podnikání.</li>
+        <li><strong>Podnikatel</strong>: osoba jednající při uzavírání smlouvy v rámci podnikatelské činnosti.</li>
+        <li><strong>Tarif</strong>: funkční rozsah služby (např. Free, Basic, Premium) pro zvolené fakturační období.</li>
+        <li><strong>Auditní logy</strong>: systémové, bezpečnostní, transakční a provozní záznamy služby.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>2. Hlavní vlastnosti digitální služby</h2>
+      <ul>
+        <li>Služba umožňuje evidenci vozidel, správu servisních úkonů, dokumentů, připomínek a souvisejících dat v online účtu.</li>
+        <li>Součástí mohou být asistované funkce pro předvyplnění údajů (např. OCR/text parser), evidence rezervací a integrace na externí služby.</li>
+        <li>Služba je poskytována jako průběžné online plnění (digitální služba), nikoli jako jednorázové dodání věci.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>3. Tarify, funkční rozsah a změny funkcí</h2>
+      <ul>
+        <li>Konkrétní rozsah funkcí závisí na zvoleném tarifu, fakturačním období, verzi služby, technické konfiguraci a průběžných aktualizacích.</li>
+        <li>Některé funkce mohou být dostupné jen v určitém tarifu nebo omezené (např. počtem vozidel, počtem požadavků, velikostí uploadu).</li>
+        <li>Poskytovatel je oprávněn funkce služby přiměřeně měnit, nahrazovat nebo ukončovat, zejména z bezpečnostních, provozních, legislativních nebo produktových důvodů.</li>
+        <li>Bezplatné části služby může poskytovatel upravit nebo ukončit i bez náhrady.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>4. Kompatibilita, interoperabilita a technické požadavky</h2>
+      <ul>
+        <li>Minimální požadavky: moderní webový prohlížeč, internetové připojení, povolený JavaScript, podpora TLS.</li>
+        <li>Služba je navržena primárně pro aktuální a bezprostředně předchozí verze běžných prohlížečů (Chrome, Edge, Firefox, Safari).</li>
+        <li>Některé části (např. práce se soubory, notifikace, geolokační nebo bezpečnostní funkce) mohou být na vybraných zařízeních nebo v omezených prohlížečích částečně omezené.</li>
+        <li>Interoperabilita je zajištěna zejména přes webové rozhraní a standardní datové formáty používané v aplikaci.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>5. Uzavření smlouvy, aktivace a digitální plnění</h2>
+      <ul>
+        <li>Smlouva je uzavírána na dálku prostřednictvím online rozhraní služby.</li>
+        <li>U placených tarifů vzniká nárok na aktivaci až po potvrzení úhrady ve stavu <strong>PAID</strong> podle <a href="platebni-podminky.html">Platebních podmínek</a>.</li>
+        <li>Před zaplacením spotřebitel aktivně potvrzuje: (a) souhlas se zahájením poskytování digitální služby před uplynutím 14 dnů a (b) vědomí možného omezení práva na odstoupení v rozsahu, v jakém bylo plněno.</li>
+        <li>Souhlasové kroky se evidují jako prokazatelný záznam (zejména timestamp, user ID, text souhlasu, verze dokumentu a IP/relace v rozsahu technicky dostupných údajů).</li>
+        <li>Po objednávce je zákazníkovi standardně zasláno nebo může být zasláno potvrzení uzavření smlouvy a odkaz na znění právních dokumentů na trvalém nosiči (e-mail).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>6. Aktualizace, maintenance a bezpečnostní zásahy</h2>
+      <ul>
+        <li>Poskytovatel provádí průběžné aktualizace, údržbu, bezpečnostní záplaty a provozní zásahy.</li>
+        <li>Tyto zásahy mohou dočasně omezit dostupnost nebo dílčí funkce služby.</li>
+        <li>Pokud zákazník nezohlední doporučené aktualizace prostředí (zejména prohlížeče, OS, bezpečnostních nastavení), může to ovlivnit funkčnost nebo bezpečnost služby.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>7. Uživatelský účet, anti-abuse a bezpečnostní oprávnění poskytovatele</h2>
+      <h3>7.1 Povinnosti zákazníka</h3>
+      <ul>
+        <li>Zákazník odpovídá za bezpečnost přístupových údajů a za aktivity provedené pod svým účtem.</li>
+        <li>Je zakázáno zejména: sdílení účtu bez oprávnění, scraping, reverse engineering, obcházení limitů, obcházení technických ochran, použití falešné identity, nahrávání cizích dat bez právního titulu, testování zranitelností bez souhlasu.</li>
+      </ul>
+      <h3>7.2 Oprávnění poskytovatele</h3>
+      <ul>
+        <li>Poskytovatel může zavést a měnit limity: throttling, rate limiting, upload limity, retenční pravidla, validace vstupů, API omezení a bezpečnostní challenge.</li>
+        <li>Při podezření na zneužití, podvod, bezpečnostní incident nebo porušení podmínek může poskytovatel účet nebo API přístup dočasně omezit, pozastavit nebo podrobit ručnímu prověření.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>8. Odpovědnost za vložená data a oprávnění k jejich použití</h2>
+      <ul>
+        <li>Zákazník odpovídá za zákonnost, správnost a aktuálnost dat vložených do služby.</li>
+        <li>Zákazník odpovídá za to, že má právní titul k vložení dokumentů, údajů o vozidlech a osobních údajů třetích osob.</li>
+        <li>Poskytovatel je oprávněn odstranit nebo znepřístupnit obsah, který je zjevně protiprávní, podvodný nebo bezpečnostně rizikový.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>9. AI/OCR asistence, odborné posouzení a odpovědnost</h2>
+      <ul>
+        <li>AI/OCR a související parsery slouží pouze jako asistované předvyplnění údajů; nejde o automaticky závazný zdroj pravdy.</li>
+        <li>Finální kontrola, oprava a schválení údajů je vždy na zákazníkovi.</li>
+        <li>Služba nenahrazuje právní, účetní, daňové ani technické odborné posouzení.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>10. Důkazní pravidla</h2>
+      <ul>
+        <li>Pro posouzení průběhu užívání služby, plateb, reklamací a bezpečnostních incidentů se za rozhodné považují zejména auditní logy, systémové logy, transakční logy, serverové časové značky a záznamy platební brány.</li>
+        <li>Tyto záznamy se považují za věrohodné, není-li prokázán technický omyl na straně poskytovatele.</li>
+      </ul>
+      <p class="small">Tím nejsou dotčena zákonná procesní práva spotřebitele.</p>
+    </section>
+
+    <section class="card">
+      <h2>11. Reklamace a vadné plnění digitální služby</h2>
+      <ul>
+        <li>Vada digitální služby bude odstraněna v přiměřené době po jejím vytknutí tak, aby zákazníkovi nezpůsobila značné obtíže, s ohledem na povahu služby a účel smlouvy.</li>
+        <li>Pokud vadu nelze odstranit, poskytovatel ji neodstraní řádně a včas, vada se opakuje nebo jde o podstatné porušení smlouvy, má spotřebitel právo na přiměřenou slevu nebo odstoupení od smlouvy.</li>
+        <li>U nevýznamné vady spotřebitel právo odstoupit od smlouvy nemá.</li>
+        <li>Podrobný postup je uveden v dokumentu <a href="reklamacni-rad.html">Reklamační řád</a>.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>12. Spotřebitel: odstoupení od smlouvy (14 dnů)</h2>
+      <ul>
+        <li>Spotřebitel má obecně právo odstoupit od smlouvy uzavřené na dálku do 14 dnů.</li>
+        <li>Je-li digitální služba poskytována před uplynutím této lhůty na základě výslovného souhlasu spotřebitele a potvrzení vědomí následků, může dojít ke ztrátě práva na odstoupení v rozsahu, v jakém bylo plněno.</li>
+        <li>Odstoupení lze zaslat na <a href="mailto:info@toozservis.cz">info@toozservis.cz</a>.</li>
+      </ul>
+      <p class="small">
+        <strong>Vzor oznámení o odstoupení:</strong><br>
+        „Oznamuji, že odstupuji od smlouvy na poskytování digitální služby Správa vozidel. Jméno, e-mail účtu,
+        datum objednávky, ID transakce, datum a podpis (u listinného podání).“
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>13. Doba trvání, ukončení účtu, omezený režim a export dat</h2>
+      <ul>
+        <li>Placený tarif je poskytován po sjednané období; bez nové úhrady může účet přejít do omezeného (free) režimu.</li>
+        <li>Poskytovatel může přístup bezodkladně pozastavit při závažném porušení podmínek nebo bezpečnostním incidentu.</li>
+        <li>Zákazník může účet ukončit podle funkcí v aplikaci nebo žádostí na kontaktní e-mail.</li>
+        <li>Je-li v aplikaci dostupná funkce exportu dat účtu (aktuálně export ZIP/JSON/PDF), může ji zákazník využít před ukončením účtu. Export nepředstavuje kompletní převod interního software a bezpečnostní infrastruktury poskytovatele.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>14. Odpovědnost a náhrada škody</h2>
+      <ul>
+        <li>Poskytovatel odpovídá za škodu v rozsahu stanoveném právními předpisy.</li>
+        <li>Poskytovatel neodpovídá za škody vzniklé zejména nesprávným použitím služby, převzetím neověřených AI/OCR údajů, porušením povinností zákazníka nebo výpadky třetích stran mimo kontrolu poskytovatele.</li>
+        <li>Je-li zákazník podnikatel, náhrada předvídatelné škody se omezuje na souhrn plateb uhrazených za službu za posledních 12 měsíců před vznikem škody.</li>
+      </ul>
+      <p class="small">Tím nejsou dotčena práva spotřebitele, která nelze podle zákona vyloučit.</p>
+    </section>
+
+    <section class="card">
+      <h2>15. Mimosoudní řešení spotřebitelských sporů</h2>
+      <p>
+        Subjektem mimosoudního řešení spotřebitelských sporů je Česká obchodní inspekce,
+        Štěpánská 567/15, 120 00 Praha 2, IČO 00020869,
+        web: <a href="https://adr.coi.cz/cs" target="_blank" rel="noopener noreferrer">adr.coi.cz/cs</a>,
+        e-mail: <a href="mailto:adr@coi.cz">adr@coi.cz</a>.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>16. Změny dokumentů</h2>
+      <ul>
+        <li>Poskytovatel je oprávněn dokumenty přiměřeně měnit, zejména při změně právních požadavků, bezpečnostních pravidel a funkčního rozsahu služby.</li>
+        <li>Aktuální verze dokumentů jsou vždy zveřejněny online a vzájemně provázány odkazy v jednotlivých dokumentech.</li>
+      </ul>
+    </section>
+
+    <section class="card warning small">
+      <strong>Důležité:</strong>
+      Správa vozidel je technický nástroj pro evidenci a správu dat. Zákazník odpovídá za kontrolu výsledků,
+      za zákonnost vložených údajů a za plnění svých právních povinností vůči třetím osobám a orgánům veřejné moci.
+    </section>
+
+    <section class="card small">
+      <h2>17. Verze a účinnost</h2>
+      <ul>
+        <li><strong>Verze dokumentu:</strong> TH2-OP-2026-03-08</li>
+        <li><strong>Datum účinnosti:</strong> 8. 3. 2026</li>
+        <li>Aktuální verze je vždy zveřejněna online na adrese <span class="mono">/web/obchodni-podminky.html</span>.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
+<!-- CHANGES: Přepis na režim digitální služby; rozšíření anti-abuse, bezpečnostních oprávnění a důkazních pravidel; doplnění spotřebitelských práv u vad digitální služby a odstoupení; doplnění kompatibility, aktualizací, ukončení účtu a exportu dat; sjednocení identifikace poskytovatele a cross-linků. -->

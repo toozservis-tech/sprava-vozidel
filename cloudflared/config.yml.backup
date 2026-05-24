@@ -1,0 +1,7 @@
+tunnel: tooz-hub2
+credentials-file: C:\Users\djtoo\.cloudflared\a8451dbb-2ca2-4006-862b-09959b274eb4.json
+
+ingress:
+  - hostname: hub.toozservis.cz
+    service: http://127.0.0.1:8000
+  - service: http_status:404

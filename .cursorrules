@@ -1,0 +1,1 @@
+Automated tests and agents must not create arbitrary users in staging or production-like databases. Use only fixed E2E_USER_EMAIL and E2E_SERVICE_EMAIL accounts. Any new test account creation requires explicit user approval.

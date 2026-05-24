@@ -1,0 +1,56 @@
+# Pre-commit hooks pro kontrolu secrets a code quality
+# Instalace: pip install pre-commit && pre-commit install
+
+repos:
+  # Detekce secrets v kódu (volitelné - vyžaduje .secrets.baseline)
+  # - repo: https://github.com/Yelp/detect-secrets
+  #   rev: v1.4.0
+  #   hooks:
+  #     - id: detect-secrets
+  #       args: ['--baseline', '.secrets.baseline']
+  #       exclude: |
+  #           (?x)^(
+  #               .*\.lock$|
+  #               .*\.min\.js$|
+  #               .*\.min\.css$|
+  #               package-lock\.json|
+  #               yarn\.lock|
+  #               .*\.db$|
+  #               .*\.log$
+  #           )$
+  
+  # Kontrola, zda nejsou v repo citlivé soubory
+  - repo: local
+    hooks:
+      - id: check-sensitive-files
+        name: Check for sensitive files
+        entry: bash
+        args: ['-c', 'if git diff --cached --name-only | grep -E "\.env$|\.log$|\.db$|\.sqlite$"; then echo "ERROR: Citlivé soubory (.env, *.log, *.db) nesmí být commitnuty!"; exit 1; fi']
+        language: system
+        pass_filenames: false
+        stages: [commit]
+
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+        exclude: ^(venv/|env/|\.venv/)
+
+  # Python linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ['--max-line-length=120', '--extend-ignore=E203,W503']
+        exclude: ^(venv/|env/|\.venv/)
+
+  # Kontrola import order
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile', 'black']
+        exclude: ^(venv/|env/|\.venv/)
+

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Správa vozidel</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: auto; }
+        body { margin: 0; padding: 0; }
+        iframe { width: 100%; min-height: 100vh; height: auto; border: none; display: block; }
+    </style>
+</head>
+<body>
+    <iframe id="appFrame" src="https://hub.toozservis.cz/web/index.html" allow="camera; microphone; geolocation" scrolling="yes"></iframe>
+    <script>
+        const iframe = document.getElementById('appFrame');
+        
+        // Automaticky upravit výšku iframe podle obsahu
+        iframe.addEventListener('load', () => {
+            try {
+                setTimeout(() => {
+                    try {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        const height = Math.max(
+                            iframeDoc.body.scrollHeight,
+                            iframeDoc.body.offsetHeight,
+                            iframeDoc.documentElement.clientHeight,
+                            iframeDoc.documentElement.scrollHeight,
+                            iframeDoc.documentElement.offsetHeight
+                        );
+                        iframe.style.height = height + 'px';
+                    } catch (e) {
+                        // Cross-origin - použít default výšku
+                        iframe.style.height = '100vh';
+                    }
+                }, 500);
+            } catch (e) {
+                console.error('Chyba při nastavení výšky iframe:', e);
+            }
+        });
+        
+        // Poslouchat změny velikosti okna
+        window.addEventListener('resize', () => {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const height = Math.max(
+                    iframeDoc.body.scrollHeight,
+                    iframeDoc.body.offsetHeight,
+                    iframeDoc.documentElement.clientHeight,
+                    iframeDoc.documentElement.scrollHeight,
+                    iframeDoc.documentElement.offsetHeight
+                );
+                iframe.style.height = height + 'px';
+            } catch (e) {
+                // Cross-origin - ignorovat
+            }
+        });
+    </script>
+</body>
+</html>

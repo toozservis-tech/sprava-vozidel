@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-02-23T19:15:32.098136+00:00",
+  "base_url": "https://hub.toozservis.cz",
+  "email": "e2e.license.17718741159666@example.com",
+  "headless": true,
+  "all_ok": false,
+  "license_label": "",
+  "plan_cards_count": 0,
+  "ui_alerts": [],
+  "ui_license_api_events": [],
+  "direct_api": {},
+  "steps": [
+    {
+      "step": "api_health",
+      "ok": false,
+      "info": "status=403"
+    },
+    {
+      "step": "api_register",
+      "ok": false,
+      "info": "status=403"
+    },
+    {
+      "step": "api_login_precheck",
+      "ok": false,
+      "info": "status=403"
+    },
+    {
+      "step": "ui_timeout",
+      "ok": false,
+      "info": "Page.wait_for_selector: Timeout 15000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-testid=\\\"login-form\\\"]\") to be visible\n"
+    },
+    {
+      "step": "api_license_status_direct",
+      "ok": false,
+      "info": "skipped-no-token"
+    },
+    {
+      "step": "api_license_upgrade_basic_direct",
+      "ok": false,
+      "info": "skipped-no-token"
+    },
+    {
+      "step": "api_license_upgrade_premium_direct",
+      "ok": false,
+      "info": "skipped-no-token"
+    }
+  ],
+  "screenshot": "/opt/toozhub2/app/logs/license_clickthrough_final_prod.png"
+}

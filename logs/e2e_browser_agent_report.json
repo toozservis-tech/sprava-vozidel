@@ -1,0 +1,153 @@
+{
+  "generated_at": "2026-03-01T14:50:08.008258+00:00",
+  "base_url": "http://127.0.0.1:18002",
+  "email": "e2e.agent.17723765928140@example.com",
+  "all_ok": true,
+  "steps": [
+    {
+      "step": "playwright_browser",
+      "ok": true,
+      "info": "chromium-installed"
+    },
+    {
+      "step": "runtime_libs",
+      "ok": true,
+      "info": "resolved-via-local-debs"
+    },
+    {
+      "step": "api_health",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_register",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_login_precheck",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "ui_load_login",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_login",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_navigate_tab-vehicles",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_navigate_tab-add-vehicle",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_navigate_tab-reminders",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_navigate_tab-reservations",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_navigate_tab-profile",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_add_vehicle",
+      "ok": true,
+      "info": "errors=0, cards=0->1"
+    },
+    {
+      "step": "ui_vehicle_detail_modal_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_vehicle_detail_modal_close",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_profile_load",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_token_present",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_logout",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "api_user_me",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_vehicles_list",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_reminders_list",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_reservations_list",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_license_status",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_decode_vin",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_reminder_create",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_reminder_update",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_reminder_delete",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_reservation_create",
+      "ok": true,
+      "info": "skipped-no-services-or-vehicle"
+    },
+    {
+      "step": "api_reservation_delete",
+      "ok": true,
+      "info": "skipped-no-services-or-vehicle"
+    }
+  ]
+}

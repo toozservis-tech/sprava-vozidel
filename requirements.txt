@@ -1,0 +1,67 @@
+# Web framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+
+# GUI
+PySide6>=6.6.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# HTTP requests
+requests>=2.31.0
+httpx>=0.25.0  # Asynchronní HTTP klient pro Vehicle Decoder Engine
+pywebpush>=2.0.3  # Web Push notifikace (VAPID)
+bleach[css]>=6.1.0  # sanitizace HTML/CSS (jen text-align) u systémových oznámeních (broadcast)
+
+# Desktop webview (pro admin launcher)
+pywebview>=4.4.1
+
+# Validation
+pydantic[email]>=2.5.0
+
+# Security - password hashing and JWT
+bcrypt>=4.1.0
+PyJWT>=2.8.0  # JWT knihovna bez ecdsa závislosti - bezpečnější pro HS256
+cryptography>=41.0.0  # RS256 / JWK pro Cloudflare Access JWT (Cf-Access-Jwt-Assertion)
+passlib[bcrypt]>=1.7.4
+# POZNÁMKA: python-jose a ecdsa byly odstraněny kvůli CVE-2024-23342
+# PyJWT nepoužívá ecdsa pro HS256 algoritmus, takže jsme chráněni
+
+# Web automation (for VIN decoder)
+selenium>=4.15.0
+webdriver-manager>=4.0.0
+
+# File watching
+watchdog>=3.0.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# PDF processing
+PyPDF2>=3.0.0
+reportlab>=4.0.0
+
+# Image processing
+Pillow>=10.0.0
+pillow-heif>=0.16.0
+qrcode>=8.2
+
+# Process management
+psutil>=5.9.0
+
+# System tray
+pystray>=0.19.0
+
+# Email
+aiosmtplib>=3.0.0
+dnspython>=2.6.0  # MX kontrola domény při registraci
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Audio (optional - for voice features)
+# SpeechRecognition>=3.10.0
+# pyttsx3>=2.90

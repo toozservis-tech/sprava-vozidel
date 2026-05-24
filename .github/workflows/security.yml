@@ -1,0 +1,82 @@
+name: Security Checks
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  schedule:
+    # Každý den v 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety pip-audit
+      
+      - name: Check for secrets in code
+        run: |
+          # Kontrola, zda nejsou v repo citlivé soubory
+          if [ -f .env ]; then
+            echo "ERROR: .env soubor je v repozitáři! To je bezpečnostní riziko!"
+            exit 1
+          fi
+          if [ -f tunnel.log ]; then
+            echo "ERROR: tunnel.log je v repozitáři!"
+            exit 1
+          fi
+          if [ -f vehicles.db ]; then
+            echo "ERROR: vehicles.db je v repozitáři!"
+            exit 1
+          fi
+          echo "OK: Žádné citlivé soubory v repo"
+      
+      - name: Check for hardcoded secrets
+        run: |
+          # Kontrola hardcoded secrets v kódu
+          if grep -r "password.*=.*['\"].*[a-zA-Z0-9]{8,}" src/ --include="*.py" | grep -v "#.*password" | grep -v "password_hash"; then
+            echo "WARNING: Možné hardcoded hesla v kódu!"
+            grep -r "password.*=.*['\"].*[a-zA-Z0-9]{8,}" src/ --include="*.py" | grep -v "#.*password" | grep -v "password_hash" || true
+          fi
+          if grep -r "api.*key.*=.*['\"].*[a-zA-Z0-9]{16,}" src/ --include="*.py" | grep -v "#.*api.*key" | grep -v "example"; then
+            echo "WARNING: Možné hardcoded API klíče v kódu!"
+            grep -r "api.*key.*=.*['\"].*[a-zA-Z0-9]{16,}" src/ --include="*.py" | grep -v "#.*api.*key" | grep -v "example" || true
+          fi
+      
+      - name: Run pip-audit (check for vulnerabilities)
+        run: |
+          pip-audit --requirement requirements.txt --format json --output pip-audit-report.json || true
+          pip-audit --requirement requirements.txt --format text || true
+        continue-on-error: true
+      
+      - name: Run safety check
+        run: |
+          safety check --json --file requirements.txt || true
+          safety check --file requirements.txt || true
+        continue-on-error: true
+      
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            pip-audit-report.json
+          if-no-files-found: ignore
+          retention-days: 30
+

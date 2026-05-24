@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ochrana osobních údajů | Správa vozidel</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #334155;
+      --border: #dbe5f0;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.58;
+    }
+    .wrap {
+      width: min(1020px, calc(100% - 24px));
+      margin: 22px auto 34px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 10px; font-size: 1.66rem; }
+    h2 { margin: 0 0 10px; font-size: 1.14rem; }
+    h3 { margin: 12px 0 8px; font-size: 1.02rem; }
+    p, li { color: var(--muted); }
+    ul { margin: 8px 0; padding-left: 18px; }
+    a { color: var(--accent); }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .links a {
+      display: inline-block;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 6px 10px;
+      font-size: 0.92rem;
+    }
+    .small { font-size: 0.92rem; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.94em;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Zásady ochrany osobních údajů (GDPR)</h1>
+      <p>
+        Tento dokument popisuje, jak je v rámci služby Správa vozidel nakládáno s osobními údaji podle
+        nařízení (EU) 2016/679 (GDPR) a souvisejících právních předpisů.
+      </p>
+      <p>
+        Správce: ToozServis Auto/Pneu Tomáš Zachurčok (TooZ Servis), IČO 87854716,
+        Gorkého 2351/19a, 568 02 Svitavy, Česká republika,
+        e-mail pro právní komunikaci: <a href="mailto:info@toozservis.cz">info@toozservis.cz</a>,
+        tel: <a href="tel:+420731552299">+420 731 552 299</a>.
+      </p>
+      <div class="links">
+        <a href="obchodni-podminky.html">Obchodní podmínky</a>
+        <a href="platebni-podminky.html">Platební podmínky</a>
+        <a href="reklamacni-rad.html">Reklamační řád</a>
+        <a href="cookies.html">Cookies</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>1. Údaje o vozidle vs. údaje o osobě</h2>
+      <ul>
+        <li>Ne každý údaj o vozidle je sám o sobě osobním údajem. Osobním údajem se stává zejména tehdy, je-li přiřaditelný ke konkrétní fyzické osobě.</li>
+        <li>Typicky se to týká kombinací jako: vozidlo + vlastník/uživatel, servisní historie + identita zákazníka, dokument + kontaktní údaje osoby.</li>
+        <li>V praxi proto dochází k oddělenému zpracování: (a) technicko-vozidlová data, (b) údaje o osobách, (c) provozní/auditní metadata systému.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>2. Kategorie zpracovávaných údajů</h2>
+      <h3>2.1 Údaje o účtu a osobě</h3>
+      <ul>
+        <li>Identifikační a kontaktní údaje účtu (jméno/název, e-mail, telefon, fakturační údaje, role účtu).</li>
+        <li>Bezpečnostní údaje (přihlašovací identifikátory, 2FA údaje, historie přístupů, bezpečnostní události).</li>
+      </ul>
+      <h3>2.2 Údaje o vozidle a provozu servisu</h3>
+      <ul>
+        <li>Vozidlové údaje, servisní úkony, připomínky, rezervace, dokumenty, přílohy a související poznámky.</li>
+      </ul>
+      <h3>2.3 Provozní a auditní data systému</h3>
+      <ul>
+        <li>IP adresa, user-agent, endpoint, serverové časové značky, auditní a bezpečnostní logy, technická metadata relace, transakční identifikátory plateb.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>3. Role správce a zpracovatele</h2>
+      <ul>
+        <li><strong>Správce</strong>: TooZ Servis je správcem osobních údajů pro údaje o vlastním uživatelském účtu, autentizaci, bezpečnosti, provozu služby, platební evidenci a plnění právních povinností.</li>
+        <li><strong>Zpracovatel</strong>: pokud podnikatelský zákazník vkládá do služby údaje svých klientů/řidičů/zaměstnanců, je ve vhodném rozsahu správce tímto zákazníkem a TooZ Servis může vystupovat jako zpracovatel.</li>
+        <li>Konkrétní rozdělení rolí se může lišit podle typu datového toku a smluvního nastavení (včetně případné zpracovatelské doložky).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>4. Autorizace a oprávnění k vložení údajů</h2>
+      <ul>
+        <li>Uživatel odpovídá za to, že má právní titul vložit do systému údaje o sobě i o třetích osobách.</li>
+        <li>Uživatel odpovídá za to, že při vložení údajů třetích osob plní vůči nim informační povinnost, pokud to vyžaduje právo.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>5. Účely a právní základy zpracování</h2>
+      <ul>
+        <li><strong>Plnění smlouvy</strong> (čl. 6 odst. 1 písm. b GDPR): provoz účtu, poskytování funkcí digitální služby, podpora, aktivace tarifu.</li>
+        <li><strong>Právní povinnost</strong> (čl. 6 odst. 1 písm. c GDPR): účetní a daňové povinnosti, zákonná evidence.</li>
+        <li><strong>Oprávněný zájem</strong> (čl. 6 odst. 1 písm. f GDPR): bezpečnost systému, audit, prevence podvodů a zneužití, detekce incidentů, obhajoba právních nároků.</li>
+        <li><strong>Souhlas</strong> (čl. 6 odst. 1 písm. a GDPR): pouze tam, kde je vyžadován (např. volitelné budoucí funkce mimo nezbytný provoz).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>6. Příjemci a kategorie zpracovatelů</h2>
+      <ul>
+        <li>Platební instituce a platební brána (Comgate) pro zpracování online plateb.</li>
+        <li>Hosting/cloud infrastruktura, technická správa, monitoring, logování a bezpečnostní nástroje.</li>
+        <li>E-mailové služby pro provozní a notifikační komunikaci.</li>
+        <li>Dodavatelé OCR/AI komponent, pokud jsou pro konkrétní funkci reálně aktivní.</li>
+        <li>Orgány veřejné moci, pokud to ukládá právní předpis nebo vykonatelné rozhodnutí.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>7. Předávání do třetích zemí</h2>
+      <ul>
+        <li>Pokud jsou využiti dodavatelé mimo EU/EHP, je přenos realizován jen při splnění podmínek GDPR (zejména rozhodnutí o odpovídající ochraně nebo standardní smluvní doložky včetně doplňkových záruk).</li>
+        <li>Pokud daný tok mimo EU/EHP neprobíhá, předání se neuskutečňuje.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>8. Retenční doby a retenční kritéria</h2>
+      <ul>
+        <li><strong>Účet a profil:</strong> po dobu trvání účtu a dále po dobu nezbytnou pro vypořádání nároků, sporů a zákonných povinností.</li>
+        <li><strong>Servisní a provozní záznamy:</strong> po dobu trvání účtu, případně do výmazu účtu nebo do uplynutí důvodu pro další uchování.</li>
+        <li><strong>Auditní a bezpečnostní logy:</strong> po dobu nezbytnou pro prevenci podvodů/zneužití, řešení incidentů a obhajobu právních nároků.</li>
+        <li><strong>Platební a účetní evidence:</strong> po dobu vyžadovanou daňovými a účetními předpisy.</li>
+        <li><strong>Doklady pro reklamace a spory:</strong> po dobu trvání reklamačního/sporného řízení a po dobu běhu souvisejících promlčecích lhůt.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>9. Ověření identity při výkonu práv</h2>
+      <ul>
+        <li>Subjekt údajů může uplatnit právo na přístup, opravu, výmaz, omezení, námitku, přenositelnost a další práva podle GDPR.</li>
+        <li>Při výkonu práv může správce požadovat přiměřené ověření totožnosti žadatele, aby nedošlo k neoprávněnému zpřístupnění údajů.</li>
+      </ul>
+      <p class="small">Žádosti směřujte na <a href="mailto:info@toozservis.cz">info@toozservis.cz</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>10. Auditní logy, bezpečnost a obrana nároků</h2>
+      <ul>
+        <li>Auditní a bezpečnostní záznamy jsou zpracovávány i za účelem prevence podvodů, detekce zneužití, ochrany systému a obhajoby právních nároků.</li>
+        <li>Tato evidence může zahrnovat i technické geolokační nebo síťové údaje, pokud jsou nezbytné pro bezpečnostní účel.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>11. Automatizované rozhodování a AI/OCR</h2>
+      <ul>
+        <li>AI/OCR výstupy slouží jako asistované předvyplnění, nikoli jako automatizované rozhodování s právními účinky ve smyslu čl. 22 GDPR.</li>
+        <li>Finální rozhodnutí o použití dat provádí uživatel.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>12. Cookies a lokální úložiště</h2>
+      <p>
+        Služba používá technické prostředky ukládání dat (cookies a local/session storage) pro zabezpečení,
+        přihlášení a provoz aplikace. Podrobnosti jsou v dokumentu <a href="cookies.html">Cookies</a>.
+      </p>
+    </section>
+
+    <section class="card small">
+      <h2>13. Verze a účinnost</h2>
+      <ul>
+        <li><strong>Verze dokumentu:</strong> TH2-GDPR-2026-03-08</li>
+        <li><strong>Datum účinnosti:</strong> 8. 3. 2026</li>
+        <li>Aktuální verze je vždy zveřejněna online na adrese <span class="mono">/web/ochrana-osobnich-udaju.html</span>.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
+<!-- CHANGES: Důsledné oddělení údajů o vozidle/osobě/provozních logů; doplnění rolí správce vs. zpracovatele; nová sekce autorizace vložení údajů; ověření identity při výkonu práv; retenční kritéria; příjemci a třetí země; prevence podvodů a obhajoba nároků v auditních logách; sjednocení identifikace poskytovatele a cross-linků. -->

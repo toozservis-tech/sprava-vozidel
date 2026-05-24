@@ -1,0 +1,220 @@
+================================================================================
+NÁVOD KROK ZA KROKEM — administrace, přihlášení, produkční .env
+(Aplikace „Správa vozidel“ / Toozhub backend)
+================================================================================
+
+ČÁST A — CO JE KDE (slovníček)
+------------------------------
+• Složka projektu na serveru  
+  Obvykle tam, kde máte klon aplikace, např. /opt/toozhub2/app
+
+• Soubor s nastavením  
+  V kořeni projektu:  .env  
+  (Zkopírujte z šablony:  .env.example  → přejmenujte / zkopírujte jako  .env)
+
+• Administrace v prohlížeči  
+  Adresa má vždy na konci:  /web_admin/  
+  Příklad: https://hub.vasedomena.cz/web_admin/
+
+• Developer Control Center  
+  Je TO SAMÉ okno administrace, ale sekce níže na stránce (KPI, „Co řešit teď“,
+  zálohy, security…). Zobrazí se jen účtu s rolí  developer_admin.
+
+
+================================================================================
+ČÁST B — PŘIHLÁŠENÍ DO ADMINISTRACE (přesný postup)
+================================================================================
+
+Krok B1 — Zjistěte adresu serveru  
+  To je doména nebo IP, na které běží váš backend (to, co píšete do prohlížeče
+  před cestou /web_admin/).
+
+Krok B2 — Otevřete prohlížeč  
+  Do řádku adresy ZCELA přesně zadejte (upravte podle sebe):
+
+    https://VÁŠE_DOMÉNA_NEBO_IP/web_admin/
+
+  Příklady:
+    https://hub.toozservis.cz/web_admin/
+    http://127.0.0.1:8000/web_admin/     ← jen lokální vývoj na tomto PC
+
+  Poznámka: lomítko na konci /web_admin/ může být i bez něj — záleží na serveru.
+
+Krok B3 — Přihlaste se  
+  Na stránce je přihlašovací formulář.
+  • E-mail = stejný jako máte v aplikaci (účet v tabulce uživatelů).
+  • Heslo = heslo k tomuto účtu.
+
+  Backend ověří účet voláním cesty  /user/login  (to se děje „pod kapotou“).
+
+Krok B4 — Co když to napíše „přístup odepřen“?  
+  Administrace vyžaduje roli  admin  NEBO  developer_admin.
+  Máte-li jen roli  user  nebo  service , přihlášení do /web_admin/ nepůjde.
+
+Krok B5 — Developer Control Center nevidím  
+  Control Center (žluté/červené priority, zálohy, security monitor) je POUZE pro
+  roli  developer_admin .
+  Řešení: v databázi u vašeho uživatele nastavte roli na  developer_admin ,
+  nebo se přihlaste účtem, který tuto roli už má. (Úprava role je práce pro
+  někoho s přístupem k databázi / existujícího admina.)
+
+
+================================================================================
+ČÁST C — NASTAVENÍ PRODUKCE V SOUBORU .env (krok za krokem)
+================================================================================
+
+Krok C1 — Otevřete soubor .env  
+  V editoru na serveru (nano, vim, VS Code…) otevřete:
+    /cesta/k/projektu/.env
+
+Krok C2 — Nastavte režim produkce  
+  Najděte nebo přidejte řádek:
+
+    ENVIRONMENT=production
+
+  Uložte soubor.
+
+Krok C3 — Nastavte silný klíč pro JWT (povinné v produkci)  
+  Na serveru v terminálu spusťte:
+
+    python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+
+  Zkopírujte výstup do .env jako:
+
+    JWT_SECRET_KEY=zde_vložte_zkopírovaný_řetězec
+
+  Nikdy nepoužívejte výchozí hodnotu z .env.example.
+
+Krok C4 — Povolené domény (CORS)  
+  Místo hvězdičky uveďte vaše skutečné adresy, oddělené čárkou BEZ mezer
+  (nebo s mezerami — záleží na vaší konvenci; bez mezer je nejjednodušší):
+
+    ALLOWED_ORIGINS=https://www.vasedomena.cz,https://hub.vasedomena.cz
+
+  (Nahraďte vasedomena.cz svými doménami.)
+
+Krok C5 — Veřejná adresa API  
+  Stejná jako adresa, pod kterou uživatelé a admin volají backend:
+
+    PUBLIC_API_BASE_URL=https://hub.vasedomena.cz
+
+  (Bez lomítka na konci nebo s — držte se stylu, který už používáte.)
+
+Krok C6 — Vynucení HTTPS v aplikaci  
+  Až máte před aplikací Nginx nebo Cloudflare s HTTPS, přidejte:
+
+    ENFORCE_HTTPS=1
+
+  Důležité: proxy musí posílat hlavičku  X-Forwarded-Proto: https  pro požadavky,
+  které z internetu přišly přes HTTPS. (V ukázkovém Nginx configu v projektu
+  je to popsáno.)
+
+Krok C7 — (VOLITELNÉ, pokročilé) Omezení adminu jen na vaše IP  
+  Nejdřív si ověřte svou veřejnou IP (např. „what is my ip“ v prohlížeči).
+  Pak do .env:
+
+    ADMIN_NETWORK_ALLOWLIST=203.0.113.10
+
+  (Čísla nahraďte svou IP; více adres oddělte čárkou.)
+
+  POZOR: špatná IP = ztratíte přístup k /admin-api a /web_admin . Zkoušejte až
+  když máte jistotu a zálohu / konzolový přístup na server.
+
+Krok C8 — Uložte .env a restartujte backend  
+  Aplikace musí .env načíst znovu — restart služby:
+
+  • systemd:   sudo systemctl restart nazev-sluzby
+  • docker:    docker compose restart   (nebo ekvivalent)
+  • ručně:     zastavte uvicorn/gunicorn a spusťte znovu
+
+  Bez restartu se nové hodnoty nepoužijí.
+
+
+================================================================================
+ČÁST C9 — CLOUDFLARE ZERO TRUST ACCESS (doporučené „jen já“, bez měnící IP)
+================================================================================
+
+Cíl: před aplikaci dát Cloudflare Access (přihlášení e‑mailem / OTP), a na serveru
+ověřovat JWT v hlavičce Cf-Access-Jwt-Assertion (backend to umí, viz .env.example).
+
+1) Cloudflare Dashboard → Zero Trust → Access → Applications → Add an application
+   → typ „Self-hosted“.
+
+2) Vytvořte oddělené aplikace NEBO jednu s více cestami — musí být chráněné:
+     https://vaše-doména/web_admin
+     https://vaše-doména/admin-api
+     https://vaše-doména/admin-static
+   (Každá aplikace v Access má vlastní „Application Audience (AUD) tag“ — pokud jich
+   máte více, v .env je oddělte čárkou v CLOUDFLARE_ACCESS_AUDIENCE.)
+
+3) U každé aplikace nastavte politiku: Allow → Include → konkrétní e‑mail (jen vy).
+
+4) Team domain (issuer): Zero Trust → Settings → v horní liště / Cloudflare Access
+   URL ve tvaru https://VÁŠ-TÝM.cloudflareaccess.com — přesně to patří do
+   CLOUDFLARE_ACCESS_TEAM_DOMAIN (včetně https://).
+
+5) AUD tag: u aplikace → Configure → Additional settings → Application Audience tag.
+
+6) Do .env na serveru (a restart backendu):
+     CLOUDFLARE_ACCESS_PROTECT_ADMIN=1
+     CLOUDFLARE_ACCESS_TEAM_DOMAIN=https://....cloudflareaccess.com
+     CLOUDFLARE_ACCESS_AUDIENCE=...   (jeden tag nebo více čárkou)
+   Volitelně druhá kontrola e‑mailu v JWT (stejný jako v politice):
+     CLOUDFLARE_ACCESS_ALLOWED_EMAILS=vas@email.cz
+
+7) Veřejné části hubu (zákazníci) nechte VEN z Access politiky — nestačí chránit jen
+   /web_admin, protože admin volá i /admin-api a /admin-static.
+
+8) Po zařazení Access můžete ADMIN_NETWORK_ALLOWLIST vyprázdnit (není potřeba znát
+   denní veřejnou IP). Doporučeno ponechat ENFORCE_HTTPS=1 za proxy.
+
+9) Endpoint /user/login zůstává veřejný (sdílený s běžnými uživateli) — používejte
+   silné heslo a 2FA u svého účtu.
+
+Dok.: https://developers.cloudflare.com/cloudflare-one/policies/access/
+
+
+================================================================================
+ČÁST D — NGINX (stručně, v jakém pořadí)
+================================================================================
+
+1) Na serveru nainstalujte TLS certifikát (Let’s Encrypt apod.).
+2) V konfiguraci serveru pro vaši doménu nastavte:
+   • poslouchat na 443 ssl
+   • proxy_pass na váš backend (např. http://127.0.0.1:8000)
+3) Z projektu si vezměte nápovědu ze souboru:
+     deploy/nginx-security-hardening.conf.example
+   a začleňte řádky (proxy_set_header X-Forwarded-Proto, X-Forwarded-For, …).
+4) Otestujte v prohlížeči https://vaše-doména/web_admin/
+
+
+================================================================================
+ČÁST E — ZÁLOHA V CONTROL CENTER (aby „přestalo svítit“)
+================================================================================
+
+1) Přihlaste se do /web_admin/ jako  developer_admin .
+2) Sjeďte na stránce dolů k modulu „Backup & Restore“.
+3) Klikněte „Vytvořit backup“ a počkejte na hlášku o úspěchu.
+4) Klikněte nahoře „Obnovit panel“ NEBO „Načíst seznam“ u záloh.
+5) Priorita „Backup je starší…“ zmizí, pokud je nejnovější platná záloha
+   mladší než 72 hodin a obsahuje databázi (vehicles.db).
+
+
+================================================================================
+ČÁST F — KONTROLA PO NASAZENÍ
+================================================================================
+
+1) Otevřete:  https://vaše-doména/health  
+   Měla by být odpověď, že server běží.
+2) V administraci otevřete Developer Control Center → System Health → detail.
+   Řádek „security_hardening“ shrnuje, zda máte zapnuté doporučené věci
+   (HTTPS, CORS, případně allowlist).
+
+
+================================================================================
+KDE HLEDAT DALŠÍ PROMĚNNÉ
+================================================================================
+  .env.example  — kompletní seznam voleb s komentáři
+  deploy/nginx-security-hardening.conf.example — ukázka proxy + hlavičky
+
+================================================================================

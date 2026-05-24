@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reklamační řád | Správa vozidel</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #334155;
+      --border: #dbe5f0;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.58;
+    }
+    .wrap {
+      width: min(980px, calc(100% - 24px));
+      margin: 22px auto 34px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 10px; font-size: 1.66rem; }
+    h2 { margin: 0 0 10px; font-size: 1.16rem; }
+    h3 { margin: 12px 0 8px; font-size: 1.02rem; }
+    p, li { color: var(--muted); }
+    ul { margin: 8px 0; padding-left: 18px; }
+    a { color: var(--accent); }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .links a {
+      display: inline-block;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 6px 10px;
+      font-size: 0.92rem;
+    }
+    .small { font-size: 0.92rem; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.94em;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Reklamační řád digitální služby Správa vozidel</h1>
+      <p>
+        Tento reklamační řád upravuje způsob uplatnění a vyřízení reklamací digitální služby Správa vozidel.
+      </p>
+      <p>
+        Poskytovatel: ToozServis Auto/Pneu Tomáš Zachurčok (TooZ Servis), IČO 87854716,
+        Gorkého 2351/19a, 568 02 Svitavy, Česká republika,
+        e-mail pro právní komunikaci: <a href="mailto:info@toozservis.cz">info@toozservis.cz</a>,
+        tel: <a href="tel:+420731552299">+420 731 552 299</a>.
+      </p>
+      <div class="links">
+        <a href="obchodni-podminky.html">Obchodní podmínky</a>
+        <a href="platebni-podminky.html">Platební podmínky</a>
+        <a href="ochrana-osobnich-udaju.html">Ochrana osobních údajů</a>
+        <a href="cookies.html">Cookies</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>1. Typy podání a reklamací</h2>
+      <ul>
+        <li><strong>Technická vada služby</strong>: nefunkčnost nebo nesoulad digitální služby oproti smlouvě.</li>
+        <li><strong>Platební chyba</strong>: chybně zpracovaná, duplicitní nebo nesprávně spárovaná úhrada.</li>
+        <li><strong>Nesoulad aktivovaného tarifu</strong>: aktivován jiný tarif/fakturační režim, než který byl řádně zaplacen.</li>
+        <li><strong>Uživatelská chyba / chybná vstupní data</strong>: nesprávné zadání údajů uživatelem (není vadou služby).</li>
+        <li><strong>Neověřený AI/OCR výstup</strong>: převzetí nezkontrolovaných asistovaných údajů (není vadou služby).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>2. Co se za reklamaci nepovažuje</h2>
+      <ul>
+        <li>Plánované odstávky, maintenance a bezpečnostní zásahy provedené v nezbytném rozsahu.</li>
+        <li>Omezení způsobená třetími stranami (internet, hosting, platební infrastruktura, externí integrace) mimo kontrolu poskytovatele.</li>
+        <li>Problémy způsobené konektivitou uživatele, nepodporovaným zařízením nebo nepodporovanou/verzně zastaralou konfigurací prohlížeče.</li>
+        <li>Chybná data vložená uživatelem nebo škody vzniklé převzetím neověřených AI/OCR údajů bez finální kontroly.</li>
+      </ul>
+      <p class="small">U spotřebitele se toto vymezení použije vždy v souladu s kogentní úpravou ochrany spotřebitele.</p>
+    </section>
+
+    <section class="card">
+      <h2>3. Jak reklamaci uplatnit</h2>
+      <ul>
+        <li>Reklamaci zašlete na <a href="mailto:info@toozservis.cz">info@toozservis.cz</a>.</li>
+        <li>Uveďte minimálně: identifikaci účtu, kontaktní e-mail, datum zjištění problému, popis vady a požadovaný způsob nápravy.</li>
+        <li>U platebního podání uveďte částku, datum, ID transakce a dostupný výpis/confirm.</li>
+        <li>Doporučeno: screenshoty, popis kroků, čas události a technické informace (prohlížeč/zařízení).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>4. Proces vyřízení reklamace</h2>
+      <h3>4.1 Přijetí a identifikace</h3>
+      <ul>
+        <li>Poskytovatel potvrdí přijetí reklamace bez zbytečného odkladu.</li>
+        <li>Podání je zařazeno do kategorie (technická vada / platba / tarif / uživatelská chyba / AI-OCR výstup).</li>
+      </ul>
+      <h3>4.2 Doplnění podkladů</h3>
+      <ul>
+        <li>Pokud reklamaci nelze bez součinnosti posoudit, poskytovatel může vyžádat doplnění údajů.</li>
+        <li>Po dobu objektivně nezbytnou k doplnění podkladů může být běh posouzení přerušen.</li>
+      </ul>
+      <h3>4.3 Technické šetření a rozhodnutí</h3>
+      <ul>
+        <li>Poskytovatel provede technické šetření, vyhodnotí stavové přechody systému a platební záznamy.</li>
+        <li>Výstupem je rozhodnutí: odstranění vady, sleva, refundace, nebo zamítnutí s odůvodněním.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>5. Důkazní podklady</h2>
+      <ul>
+        <li>Pro vyhodnocení reklamace se používají zejména auditní logy, systémové logy, payment logy, state transitions a serverové timestamps.</li>
+        <li>U platebních sporů se přihlíží k záznamům platební brány (Comgate) a interním auditním záznamům.</li>
+        <li>Reklamace se neposuzuje pouze podle tvrzení uživatele bez doložitelných podkladů.</li>
+      </ul>
+      <p class="small">Není-li prokázán technický omyl na straně poskytovatele, vychází se z těchto záznamů jako z primárního důkazu.</p>
+    </section>
+
+    <section class="card">
+      <h2>6. Lhůta a způsob nápravy u digitální služby</h2>
+      <ul>
+        <li>Vada digitální služby bude odstraněna v přiměřené době po vytknutí vady tak, aby spotřebiteli nezpůsobila značné obtíže, s ohledem na povahu služby a účel smlouvy.</li>
+        <li>Pokud vadu nelze odstranit, poskytovatel ji neodstraní řádně a včas, vada se opakuje nebo jde o podstatné porušení smlouvy, má spotřebitel právo na přiměřenou slevu nebo odstoupení od smlouvy.</li>
+        <li>Jde-li o vadu nevýznamnou, spotřebitel právo odstoupit od smlouvy nemá.</li>
+      </ul>
+      <p class="small">Reklamační řízení u digitální služby se neposuzuje mechanicky jen podle obecného pravidla „30 dnů“.</p>
+    </section>
+
+    <section class="card">
+      <h2>7. Refundace a platební náprava</h2>
+      <ul>
+        <li>Refundace se provádí pouze v oprávněných případech (zejména duplicitní úhrada, prokazatelně chybná aktivace, oprávněná reklamace, zákonný nárok spotřebitele).</li>
+        <li>Refundace se standardně vrací stejnou nebo odpovídající platební metodou.</li>
+        <li>Podrobnosti platebního režimu upravují <a href="platebni-podminky.html">Platební podmínky</a>.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>8. Mimosoudní řešení sporů (spotřebitel)</h2>
+      <p>
+        Není-li spotřebitel spokojen s vyřízením reklamace, může se obrátit na Českou obchodní inspekci,
+        Štěpánská 567/15, 120 00 Praha 2,
+        e-mail: <a href="mailto:adr@coi.cz">adr@coi.cz</a>,
+        web: <a href="https://adr.coi.cz/cs" target="_blank" rel="noopener noreferrer">adr.coi.cz/cs</a>.
+      </p>
+    </section>
+
+    <section class="card small">
+      <h2>9. Verze a účinnost</h2>
+      <ul>
+        <li><strong>Verze dokumentu:</strong> TH2-RR-2026-03-08</li>
+        <li><strong>Datum účinnosti:</strong> 8. 3. 2026</li>
+        <li>Aktuální verze je vždy zveřejněna online na adrese <span class="mono">/web/reklamacni-rad.html</span>.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
+<!-- CHANGES: Kompletní přepis reklamačního řádu pro digitální službu; jasné rozlišení typů podání; procesní postup vyřízení; důkazní význam auditních a platebních logů; úprava práv spotřebitele dle režimu vad digitální služby; zpřesnění refundací a sjednocení identifikace poskytovatele. -->

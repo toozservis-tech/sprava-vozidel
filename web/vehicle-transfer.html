@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Předání vozidla | Správa vozidel</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #162033;
+      --muted: #64748b;
+      --line: #d7dde8;
+      --brand: #0f766e;
+      --brand-dark: #115e59;
+      --danger: #b42318;
+      --ok-bg: #ecfdf3;
+      --ok-border: #abefc6;
+      --err-bg: #fef3f2;
+      --err-border: #fecdca;
+      --bg: #f6f8fb;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    main {
+      width: min(100%, 560px);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      padding: 28px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.45rem, 4vw, 2rem);
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .vehicle-box {
+      margin: 22px 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfcfe;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 8px 0;
+      border-bottom: 1px solid #edf1f7;
+    }
+
+    .row:last-child { border-bottom: 0; }
+
+    .label {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .value {
+      font-weight: 700;
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+
+    form {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-weight: 700;
+      color: #243047;
+    }
+
+    input {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font: inherit;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    button {
+      min-height: 46px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #fff;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--brand-dark); }
+    #claimButton:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    #techRefreshBtn {
+      border: 2px solid var(--brand);
+      background: var(--brand);
+      color: #fff;
+    }
+    #techRefreshBtn:hover:not(:disabled) { background: var(--brand-dark); }
+    #techRefreshBtn:disabled {
+      opacity: 1;
+      cursor: not-allowed;
+      background: #f8fafc !important;
+      color: #94a3b8 !important;
+      border: 2px dashed #cbd5e1 !important;
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    #techRefreshInlineStatus {
+      margin: 0;
+      font-size: 0.92rem;
+      line-height: 1.45;
+    }
+
+    #techRefreshInlineStatus.note-neutral {
+      color: #475569;
+    }
+
+    #techRefreshInlineStatus.note-success {
+      color: #067647;
+      font-weight: 700;
+    }
+
+    .alert {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: #334155;
+      line-height: 1.45;
+    }
+
+    .alert.success {
+      background: var(--ok-bg);
+      border-color: var(--ok-border);
+      color: #067647;
+      white-space: pre-line;
+    }
+
+    .alert.error {
+      background: var(--err-bg);
+      border-color: var(--err-border);
+      color: var(--danger);
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Předání vozidla</h1>
+    <p>Potvrďte identitu vozidla pomocí SPZ a VIN. Převod se dokončí pouze pro přihlášeného uživatele.</p>
+
+    <section id="vehicleBox" class="vehicle-box" data-testid="transfer-summary">
+      <div class="row">
+        <span class="label">Stav tokenu</span>
+        <span id="transferStatus" class="value">Načítám...</span>
+      </div>
+      <div class="row">
+        <span class="label">Vozidlo</span>
+        <span id="transferVehicle" class="value">-</span>
+      </div>
+      <div class="row">
+        <span class="label">SPZ</span>
+        <span id="transferSpz" class="value">-</span>
+      </div>
+      <div class="row">
+        <span class="label">VIN</span>
+        <span id="transferVin" class="value">-</span>
+      </div>
+    </section>
+
+    <form id="claimForm" class="hidden" data-testid="transfer-claim-form">
+      <label>
+        SPZ
+        <input id="claimSpz" name="spz" autocomplete="off" required minlength="2" maxlength="32" data-testid="transfer-input-spz">
+      </label>
+      <label>
+        VIN (17 znaků)
+        <input id="claimVin" name="vin" autocomplete="off" required minlength="17" maxlength="32" data-testid="transfer-input-vin">
+      </label>
+      <p id="normalizedPreview" class="hint" style="margin-top:-6px;"></p>
+      <p class="hint">Než dokončíte převod, načtěte technická data vozidla (stejný zdroj jako při přidání vozidla nebo aktualizaci v přehledu). Vyplňte správnou SPZ a VIN.</p>
+      <button type="button" id="techRefreshBtn" disabled data-testid="transfer-tech-refresh">Aktualizovat údaje</button>
+      <p id="techRefreshInlineStatus" class="hidden"></p>
+      <p id="loginHintRefresh" class="hidden hint" style="color:#b45309;">Pro načtení údajů a dokončení převodu se musíte přihlásit ve stejném prohlížeči jako v aplikaci Správa vozidel.</p>
+      <button type="submit" id="claimButton" disabled data-testid="transfer-submit">Dokončit převod do účtu</button>
+      <p id="loginHint" class="hidden hint" style="color:#b45309;">Nejste přihlášeni — přihlaste se ve stejném prohlížeči a akci zopakujte.</p>
+    </form>
+
+    <div id="message" class="alert hidden" role="status" data-testid="transfer-message"></div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const rawToken = String(params.get('token') || '').trim();
+    const message = document.getElementById('message');
+    const claimForm = document.getElementById('claimForm');
+    const claimButton = document.getElementById('claimButton');
+    const techRefreshBtn = document.getElementById('techRefreshBtn');
+    const techRefreshInlineStatus = document.getElementById('techRefreshInlineStatus');
+    const claimSpz = document.getElementById('claimSpz');
+    const claimVin = document.getElementById('claimVin');
+
+    let techRefreshDone = false;
+    let lockedFingerprint = '';
+
+    function showMessage(text, type) {
+      message.textContent = text;
+      message.className = `alert ${type || ''}`.trim();
+      message.classList.toggle('hidden', !text);
+    }
+
+    function getToken() {
+      return localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+    }
+
+    function normalizeVin(v) {
+      return String(v || '').toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, '');
+    }
+
+    function normalizeSpz(v) {
+      return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    }
+
+    function fingerprint() {
+      return `${normalizeSpz(claimSpz.value)}|${normalizeVin(claimVin.value)}`;
+    }
+
+    function updateNormalizedPreview() {
+      const el = document.getElementById('normalizedPreview');
+      if (!el) return;
+      if (!claimSpz.value.trim() && !claimVin.value.trim()) {
+        el.textContent = '';
+        return;
+      }
+      const s = normalizeSpz(claimSpz.value);
+      const v = normalizeVin(claimVin.value);
+      el.textContent =
+        'Takto systém čte údaje pro porovnání: SPZ „' +
+        (s || '—') +
+        '“, VIN „' +
+        (v || '—') +
+        '“. Zadejte přesně podle velkého technického průkazu (meze se ignorují).';
+    }
+
+    async function requestJson(path, options = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      const authToken = getToken();
+      if (authToken) {
+        headers.Authorization = `Bearer ${authToken}`;
+      }
+      const response = await fetch(path, { ...options, headers });
+      const text = await response.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = { detail: text };
+      }
+      if (!response.ok) {
+        let detail = data && (data.detail || data.message || data.error?.message);
+        const rawDetail = typeof detail === 'string' ? detail : '';
+        if (response.status === 404 && (!rawDetail || rawDetail.trim().toLowerCase() === 'not found')) {
+          detail =
+            'Služba aktualizace dat nebyla nalezena (chybějící nasazení API). Zkuste obnovit stránku po aktualizaci serveru.';
+        }
+        throw new Error(detail || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    function updateTechRefreshGate() {
+      const logged = !!getToken();
+      document.getElementById('loginHintRefresh').classList.toggle('hidden', logged);
+
+      const spzOk = normalizeSpz(claimSpz.value).length >= 2;
+      const vinOk = normalizeVin(claimVin.value).length === 17;
+      techRefreshBtn.disabled = !(spzOk && vinOk && logged);
+
+      if (techRefreshDone && fingerprint() !== lockedFingerprint) {
+        techRefreshDone = false;
+        techRefreshInlineStatus.textContent = '';
+        techRefreshInlineStatus.classList.add('hidden');
+      }
+      claimButton.disabled = !(logged && techRefreshDone);
+      updateNormalizedPreview();
+    }
+
+    async function loadTransfer() {
+      if (!rawToken) {
+        document.getElementById('transferStatus').textContent = 'Chybí token';
+        showMessage('V odkazu chybí předávací token.', 'error');
+        return;
+      }
+      try {
+        const data = await requestJson(`/api/public/vehicle-transfer/${encodeURIComponent(rawToken)}`);
+        document.getElementById('transferStatus').textContent = data.status || '-';
+        const vehicle = data.vehicle || {};
+        document.getElementById('transferVehicle').textContent = [vehicle.brand, vehicle.model, vehicle.year].filter(Boolean).join(' ') || '—';
+        document.getElementById('transferSpz').textContent = vehicle.spz_masked || '—';
+        document.getElementById('transferVin').textContent = vehicle.vin_masked || '-';
+        if (data.status === 'active') {
+          claimForm.classList.remove('hidden');
+          claimSpz.value = '';
+          claimVin.value = '';
+          techRefreshDone = false;
+          lockedFingerprint = '';
+          techRefreshInlineStatus.textContent = '';
+          techRefreshInlineStatus.className = 'hidden';
+          updateTechRefreshGate();
+        } else {
+          showMessage('Předávací token už není aktivní.', 'error');
+        }
+      } catch (error) {
+        document.getElementById('transferStatus').textContent = 'Nelze ověřit';
+        showMessage(error.message || 'Předávací token se nepodařilo ověřit.', 'error');
+      }
+    }
+
+    techRefreshBtn.addEventListener('click', async () => {
+      techRefreshInlineStatus.className = 'hidden';
+      document.getElementById('loginHint').classList.add('hidden');
+      if (!getToken()) {
+        document.getElementById('loginHintRefresh').classList.remove('hidden');
+        return;
+      }
+      techRefreshBtn.disabled = true;
+      try {
+        const payload = {
+          token: rawToken,
+          spz: claimSpz.value.trim(),
+          vin: claimVin.value.trim(),
+        };
+        const result = await requestJson(`/api/v1/vehicles/transfer-technical-refresh-before-claim`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        lockedFingerprint = fingerprint();
+        techRefreshDone = true;
+        const changed = !!(result && result.technical_overview_changed);
+        techRefreshInlineStatus.textContent = changed
+          ? 'Data byla načtena a doplněna — můžete dokončit převod do účtu.'
+          : 'Vozidlo je beze změny — můžete dokončit převod do účtu.';
+        techRefreshInlineStatus.classList.remove('hidden');
+        techRefreshInlineStatus.classList.remove('note-success', 'note-neutral');
+        techRefreshInlineStatus.classList.add(changed ? 'note-success' : 'note-neutral');
+      } catch (error) {
+        showMessage(error.message || 'Technické údaje se nepodařilo načíst.', 'error');
+      } finally {
+        updateTechRefreshGate();
+      }
+    });
+
+    claimSpz.addEventListener('input', updateTechRefreshGate);
+    claimVin.addEventListener('input', updateTechRefreshGate);
+
+    claimForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      document.getElementById('loginHint').classList.add('hidden');
+      if (!getToken()) {
+        document.getElementById('loginHint').classList.remove('hidden');
+        showMessage('Pro dokončení převodu musíte být přihlášeni ve stejném prohlížeči.', 'error');
+        return;
+      }
+      if (!techRefreshDone) {
+        showMessage('Nejdříve klikněte na „Aktualizovat údaje“ a počkejte na dokončení načtení.', 'error');
+        return;
+      }
+      claimButton.disabled = true;
+      try {
+        const payload = {
+          token: rawToken,
+          spz: claimSpz.value.trim(),
+          vin: claimVin.value.trim(),
+        };
+        const result = await requestJson(`/api/public/vehicle-transfer/${encodeURIComponent(rawToken)}/claim`, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        showMessage(
+          result && result.claimed
+            ? 'Vozidlo bylo úspěšně převzato. Historie zůstala zachovaná.\n\nToto okno nebo záložku můžete zavřít a vrátit se do hlavního okna aplikace.'
+            : 'Převod byl zpracován.\n\nToto okno nebo záložku můžete zavřít a vrátit se do hlavního okna aplikace.',
+          'success',
+        );
+        claimForm.classList.add('hidden');
+        document.getElementById('transferStatus').textContent = 'claimed';
+      } catch (error) {
+        showMessage(error.message || 'Převzetí vozidla se nepodařilo.', 'error');
+      } finally {
+        updateTechRefreshGate();
+      }
+    });
+
+    window.addEventListener('storage', () => updateTechRefreshGate());
+    setInterval(updateTechRefreshGate, 1500);
+
+    loadTransfer();
+  </script>
+</body>
+</html>

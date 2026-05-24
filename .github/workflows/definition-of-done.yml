@@ -1,0 +1,171 @@
+name: Definition of Done Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  api-and-local-smoke:
+    name: API + Local Smoke
+    runs-on: ubuntu-latest
+
+    env:
+      BASE_URL: http://127.0.0.1:8000
+      TEST_API_URL: http://127.0.0.1:8000
+      APP_ENV: test
+      ENVIRONMENT: test
+      DATABASE_URL: sqlite:///./test_vehicles.db
+      VEHICLE_DB_URL: sqlite:///./test_vehicles.db
+      TEST_DATABASE_URL: sqlite:///./test_vehicles.db
+      JWT_SECRET_KEY: test-secret-key-for-ci-only
+      HOST: 127.0.0.1
+      PORT: 8000
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Initialize database via Alembic migrations
+        run: |
+          rm -f test_vehicles.db
+          python scripts/migrate_database.py upgrade head
+
+      - name: Create artifacts directory
+        run: |
+          mkdir -p artifacts/qa
+
+      - name: Start backend server
+        run: |
+          python -m uvicorn src.server.main:app --host 127.0.0.1 --port 8000 &
+          echo $! > backend.pid
+
+      - name: Wait for backend to be ready
+        run: |
+          timeout=60
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if curl -f http://127.0.0.1:8000/health > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              exit 0
+            fi
+            echo "Waiting for backend... ($elapsed/$timeout seconds)"
+            sleep 2
+            elapsed=$((elapsed + 2))
+          done
+          echo "Backend failed to start within $timeout seconds"
+          exit 1
+
+      - name: Run API tests (required)
+        run: |
+          python -m pytest tests/api -q --junit-xml=artifacts/qa/pytest-report.xml
+
+      - name: Run smoke test script (required)
+        run: |
+          bash scripts/smoke_test.sh
+
+      - name: Upload API/smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dod-api-smoke-artifacts
+          path: |
+            artifacts/qa/**
+            logs/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop backend server
+        if: always()
+        run: |
+          if [ -f backend.pid ]; then
+            kill $(cat backend.pid) || true
+            rm backend.pid
+          fi
+          pkill -f "uvicorn src.server.main:app" || true
+
+  prod-readonly-smoke:
+    name: Prod Read-Only Smoke
+    runs-on: ubuntu-latest
+
+    env:
+      BASE_URL: https://hub.toozservis.cz
+      E2E_READONLY: "1"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify production E2E secrets
+        run: |
+          if [ -z "${{ secrets.PROD_E2E_EMAIL }}" ] || [ -z "${{ secrets.PROD_E2E_PASSWORD }}" ]; then
+            echo "::error::Missing required secrets: PROD_E2E_EMAIL and/or PROD_E2E_PASSWORD"
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install E2E dependencies
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run production smoke tests (required)
+        working-directory: tests/e2e
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          E2E_READONLY: ${{ env.E2E_READONLY }}
+          E2E_EMAIL: ${{ secrets.PROD_E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.PROD_E2E_PASSWORD }}
+        run: |
+          npx playwright test prod-smoke.spec.ts --reporter=list,html --project=chromium
+
+      - name: Upload prod smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dod-prod-smoke-artifacts
+          path: |
+            tests/e2e/playwright-report/**
+            tests/e2e/test-results/**
+          if-no-files-found: ignore
+          retention-days: 30
+
+  definition-of-done:
+    name: Definition of Done
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - api-and-local-smoke
+      - prod-readonly-smoke
+    steps:
+      - name: Evaluate gate result
+        run: |
+          echo "api-and-local-smoke: ${{ needs['api-and-local-smoke'].result }}"
+          echo "prod-readonly-smoke: ${{ needs['prod-readonly-smoke'].result }}"
+
+          if [ "${{ needs['api-and-local-smoke'].result }}" != "success" ] || [ "${{ needs['prod-readonly-smoke'].result }}" != "success" ]; then
+            echo "::error::Definition of Done gate FAILED."
+            exit 1
+          fi
+
+          echo "Definition of Done gate PASSED."

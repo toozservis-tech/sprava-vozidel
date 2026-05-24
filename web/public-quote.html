@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Veřejná cenová nabídka</title>
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #0f141b;
+      --panel: #19212b;
+      --panel-soft: #202b38;
+      --text: #f8fafc;
+      --muted: rgba(226, 232, 240, 0.72);
+      --line: rgba(148, 163, 184, 0.18);
+      --primary: #4b82ff;
+      --danger: #ef4444;
+      --ok: #22c55e;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #eef2f8;
+        --panel: #ffffff;
+        --panel-soft: #f8fafc;
+        --text: #0f172a;
+        --muted: rgba(51, 65, 85, 0.76);
+        --line: rgba(15, 23, 42, 0.1);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .page {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      padding: 18px 14px calc(32px + env(safe-area-inset-bottom));
+      display: grid;
+      gap: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.16);
+    }
+    .muted { color: var(--muted); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .item {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 16px;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+    }
+    .item-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+    .actions {
+      position: sticky;
+      bottom: 0;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      padding-top: 4px;
+    }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 14px;
+      min-height: 52px;
+      padding: 12px 16px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .primary {
+      color: #eff6ff;
+      background: linear-gradient(135deg, var(--primary), #255ef0);
+    }
+    .danger {
+      color: #fff1f2;
+      background: linear-gradient(135deg, var(--danger), #dc2626);
+    }
+    .secondary {
+      color: var(--text);
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+    }
+    .success { color: var(--ok); }
+    .hidden { display: none !important; }
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+      .actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app" class="page">
+    <section class="card">
+      <h1>Veřejná cenová nabídka</h1>
+      <p class="muted">Načítám nabídku…</p>
+    </section>
+  </main>
+  <script>
+    function fmtDateTime(value) {
+      if (!value) return 'Neuvedeno';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleString('cs-CZ');
+    }
+
+    function fmtMoney(value) {
+      if (value == null || value === '') return 'Neuvedeno';
+      const n = Number(value);
+      if (!Number.isFinite(n)) return String(value);
+      return `${n.toLocaleString('cs-CZ')} Kč`;
+    }
+
+    function tokenFromLocation() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('token') || '';
+    }
+
+    async function decide(action) {
+      const token = tokenFromLocation();
+      if (!token) return;
+      const confirmed = window.confirm(action === 'approve' ? 'Opravdu chceš nabídku schválit?' : 'Opravdu chceš nabídku odmítnout?');
+      if (!confirmed) return;
+      try {
+        const response = await fetch(`/api/public/quote/${encodeURIComponent(token)}/${action}`, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+        });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.detail || 'Změnu stavu se nepodařilo uložit.');
+        const statusNode = document.getElementById('quoteStatus');
+        const feedbackNode = document.getElementById('feedback');
+        if (statusNode) statusNode.textContent = action === 'approve' ? 'Schváleno' : 'Odmítnuto';
+        if (feedbackNode) {
+          feedbackNode.textContent = payload.message || 'Stav nabídky byl uložen.';
+          feedbackNode.classList.remove('hidden');
+        }
+        const actions = document.getElementById('decisionActions');
+        if (actions) actions.classList.add('hidden');
+      } catch (error) {
+        window.alert(String(error?.message || error));
+      }
+    }
+
+    async function boot() {
+      const app = document.getElementById('app');
+      const token = tokenFromLocation();
+      if (!token) {
+        app.innerHTML = '<section class="card"><h1>Chybí token</h1><p class="muted">Odkaz nabídky je neplatný.</p></section>';
+        return;
+      }
+      try {
+        const response = await fetch(`/api/public/quote/${encodeURIComponent(token)}`);
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.detail || 'Nabídku se nepodařilo načíst.');
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        app.innerHTML = `
+          <section class="card">
+            <div class="pill" id="quoteStatus">${payload.status_label || payload.status || 'Koncept'}</div>
+            <h1>${payload.vehicle_label || 'Vozidlo'}</h1>
+            <p class="muted">Servis: ${payload.service_name || 'Neuvedeno'}${payload.service_ico ? ` · IČO ${payload.service_ico}` : ''}</p>
+            <div class="grid">
+              <div class="card">
+                <h3>Souhrn</h3>
+                <p class="muted">Cena: ${fmtMoney(payload.total_price)}</p>
+                <p class="muted">Vytvořeno: ${fmtDateTime(payload.created_at)}</p>
+              </div>
+              <div class="card">
+                <h3>Práce</h3>
+                <p class="muted">Hodiny: ${payload.labor_hours != null ? payload.labor_hours : 'Neuvedeno'}</p>
+                <p class="muted">Sazba: ${fmtMoney(payload.labor_rate)}</p>
+              </div>
+            </div>
+          </section>
+          <section class="card">
+            <h2>Položky nabídky</h2>
+            ${items.length ? items.map((item) => `
+              <article class="item">
+                <div class="item-head">
+                  <strong>${item.name || 'Položka'}</strong>
+                  <span class="pill">${fmtMoney(item.total_price)}</span>
+                </div>
+                <div class="muted">Množství: ${item.quantity ?? 0}</div>
+                <div class="muted">Cena za ks: ${fmtMoney(item.unit_price)}</div>
+              </article>
+            `).join('') : '<div class="item"><div class="muted">Nabídka zatím neobsahuje položky.</div></div>'}
+          </section>
+          <section class="card">
+            <h2>Rozhodnutí</h2>
+            <p id="feedback" class="muted hidden"></p>
+            <div id="decisionActions" class="actions ${payload.decision_available ? '' : 'hidden'}">
+              <button type="button" class="primary" onclick="decide('approve')">Schválit</button>
+              <button type="button" class="danger" onclick="decide('reject')">Odmítnout</button>
+            </div>
+            ${payload.decision_available ? '' : `<p class="success">Nabídka už byla uzavřena ve stavu: ${payload.status_label || payload.status || 'hotovo'}.</p>`}
+          </section>
+        `;
+      } catch (error) {
+        app.innerHTML = `<section class="card"><h1>Nabídku se nepodařilo načíst</h1><p class="muted">${String(error?.message || error)}</p></section>`;
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

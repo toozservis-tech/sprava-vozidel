@@ -1,0 +1,108 @@
+{
+  "run_id": "20260310T212010Z",
+  "profile": "security",
+  "base_url": "http://127.0.0.1:8000",
+  "overall_status": "PASS",
+  "failed_step": null,
+  "artifacts_dir": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z",
+  "playwright_report_path": "/opt/toozhub2/app/artifacts/qa/playwright-report/index.html",
+  "playwright_trace_dir": "/opt/toozhub2/app/tests/e2e/test-results",
+  "steps": [
+    {
+      "step": "A0_server_boot_sanity",
+      "status": "PASS",
+      "required": true,
+      "reason": "",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/A0_server_boot_sanity.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "A1_lint_type_build",
+      "status": "SKIPPED",
+      "required": false,
+      "reason": "No lint/type/build configuration files detected.",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/A1_lint_type_build.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "A2_python_compile_sanity",
+      "status": "PASS",
+      "required": true,
+      "reason": "",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/A2_python_compile_sanity.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "A3_health_route_pytest",
+      "status": "PASS",
+      "required": true,
+      "reason": "",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/A3_health_route_pytest.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "A4_playwright_runtime_check",
+      "status": "PASS",
+      "required": true,
+      "reason": "",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/A4_playwright_runtime_check.log",
+      "duration_seconds": 2
+    },
+    {
+      "step": "B1_security_runtime_routes",
+      "status": "PASS",
+      "required": true,
+      "reason": "",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/B1_security_runtime_routes.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "B2_security_pytest_regressions",
+      "status": "PASS",
+      "required": true,
+      "reason": "",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/B2_security_pytest_regressions.log",
+      "duration_seconds": 3
+    },
+    {
+      "step": "C1_core_e2e_smoke",
+      "status": "SKIPPED",
+      "required": false,
+      "reason": "Skipped by selected profile 'security'.",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/C1_core_e2e_smoke.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "C2_admin_e2e_smoke",
+      "status": "SKIPPED",
+      "required": false,
+      "reason": "Skipped by selected profile 'security'.",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/C2_admin_e2e_smoke.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "D1_responsive_e2e",
+      "status": "SKIPPED",
+      "required": false,
+      "reason": "Skipped by selected profile 'security'.",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/D1_responsive_e2e.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "E1_cross_browser_chromium_firefox",
+      "status": "SKIPPED",
+      "required": false,
+      "reason": "Skipped by selected profile 'security'.",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/E1_cross_browser_chromium_firefox.log",
+      "duration_seconds": 0
+    },
+    {
+      "step": "E2_cross_browser_webkit",
+      "status": "SKIPPED",
+      "required": false,
+      "reason": "Skipped by selected profile 'security'.",
+      "log_path": "/opt/toozhub2/app/artifacts/qa/postchange/20260310T212010Z/E2_cross_browser_webkit.log",
+      "duration_seconds": 0
+    }
+  ]
+}

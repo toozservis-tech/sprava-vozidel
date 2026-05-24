@@ -1,0 +1,653 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0505932CB5DD34EDD08F9AF0 /* AppLockManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B62FB363FA9B74FEE10A1B0A /* AppLockManager.swift */; };
+		0785127A8F053B534E04052C /* VehiclesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5367CE5F23D7E407DF7120E4 /* VehiclesViewModel.swift */; };
+		09187A97C352FDCEAA312046 /* VehicleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EE5F7C2140EAD537E6E9AD /* VehicleService.swift */; };
+		0AB9709271ACAB041CFABF6A /* AuthFeatureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11DA544484AF0FA791C4314C /* AuthFeatureService.swift */; };
+		14401520B1C7AAE070311649 /* ServiceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F13BF649BBEDABF91B1CD1A1 /* ServiceModels.swift */; };
+		1726616C7B63261C5EFC0854 /* AuthOnboardingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC27A69428E009DB1D9496D /* AuthOnboardingViews.swift */; };
+		179433062CC025019DE3C4A6 /* ForgotPasswordViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4864FA4FE53EF93112972F9 /* ForgotPasswordViewModel.swift */; };
+		17957731584865C598349BEA /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D8257A464E50E02DD109B2 /* AuthManager.swift */; };
+		17FFDE1F4FB537525C86D63B /* RecordConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CDBDE4FFDB763CDAD6E5EEB /* RecordConfigurationStore.swift */; };
+		1A29177440CC324A058D816D /* VehicleDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D6CF95FA2FBFF7021A1EB06 /* VehicleDetailViewModel.swift */; };
+		1E9ABF0BA7DFD59ECC130E48 /* RecordConfigurationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A161CE8F663A1251B942236B /* RecordConfigurationModels.swift */; };
+		20BEA4A1C47886F7ACF13417 /* VehicleMediaViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CEA43C3BC515640B71F195E /* VehicleMediaViews.swift */; };
+		21C823E05E3899E5E659EE7F /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F21ED5D928E429C02AE9BCD /* APIClient.swift */; };
+		241E88FF64A987E1C0DAAC0A /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A3B22AFE386722783B59F6B /* MainTabView.swift */; };
+		2C893346ECD495120B3B3ECA /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B284136F19859083652A8F4 /* LoginView.swift */; };
+		2D4816ABA9D0A50B22900E92 /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 998305CF189A806484C64D3C /* AccountView.swift */; };
+		2EE46843308B38B6E61DA542 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC835EAC073BE3B318BB8DC /* NetworkService.swift */; };
+		3296AC953079DDB23DB499ED /* ServiceWorkspaceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3905715765E79D8EEA265D7B /* ServiceWorkspaceService.swift */; };
+		32D501AB88C2734E8E62D01F /* DashboardService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65E5920E848C8E4238111A8 /* DashboardService.swift */; };
+		36471B893C5C18D58391DA3E /* ServiceRegistrationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6F40544CD459E0D6519A4C0 /* ServiceRegistrationViewModel.swift */; };
+		3883AB3E9740B9B9063EF0BD /* ServiceClientsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28361E64CB1C289660BEED37 /* ServiceClientsView.swift */; };
+		3D44DFAD6DBE9B719C9C3ECF /* VehicleReportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E092CEB5DED97A586CAC264C /* VehicleReportViews.swift */; };
+		458CCBD1D7ED621159212796 /* SecureTokenStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942922E39F6F41BE7984404B /* SecureTokenStorage.swift */; };
+		52003DADC65264AFC15D435C /* VehicleDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55DED3A8BFCE36FA13395D0F /* VehicleDetailView.swift */; };
+		58F3EBFDF41C5557CEBFDDE8 /* ServiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B679AA9CE207B9F82203E801 /* ServiceView.swift */; };
+		5931609FA31830C4BD74A2FE /* AccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC65831BDE9C9C4FD606E738 /* AccountViewModel.swift */; };
+		5DAA231CBDD3A5CDD24E4CDA /* ServiceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E85B3C5345B0850A6BB170F /* ServiceViewModel.swift */; };
+		6993CB7565929948A705756A /* AuthFeatureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178F19D8176EEADB2DE2BF10 /* AuthFeatureModels.swift */; };
+		6CDA448B39D820A60F9FEBA5 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEDF49992BDE66951203D53C /* DashboardViewModel.swift */; };
+		7270B7EA7DDBCBCD86AEBB47 /* APIEndpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E3915205622A1CC5B448CF9 /* APIEndpoint.swift */; };
+		745DFBC499BFE9C7706AAAE0 /* NewReservationSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EA92CDF1DC4AD45970CD594 /* NewReservationSheet.swift */; };
+		78BC633B60A59C0F42C3DD6C /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66BAADBFD9047FDE9C8A4542 /* LoginViewModel.swift */; };
+		7B5918D872930D10A0C01A29 /* StateStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82B22A14B0A59AAE197F32C6 /* StateStyles.swift */; };
+		7D508F5A64D3A8F4BB675D07 /* UserFeatureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE2DA55BC498CB1AC92735B1 /* UserFeatureModels.swift */; };
+		8C96D7EE3520E5D6B1606F8C /* ReminderCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3D3347E5F7090B1576AB7D /* ReminderCalendarView.swift */; };
+		901518AA56B701ED8D1793DE /* VehiclesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99110E830BB9E8A39D5D84D /* VehiclesView.swift */; };
+		D7139A2B4C5D6E7F8091AAB1D /* VehicleRemovalSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7139A2B4C5D6E7F8091AAB1C /* VehicleRemovalSheet.swift */; };
+		9099E4D63F1923546466A449 /* UserModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 185144925546B34C13923847 /* UserModels.swift */; };
+		96B4D8F22C2DAE0DCEB6DC5E /* UserFeatureService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEBB38762DD9DDB37DE10C14 /* UserFeatureService.swift */; };
+		97A3621B17BA5C3E3F276CBB /* ReservationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC3C328169144B4C0AF8EE5 /* ReservationModels.swift */; };
+		A17BA020D7EA56B315A75A94 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95B54EB714BF5E5B6347A31 /* DashboardView.swift */; };
+		A80BA142B019E29B56DBB3CD /* ReservationsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5C392B6529AE31A9B1F0360 /* ReservationsViewModel.swift */; };
+		AD77A3333C7C746536FB7A7E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CE27EC072732FF6203DAC9A /* Theme.swift */; };
+		ADDBE67A7D7846159F4A8486 /* ServiceRemindersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993971345B7C0D8F31080B92 /* ServiceRemindersView.swift */; };
+		AF93F47900F9887B29835EFD /* TooZHubApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9386996452D948E7FBFDA897 /* TooZHubApp.swift */; };
+		AFBEE8B06EBE7E388844DE1D /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AF99BAF0B26C9788336BB5A /* RootView.swift */; };
+		B1CA6F3F5A219649625B7B6C /* RegisterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0FF7BD7B095A1DE81F9122 /* RegisterViewModel.swift */; };
+		B278C2ECB3886067202038A9 /* ReservationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8EE98BE1E28976BC064008F /* ReservationService.swift */; };
+		B51F2D539FB9F37754E51AAB /* DeviceCapabilityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879F07CF521773339C2B9681 /* DeviceCapabilityService.swift */; };
+		B7E72C326B4F447FC6897A2C /* VehicleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935EB70AF7839715B1DE9A1F /* VehicleModels.swift */; };
+		BA10ADD47D413D17F645B5E6 /* ServiceAddVehicleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 756935BBA3EE9AC365014B08 /* ServiceAddVehicleView.swift */; };
+		BDAE5DB094577DC462272239 /* ReservationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E20FBF93EC607FA203120894 /* ReservationsView.swift */; };
+		C722D434E78481F81BA1E301 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F992BE70180B3C134FA3AB95 /* APIError.swift */; };
+		D0B7BF6D7AABA4C2913ADCD5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C7FCD4E57C28354C58256E97 /* Assets.xcassets */; };
+		D537DED1A2A947B5DBEF667A /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71BE0A209E96F7125338A43A /* AppEnvironment.swift */; };
+		D58D3F00F87689F6A7CD033D /* ServiceClientsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E627A9E5011DC32AA4E838C5 /* ServiceClientsViewModel.swift */; };
+		E103EE548510AC25AFA5955D /* ServiceRemindersViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD390D671F1F4ADB88D8FCB0 /* ServiceRemindersViewModel.swift */; };
+		E2A16744F4B8025B902F4B9B /* CommonComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 474ABDDF9FBFB5E80F7A8C1F /* CommonComponents.swift */; };
+		E4B319BE348C854083727AAA /* toozservis-logo-icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 18790E8D17513000DFEA2210 /* toozservis-logo-icon.png */; };
+		EAABD1F879A4F7352CE41942 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22D37049B74737B70705D08B /* AccountService.swift */; };
+		F667BFFC692E2149A75A67B1 /* ServiceWorkspaceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12FC5AF6C5A3C5C4B7A730DD /* ServiceWorkspaceModels.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0A3B22AFE386722783B59F6B /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		0D6CF95FA2FBFF7021A1EB06 /* VehicleDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleDetailViewModel.swift; sourceTree = "<group>"; };
+		11DA544484AF0FA791C4314C /* AuthFeatureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthFeatureService.swift; sourceTree = "<group>"; };
+		12FC5AF6C5A3C5C4B7A730DD /* ServiceWorkspaceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceWorkspaceModels.swift; sourceTree = "<group>"; };
+		178F19D8176EEADB2DE2BF10 /* AuthFeatureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthFeatureModels.swift; sourceTree = "<group>"; };
+		185144925546B34C13923847 /* UserModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserModels.swift; sourceTree = "<group>"; };
+		18790E8D17513000DFEA2210 /* toozservis-logo-icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "toozservis-logo-icon.png"; sourceTree = "<group>"; };
+		1AC835EAC073BE3B318BB8DC /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
+		1CE27EC072732FF6203DAC9A /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		1E3915205622A1CC5B448CF9 /* APIEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIEndpoint.swift; sourceTree = "<group>"; };
+		22D37049B74737B70705D08B /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
+		28361E64CB1C289660BEED37 /* ServiceClientsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceClientsView.swift; sourceTree = "<group>"; };
+		2F21ED5D928E429C02AE9BCD /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		3905715765E79D8EEA265D7B /* ServiceWorkspaceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceWorkspaceService.swift; sourceTree = "<group>"; };
+		3CDBDE4FFDB763CDAD6E5EEB /* RecordConfigurationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordConfigurationStore.swift; sourceTree = "<group>"; };
+		42D8257A464E50E02DD109B2 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		474ABDDF9FBFB5E80F7A8C1F /* CommonComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonComponents.swift; sourceTree = "<group>"; };
+		5367CE5F23D7E407DF7120E4 /* VehiclesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehiclesViewModel.swift; sourceTree = "<group>"; };
+		55DED3A8BFCE36FA13395D0F /* VehicleDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleDetailView.swift; sourceTree = "<group>"; };
+		5EA92CDF1DC4AD45970CD594 /* NewReservationSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewReservationSheet.swift; sourceTree = "<group>"; };
+		66BAADBFD9047FDE9C8A4542 /* LoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewModel.swift; sourceTree = "<group>"; };
+		71BE0A209E96F7125338A43A /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		756935BBA3EE9AC365014B08 /* ServiceAddVehicleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceAddVehicleView.swift; sourceTree = "<group>"; };
+		7F3D3347E5F7090B1576AB7D /* ReminderCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderCalendarView.swift; sourceTree = "<group>"; };
+		82B22A14B0A59AAE197F32C6 /* StateStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateStyles.swift; sourceTree = "<group>"; };
+		879F07CF521773339C2B9681 /* DeviceCapabilityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceCapabilityService.swift; sourceTree = "<group>"; };
+		8E85B3C5345B0850A6BB170F /* ServiceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceViewModel.swift; sourceTree = "<group>"; };
+		8EC27A69428E009DB1D9496D /* AuthOnboardingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthOnboardingViews.swift; sourceTree = "<group>"; };
+		935EB70AF7839715B1DE9A1F /* VehicleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleModels.swift; sourceTree = "<group>"; };
+		9386996452D948E7FBFDA897 /* TooZHubApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooZHubApp.swift; sourceTree = "<group>"; };
+		942922E39F6F41BE7984404B /* SecureTokenStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureTokenStorage.swift; sourceTree = "<group>"; };
+		993971345B7C0D8F31080B92 /* ServiceRemindersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRemindersView.swift; sourceTree = "<group>"; };
+		998305CF189A806484C64D3C /* AccountView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountView.swift; sourceTree = "<group>"; };
+		9AF99BAF0B26C9788336BB5A /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		9B284136F19859083652A8F4 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
+		9CEA43C3BC515640B71F195E /* VehicleMediaViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleMediaViews.swift; sourceTree = "<group>"; };
+		A161CE8F663A1251B942236B /* RecordConfigurationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordConfigurationModels.swift; sourceTree = "<group>"; };
+		A7EE5F7C2140EAD537E6E9AD /* VehicleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleService.swift; sourceTree = "<group>"; };
+		A8EE98BE1E28976BC064008F /* ReservationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationService.swift; sourceTree = "<group>"; };
+		A99110E830BB9E8A39D5D84D /* VehiclesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehiclesView.swift; sourceTree = "<group>"; };
+		D7139A2B4C5D6E7F8091AAB1C /* VehicleRemovalSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleRemovalSheet.swift; sourceTree = "<group>"; };
+		AE2DA55BC498CB1AC92735B1 /* UserFeatureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFeatureModels.swift; sourceTree = "<group>"; };
+		B62FB363FA9B74FEE10A1B0A /* AppLockManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockManager.swift; sourceTree = "<group>"; };
+		B679AA9CE207B9F82203E801 /* ServiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceView.swift; sourceTree = "<group>"; };
+		BD390D671F1F4ADB88D8FCB0 /* ServiceRemindersViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRemindersViewModel.swift; sourceTree = "<group>"; };
+		BE0FF7BD7B095A1DE81F9122 /* RegisterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterViewModel.swift; sourceTree = "<group>"; };
+		BEBB38762DD9DDB37DE10C14 /* UserFeatureService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFeatureService.swift; sourceTree = "<group>"; };
+		C4864FA4FE53EF93112972F9 /* ForgotPasswordViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordViewModel.swift; sourceTree = "<group>"; };
+		C5C392B6529AE31A9B1F0360 /* ReservationsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationsViewModel.swift; sourceTree = "<group>"; };
+		C7FCD4E57C28354C58256E97 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CC0BFB9B2F5925ADD3C8B41B /* TooZHubiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TooZHubiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D6F40544CD459E0D6519A4C0 /* ServiceRegistrationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceRegistrationViewModel.swift; sourceTree = "<group>"; };
+		E092CEB5DED97A586CAC264C /* VehicleReportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleReportViews.swift; sourceTree = "<group>"; };
+		E20FBF93EC607FA203120894 /* ReservationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationsView.swift; sourceTree = "<group>"; };
+		E627A9E5011DC32AA4E838C5 /* ServiceClientsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceClientsViewModel.swift; sourceTree = "<group>"; };
+		E95B54EB714BF5E5B6347A31 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		EC65831BDE9C9C4FD606E738 /* AccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViewModel.swift; sourceTree = "<group>"; };
+		EEC3C328169144B4C0AF8EE5 /* ReservationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReservationModels.swift; sourceTree = "<group>"; };
+		EEDF49992BDE66951203D53C /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		F13BF649BBEDABF91B1CD1A1 /* ServiceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceModels.swift; sourceTree = "<group>"; };
+		F65E5920E848C8E4238111A8 /* DashboardService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardService.swift; sourceTree = "<group>"; };
+		F992BE70180B3C134FA3AB95 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1489E9BAFF3273BCC3DAAD82 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				474ABDDF9FBFB5E80F7A8C1F /* CommonComponents.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		2CDB8A5390821962C41E40AD /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				82B22A14B0A59AAE197F32C6 /* StateStyles.swift */,
+				1CE27EC072732FF6203DAC9A /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		5914B40324A526EBDFA802C5 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				EC65831BDE9C9C4FD606E738 /* AccountViewModel.swift */,
+				EEDF49992BDE66951203D53C /* DashboardViewModel.swift */,
+				C4864FA4FE53EF93112972F9 /* ForgotPasswordViewModel.swift */,
+				66BAADBFD9047FDE9C8A4542 /* LoginViewModel.swift */,
+				BE0FF7BD7B095A1DE81F9122 /* RegisterViewModel.swift */,
+				C5C392B6529AE31A9B1F0360 /* ReservationsViewModel.swift */,
+				E627A9E5011DC32AA4E838C5 /* ServiceClientsViewModel.swift */,
+				D6F40544CD459E0D6519A4C0 /* ServiceRegistrationViewModel.swift */,
+				BD390D671F1F4ADB88D8FCB0 /* ServiceRemindersViewModel.swift */,
+				8E85B3C5345B0850A6BB170F /* ServiceViewModel.swift */,
+				0D6CF95FA2FBFF7021A1EB06 /* VehicleDetailViewModel.swift */,
+				5367CE5F23D7E407DF7120E4 /* VehiclesViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		593241E5118C4D2869C343CA /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				2F21ED5D928E429C02AE9BCD /* APIClient.swift */,
+				1E3915205622A1CC5B448CF9 /* APIEndpoint.swift */,
+				F992BE70180B3C134FA3AB95 /* APIError.swift */,
+				1AC835EAC073BE3B318BB8DC /* NetworkService.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		5E5419F0B7AF8DEDC868EFDF /* TooZHub */ = {
+			isa = PBXGroup;
+			children = (
+				A6D010A5665F689A2B4F393C /* App */,
+				1489E9BAFF3273BCC3DAAD82 /* Components */,
+				2CDB8A5390821962C41E40AD /* DesignSystem */,
+				C35DECD3CC07EE3303CD0997 /* Models */,
+				593241E5118C4D2869C343CA /* Networking */,
+				BDD464A7B073D2E06B12F2F1 /* Services */,
+				5914B40324A526EBDFA802C5 /* ViewModels */,
+				BCCD033DE3E37F87E924421D /* Views */,
+			);
+			path = TooZHub;
+			sourceTree = "<group>";
+		};
+		8128899E37D70A1245E70E8C = {
+			isa = PBXGroup;
+			children = (
+				E7B6F9E4376F73E10A483D95 /* Resources */,
+				89F81F9EA4EBE55CED56EAF4 /* Sources */,
+				D8B81A8F32DD2EA4DAC34486 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		89F81F9EA4EBE55CED56EAF4 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				5E5419F0B7AF8DEDC868EFDF /* TooZHub */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		A6D010A5665F689A2B4F393C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				71BE0A209E96F7125338A43A /* AppEnvironment.swift */,
+				9386996452D948E7FBFDA897 /* TooZHubApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		BCCD033DE3E37F87E924421D /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				998305CF189A806484C64D3C /* AccountView.swift */,
+				8EC27A69428E009DB1D9496D /* AuthOnboardingViews.swift */,
+				E95B54EB714BF5E5B6347A31 /* DashboardView.swift */,
+				9B284136F19859083652A8F4 /* LoginView.swift */,
+				0A3B22AFE386722783B59F6B /* MainTabView.swift */,
+				5EA92CDF1DC4AD45970CD594 /* NewReservationSheet.swift */,
+				7F3D3347E5F7090B1576AB7D /* ReminderCalendarView.swift */,
+				E20FBF93EC607FA203120894 /* ReservationsView.swift */,
+				9AF99BAF0B26C9788336BB5A /* RootView.swift */,
+				756935BBA3EE9AC365014B08 /* ServiceAddVehicleView.swift */,
+				28361E64CB1C289660BEED37 /* ServiceClientsView.swift */,
+				993971345B7C0D8F31080B92 /* ServiceRemindersView.swift */,
+				B679AA9CE207B9F82203E801 /* ServiceView.swift */,
+				55DED3A8BFCE36FA13395D0F /* VehicleDetailView.swift */,
+				9CEA43C3BC515640B71F195E /* VehicleMediaViews.swift */,
+				E092CEB5DED97A586CAC264C /* VehicleReportViews.swift */,
+				D7139A2B4C5D6E7F8091AAB1C /* VehicleRemovalSheet.swift */,
+				A99110E830BB9E8A39D5D84D /* VehiclesView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		BDD464A7B073D2E06B12F2F1 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				22D37049B74737B70705D08B /* AccountService.swift */,
+				B62FB363FA9B74FEE10A1B0A /* AppLockManager.swift */,
+				11DA544484AF0FA791C4314C /* AuthFeatureService.swift */,
+				42D8257A464E50E02DD109B2 /* AuthManager.swift */,
+				F65E5920E848C8E4238111A8 /* DashboardService.swift */,
+				879F07CF521773339C2B9681 /* DeviceCapabilityService.swift */,
+				3CDBDE4FFDB763CDAD6E5EEB /* RecordConfigurationStore.swift */,
+				A8EE98BE1E28976BC064008F /* ReservationService.swift */,
+				942922E39F6F41BE7984404B /* SecureTokenStorage.swift */,
+				3905715765E79D8EEA265D7B /* ServiceWorkspaceService.swift */,
+				BEBB38762DD9DDB37DE10C14 /* UserFeatureService.swift */,
+				A7EE5F7C2140EAD537E6E9AD /* VehicleService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		C35DECD3CC07EE3303CD0997 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				178F19D8176EEADB2DE2BF10 /* AuthFeatureModels.swift */,
+				A161CE8F663A1251B942236B /* RecordConfigurationModels.swift */,
+				EEC3C328169144B4C0AF8EE5 /* ReservationModels.swift */,
+				F13BF649BBEDABF91B1CD1A1 /* ServiceModels.swift */,
+				12FC5AF6C5A3C5C4B7A730DD /* ServiceWorkspaceModels.swift */,
+				AE2DA55BC498CB1AC92735B1 /* UserFeatureModels.swift */,
+				185144925546B34C13923847 /* UserModels.swift */,
+				935EB70AF7839715B1DE9A1F /* VehicleModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D8B81A8F32DD2EA4DAC34486 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CC0BFB9B2F5925ADD3C8B41B /* TooZHubiOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E7B6F9E4376F73E10A483D95 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C7FCD4E57C28354C58256E97 /* Assets.xcassets */,
+				18790E8D17513000DFEA2210 /* toozservis-logo-icon.png */,
+			);
+			name = Resources;
+			path = Sources/TooZHub/Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		380FABECE2E62EBA10E2EAAF /* TooZHubiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8F3DFD38734FF8CF65A224CC /* Build configuration list for PBXNativeTarget "TooZHubiOS" */;
+			buildPhases = (
+				81AE5F157E212570D37C7388 /* Sources */,
+				CCCAC12486B13F57C923037D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TooZHubiOS;
+			packageProductDependencies = (
+			);
+			productName = TooZHubiOS;
+			productReference = CC0BFB9B2F5925ADD3C8B41B /* TooZHubiOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		3BDDB3271AAB2DDDFD39B7AB /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2630;
+			};
+			buildConfigurationList = 1BDF769FFFAAFD3B404E2176 /* Build configuration list for PBXProject "TooZHubiOS" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8128899E37D70A1245E70E8C;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = D8B81A8F32DD2EA4DAC34486 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				380FABECE2E62EBA10E2EAAF /* TooZHubiOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CCCAC12486B13F57C923037D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0B7BF6D7AABA4C2913ADCD5 /* Assets.xcassets in Resources */,
+				E4B319BE348C854083727AAA /* toozservis-logo-icon.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		81AE5F157E212570D37C7388 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				21C823E05E3899E5E659EE7F /* APIClient.swift in Sources */,
+				7270B7EA7DDBCBCD86AEBB47 /* APIEndpoint.swift in Sources */,
+				C722D434E78481F81BA1E301 /* APIError.swift in Sources */,
+				EAABD1F879A4F7352CE41942 /* AccountService.swift in Sources */,
+				2D4816ABA9D0A50B22900E92 /* AccountView.swift in Sources */,
+				5931609FA31830C4BD74A2FE /* AccountViewModel.swift in Sources */,
+				D537DED1A2A947B5DBEF667A /* AppEnvironment.swift in Sources */,
+				0505932CB5DD34EDD08F9AF0 /* AppLockManager.swift in Sources */,
+				6993CB7565929948A705756A /* AuthFeatureModels.swift in Sources */,
+				0AB9709271ACAB041CFABF6A /* AuthFeatureService.swift in Sources */,
+				17957731584865C598349BEA /* AuthManager.swift in Sources */,
+				1726616C7B63261C5EFC0854 /* AuthOnboardingViews.swift in Sources */,
+				E2A16744F4B8025B902F4B9B /* CommonComponents.swift in Sources */,
+				32D501AB88C2734E8E62D01F /* DashboardService.swift in Sources */,
+				A17BA020D7EA56B315A75A94 /* DashboardView.swift in Sources */,
+				6CDA448B39D820A60F9FEBA5 /* DashboardViewModel.swift in Sources */,
+				B51F2D539FB9F37754E51AAB /* DeviceCapabilityService.swift in Sources */,
+				179433062CC025019DE3C4A6 /* ForgotPasswordViewModel.swift in Sources */,
+				2C893346ECD495120B3B3ECA /* LoginView.swift in Sources */,
+				78BC633B60A59C0F42C3DD6C /* LoginViewModel.swift in Sources */,
+				241E88FF64A987E1C0DAAC0A /* MainTabView.swift in Sources */,
+				2EE46843308B38B6E61DA542 /* NetworkService.swift in Sources */,
+				745DFBC499BFE9C7706AAAE0 /* NewReservationSheet.swift in Sources */,
+				1E9ABF0BA7DFD59ECC130E48 /* RecordConfigurationModels.swift in Sources */,
+				17FFDE1F4FB537525C86D63B /* RecordConfigurationStore.swift in Sources */,
+				B1CA6F3F5A219649625B7B6C /* RegisterViewModel.swift in Sources */,
+				8C96D7EE3520E5D6B1606F8C /* ReminderCalendarView.swift in Sources */,
+				97A3621B17BA5C3E3F276CBB /* ReservationModels.swift in Sources */,
+				B278C2ECB3886067202038A9 /* ReservationService.swift in Sources */,
+				BDAE5DB094577DC462272239 /* ReservationsView.swift in Sources */,
+				A80BA142B019E29B56DBB3CD /* ReservationsViewModel.swift in Sources */,
+				AFBEE8B06EBE7E388844DE1D /* RootView.swift in Sources */,
+				458CCBD1D7ED621159212796 /* SecureTokenStorage.swift in Sources */,
+				BA10ADD47D413D17F645B5E6 /* ServiceAddVehicleView.swift in Sources */,
+				3883AB3E9740B9B9063EF0BD /* ServiceClientsView.swift in Sources */,
+				D58D3F00F87689F6A7CD033D /* ServiceClientsViewModel.swift in Sources */,
+				14401520B1C7AAE070311649 /* ServiceModels.swift in Sources */,
+				36471B893C5C18D58391DA3E /* ServiceRegistrationViewModel.swift in Sources */,
+				ADDBE67A7D7846159F4A8486 /* ServiceRemindersView.swift in Sources */,
+				E103EE548510AC25AFA5955D /* ServiceRemindersViewModel.swift in Sources */,
+				58F3EBFDF41C5557CEBFDDE8 /* ServiceView.swift in Sources */,
+				5DAA231CBDD3A5CDD24E4CDA /* ServiceViewModel.swift in Sources */,
+				F667BFFC692E2149A75A67B1 /* ServiceWorkspaceModels.swift in Sources */,
+				3296AC953079DDB23DB499ED /* ServiceWorkspaceService.swift in Sources */,
+				7B5918D872930D10A0C01A29 /* StateStyles.swift in Sources */,
+				AD77A3333C7C746536FB7A7E /* Theme.swift in Sources */,
+				AF93F47900F9887B29835EFD /* TooZHubApp.swift in Sources */,
+				7D508F5A64D3A8F4BB675D07 /* UserFeatureModels.swift in Sources */,
+				96B4D8F22C2DAE0DCEB6DC5E /* UserFeatureService.swift in Sources */,
+				9099E4D63F1923546466A449 /* UserModels.swift in Sources */,
+				52003DADC65264AFC15D435C /* VehicleDetailView.swift in Sources */,
+				1A29177440CC324A058D816D /* VehicleDetailViewModel.swift in Sources */,
+				20BEA4A1C47886F7ACF13417 /* VehicleMediaViews.swift in Sources */,
+				B7E72C326B4F447FC6897A2C /* VehicleModels.swift in Sources */,
+				3D44DFAD6DBE9B719C9C3ECF /* VehicleReportViews.swift in Sources */,
+				09187A97C352FDCEAA312046 /* VehicleService.swift in Sources */,
+				901518AA56B701ED8D1793DE /* VehiclesView.swift in Sources */,
+				0785127A8F053B534E04052C /* VehiclesViewModel.swift in Sources */,
+				D7139A2B4C5D6E7F8091AAB1D /* VehicleRemovalSheet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		ACDB2DBE33470D11D0E8C2E1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_NAME = TooZHubiOS;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D46B9CC63FE3FC0A90BFE96A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_NAME = TooZHubiOS;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DC4226E816F0D07ED3397B76 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 5DATUX4X32;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = cs;
+				INFOPLIST_KEY_CFBundleDisplayName = "Správa vozidel";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_127.0.0.1_NSIncludesSubdomains = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_127.0.0.1_NSTemporaryExceptionAllowsInsecureHTTPLoads = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_localhost_NSIncludesSubdomains = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_localhost_NSTemporaryExceptionAllowsInsecureHTTPLoads = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Správa vozidel potřebuje kameru pro focení vozidel a účtenek.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Správa vozidel používá Face ID jen pro lokální odemčení aplikace na tomto zařízení.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Správa vozidel používá polohu pro vyhledání blízkých servisů.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Správa vozidel ukládá vygenerované výstupy a snímky vozidel.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Správa vozidel potřebuje přístup k fotkám kvůli přílohám servisních záznamů.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = cz.toozservis.spravavozidel.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E1BAEF2D2EE3E8D45A592957 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 5DATUX4X32;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDevelopmentRegion = cs;
+				INFOPLIST_KEY_CFBundleDisplayName = "Správa vozidel";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_127.0.0.1_NSIncludesSubdomains = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_127.0.0.1_NSTemporaryExceptionAllowsInsecureHTTPLoads = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_localhost_NSIncludesSubdomains = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSExceptionDomains_localhost_NSTemporaryExceptionAllowsInsecureHTTPLoads = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Správa vozidel potřebuje kameru pro focení vozidel a účtenek.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Správa vozidel používá Face ID jen pro lokální odemčení aplikace na tomto zařízení.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Správa vozidel používá polohu pro vyhledání blízkých servisů.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Správa vozidel ukládá vygenerované výstupy a snímky vozidel.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Správa vozidel potřebuje přístup k fotkám kvůli přílohám servisních záznamů.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = cz.toozservis.spravavozidel.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1BDF769FFFAAFD3B404E2176 /* Build configuration list for PBXProject "TooZHubiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DC4226E816F0D07ED3397B76 /* Debug */,
+				E1BAEF2D2EE3E8D45A592957 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8F3DFD38734FF8CF65A224CC /* Build configuration list for PBXNativeTarget "TooZHubiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D46B9CC63FE3FC0A90BFE96A /* Debug */,
+				ACDB2DBE33470D11D0E8C2E1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 3BDDB3271AAB2DDDFD39B7AB /* Project object */;
+}

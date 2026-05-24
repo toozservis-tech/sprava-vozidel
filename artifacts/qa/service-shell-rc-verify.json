@@ -1,0 +1,322 @@
+{
+  "generated_at": "2026-04-12T19:25:03.905563",
+  "base_url": "http://127.0.0.1:8010",
+  "extra": {
+    "service_email": "svc_rc_1776021859056@example.com",
+    "service_password": "RcVerify123!",
+    "regular_email": "user_rc_1776021860874@example.com",
+    "regular_password": "RcVerify123!",
+    "found_customer_name": "RC Found 1859",
+    "linked_customer_name": "RC Linked 1859",
+    "multi_customer_name": "RC Multi 1859",
+    "pending_customer_name": "RC Pending 1859",
+    "not_found_customer_query": "rc-none-1776021859",
+    "approved_vehicle_plate": "RC1859B",
+    "pending_vehicle_plate": "RC1859C",
+    "request_vehicle_plate": "RC1859F",
+    "linked_vehicle_plate": "RC1859A",
+    "not_found_vehicle_query": "RC-NOT-FOUND",
+    "conflict_query": "RC1859D TMF00001776021859",
+    "approved_customer_name": "RC Approved Vehicle 1859",
+    "awaiting_work_order_title": "RC Work Order Awaiting",
+    "active_work_order_title": "RC Active Order",
+    "new_work_order_title": "RC UI Order 1776021859"
+  },
+  "steps": [
+    {
+      "step": "seed_promote_service",
+      "ok": true,
+      "info": "svc_rc_1776021859056@example.com"
+    },
+    {
+      "step": "seed_pending_invite",
+      "ok": true,
+      "info": "pending_rc_1776021869051@example.com"
+    },
+    {
+      "step": "seed_customer_links",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "seed_vehicles",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "seed_approved_access",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "seed_pending_access",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "seed_detail_entities",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "seed_work_orders",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_service_login",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_dark_light_toggle",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_account_menu_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_account_settings_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_account_settings_close",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_profile_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_logout_to_login",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_service_relogin",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_service_tools_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_search_found",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_search_not_found",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_search_multiple",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_search_pending_invitation",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_search_already_linked",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_link_action",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_service_tools_close_after_link",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_parent_refresh_after_link",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_vehicle_lookup_approved",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_vehicle_lookup_pending_access",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_vehicle_request_access",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_vehicle_lookup_conflict",
+      "ok": true,
+      "info": "\n          \n            \n              Servisní nástroje\n              Najít nebo vytvořit\n              Vyhledávání klientů a vozidel, propojení účtů a bezpečný vstup do dalších servisních akcí.\n    "
+    },
+    {
+      "step": "browser_vehicle_lookup_not_found",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_service_tools_close_after_vehicle_checks",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_detail_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_customer_detail_close",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_vehicle_detail_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_vehicle_detail_close",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_document_detail_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_document_detail_close",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_reservation_detail_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_reservation_detail_close",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_reminder_detail_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_reminder_detail_close",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_work_order_create",
+      "ok": false,
+      "info": "\n          \n            \n              Servisní zakázka\n              Nová zakázka\n              Zakázku lze založit jen nad existujícím propojeným klientem a schváleným vozidlem.\n            \n            ×\n          \n          \n           "
+    },
+    {
+      "step": "browser_duplicate_work_order_reject",
+      "ok": false,
+      "info": "\n          \n            \n              Servisní zakázka\n              Nová zakázka\n              Zakázku lze založit jen nad existujícím propojeným klientem a schváleným vozidlem.\n            \n            ×\n          \n          \n           "
+    },
+    {
+      "step": "browser_work_order_update",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_parent_refresh_after_work_order_update",
+      "ok": false,
+      "info": ""
+    },
+    {
+      "step": "browser_kpi_refresh_after_work_order_update",
+      "ok": false,
+      "info": "\n            \n              !\n              ↗\n            \n            \n              Čeká na schválení\n            \n            \n              1\n              Zakázky blokované souhlasem klienta\n              Otevřít čekající zakázky\n            \n           -> \n            \n              !\n              ↗\n            \n            \n              Čeká na schválení\n            \n            \n              1\n              Zakázky blokované souhlasem klienta\n              Otevřít čekající zakázky\n            \n          "
+    },
+    {
+      "step": "browser_kpi_click_active",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_kpi_click_awaiting",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_kpi_click_overdue",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_queue_click_new_jobs",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_queue_click_awaiting",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "browser_modal_root_lifecycle_clean",
+      "ok": true,
+      "info": "overlays=0"
+    },
+    {
+      "step": "regression_user_login",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "regression_user_vehicles",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "regression_user_reminders",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "regression_user_reservations",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "regression_user_documents",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "regression_user_account",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "regression_user_logout",
+      "ok": true,
+      "info": ""
+    }
+  ]
+}

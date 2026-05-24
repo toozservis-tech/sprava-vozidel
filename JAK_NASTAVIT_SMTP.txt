@@ -1,0 +1,52 @@
+==========================================
+JAK NASTAVIT SMTP PRO ODESÍLÁNÍ EMAILŮ
+==========================================
+
+1. OTEVŘETE SOUBOR .env:
+   nano /opt/toozhub2/app/.env
+   NEBO
+   vi /opt/toozhub2/app/.env
+
+2. NAJDĚTE ŘÁDKY:
+   SMTP_USER=
+   SMTP_PASSWORD=
+
+3. VYPLŇTE SKUTEČNÉ ÚDAJE:
+   SMTP_USER=vas-email@toozservis.cz
+   SMTP_PASSWORD=vase-skutecne-heslo
+
+4. ULOŽTE SOUBOR (Ctrl+X, pak Y, pak Enter v nano)
+
+5. RESTARTUJTE BACKEND:
+   sudo systemctl restart toozhub-server
+
+6. OTESTOVAT:
+   cd /opt/toozhub2/app
+   python3 test_smtp_simple.py
+
+==========================================
+KDE ZÍSKAT SMTP ÚDAJE?
+==========================================
+
+Pro Webnode:
+- SMTP_HOST: smtp.mail.webnode.com (již nastaveno)
+- SMTP_PORT: 465 (již nastaveno)
+- SMTP_USER: Vaše emailová adresa (např. info@toozservis.cz)
+- SMTP_PASSWORD: Heslo k emailu nebo "App Password"
+- SMTP_FROM: info@toozservis.cz (již nastaveno)
+
+Pokud máte problém s autentizací:
+- Zkuste použít "App Password" místo běžného hesla
+- Zkontrolujte, zda máte správnou emailovou adresu
+
+==========================================
+RYCHLÉ PŘIDÁNÍ (pokud znáte údaje):
+==========================================
+
+sudo nano /opt/toozhub2/app/.env
+
+Najděte řádky:
+SMTP_USER=
+SMTP_PASSWORD=
+
+A vyplňte je.

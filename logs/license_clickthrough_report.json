@@ -1,0 +1,142 @@
+{
+  "generated_at": "2026-02-23T19:21:47.277003+00:00",
+  "base_url": "http://127.0.0.1:8000",
+  "email": "e2e.license.17718745017151@example.com",
+  "headless": true,
+  "all_ok": true,
+  "license_label": "Licence: PREMIUM",
+  "plan_cards_count": 3,
+  "ui_alerts": [
+    "BASIC: Licence změněna na BASIC",
+    "PREMIUM: Licence změněna na PREMIUM"
+  ],
+  "ui_license_api_events": [
+    {
+      "method": "GET",
+      "status": 200,
+      "url": "http://127.0.0.1:8000/api/v1/license/status"
+    },
+    {
+      "method": "POST",
+      "status": 200,
+      "url": "http://127.0.0.1:8000/api/v1/license/upgrade"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "url": "http://127.0.0.1:8000/api/v1/license/status"
+    },
+    {
+      "method": "POST",
+      "status": 200,
+      "url": "http://127.0.0.1:8000/api/v1/license/upgrade"
+    },
+    {
+      "method": "GET",
+      "status": 200,
+      "url": "http://127.0.0.1:8000/api/v1/license/status"
+    }
+  ],
+  "direct_api": {
+    "status": {
+      "code": 200,
+      "body": "{\"tenant_id\":\"1\",\"plan\":\"premium\",\"status\":\"active\",\"vehicles_limit\":0,\"vehicles_current\":12,\"vehicles_remaining\":null,\"is_unlimited\":true,\"vin_decode_enabled\":true,\"ares_enabled\":true,\"reminders_enabled\":true,\"vehicle_history_enabled\":true,\"documents_enabled\":true,\"costs_tracking_enabled\":true,\"statistics_enabled\":true,\"sharing_with_service_enabled\":true}"
+    },
+    "upgrade_basic": {
+      "code": 200,
+      "body": "{\"tenant_id\":\"1\",\"plan\":\"basic\",\"status\":\"active\",\"vehicles_limit\":5,\"vehicles_current\":12,\"vehicles_remaining\":0,\"is_unlimited\":false,\"vin_decode_enabled\":false,\"ares_enabled\":true,\"reminders_enabled\":true,\"vehicle_history_enabled\":true,\"documents_enabled\":true,\"costs_tracking_enabled\":false,\"statistics_enabled\":false,\"sharing_with_service_enabled\":false}"
+    },
+    "upgrade_premium": {
+      "code": 200,
+      "body": "{\"tenant_id\":\"1\",\"plan\":\"premium\",\"status\":\"active\",\"vehicles_limit\":0,\"vehicles_current\":12,\"vehicles_remaining\":null,\"is_unlimited\":true,\"vin_decode_enabled\":true,\"ares_enabled\":true,\"reminders_enabled\":true,\"vehicle_history_enabled\":true,\"documents_enabled\":true,\"costs_tracking_enabled\":true,\"statistics_enabled\":true,\"sharing_with_service_enabled\":true}"
+    }
+  },
+  "steps": [
+    {
+      "step": "api_health",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_register",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_login_precheck",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "ui_load_login",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_login",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_license_badge_loaded",
+      "ok": true,
+      "info": "Licence: PREMIUM"
+    },
+    {
+      "step": "ui_license_modal_open",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_license_plan_cards",
+      "ok": true,
+      "info": "count=3"
+    },
+    {
+      "step": "ui_click_upgrade_basic",
+      "ok": true,
+      "info": "Licence změněna na BASIC"
+    },
+    {
+      "step": "ui_click_upgrade_premium",
+      "ok": true,
+      "info": "Licence změněna na PREMIUM"
+    },
+    {
+      "step": "ui_license_modal_close_button",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_license_modal_close_escape",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_token_present",
+      "ok": true,
+      "info": ""
+    },
+    {
+      "step": "ui_screenshot_saved",
+      "ok": true,
+      "info": "/opt/toozhub2/app/logs/license_clickthrough_final.png"
+    },
+    {
+      "step": "api_license_status_direct",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_license_upgrade_basic_direct",
+      "ok": true,
+      "info": "status=200"
+    },
+    {
+      "step": "api_license_upgrade_premium_direct",
+      "ok": true,
+      "info": "status=200"
+    }
+  ],
+  "screenshot": "/opt/toozhub2/app/logs/license_clickthrough_final.png"
+}

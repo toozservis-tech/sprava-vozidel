@@ -1,0 +1,3483 @@
+/*
+ * Design system – sdílené téma (Správa vozidel)
+ * Společné styly pro webovou aplikaci a veřejné stránky
+ */
+
+/* ============ GLOBAL RESET & BASE ============ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: #f8fafc;
+  color: #1e293b;
+  line-height: 1.6;
+  overflow-x: hidden;
+  font-size: var(--fs-3);
+}
+
+/* Page container – drží max šířku pro všechny záložky */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--s-4);
+  width: 100%;
+}
+
+.content {
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  width: 100% !important;
+  padding: var(--s-4) !important;
+}
+
+@media (max-width: 520px) {
+  .page-container {
+    padding: 12px;
+  }
+  .content {
+    padding: 12px !important;
+  }
+}
+
+body.modal-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* ============ MODAL (reminder create) ============ */
+.reminder-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  background:
+    radial-gradient(circle at 12% 10%, rgba(99, 102, 241, 0.2), transparent 48%),
+    radial-gradient(circle at 88% 90%, rgba(14, 165, 233, 0.18), transparent 52%),
+    rgba(15, 23, 42, 0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  z-index: 10000;
+}
+
+.reminder-modal {
+  width: 100%;
+  max-width: 860px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 22px;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.34);
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+}
+
+.reminder-modal::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #4f46e5, #0ea5e9);
+}
+
+@media (max-width: 520px) {
+  .reminder-modal {
+    max-width: 100%;
+    border-radius: 14px;
+  }
+}
+
+.reminder-create {
+  padding: 22px 24px 20px;
+}
+
+.reminder-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.reminder-modal-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.reminder-modal-icon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #4f46e5, #0ea5e9);
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.32);
+}
+
+.reminder-modal-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.reminder-modal-kicker {
+  margin: 1px 0 2px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4f46e5;
+}
+
+.reminder-modal-close {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.reminder-modal-close:hover {
+  transform: translateY(-1px);
+  background: #eef2ff;
+  color: #1e293b;
+}
+
+.reminder-modal-intro {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.reminder-create .modal-title {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.reminder-create .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+  align-items: start;
+}
+
+.reminder-create .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: none !important;
+  margin: 0 !important;
+  align-self: start;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 3px 10px rgba(148, 163, 184, 0.12);
+}
+
+.reminder-create label {
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #334155;
+  margin-bottom: 2px;
+}
+
+.reminder-create input,
+.reminder-create select,
+.reminder-create textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 46px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 11px 12px;
+  font-size: 15px;
+  color: #0f172a;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.reminder-create input:focus,
+.reminder-create select:focus,
+.reminder-create textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.reminder-create input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  border-radius: 4px;
+  accent-color: #6366f1;
+  box-shadow: none;
+}
+
+.reminder-create textarea {
+  min-height: 120px;
+  resize: vertical;
+  background: #ffffff;
+}
+
+.reminder-create .span-2 {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: none !important;
+}
+
+.reminder-create .form-hint {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.reminder-check-row {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+}
+
+.reminder-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .reminder-create .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .reminder-create .span-2 {
+    grid-column: auto;
+  }
+}
+
+.reminder-create .form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #dbe5f0;
+}
+
+.reminder-create .form-actions .btn {
+  min-height: 46px;
+  min-width: 168px;
+  width: auto;
+  padding: 11px 16px;
+  border-radius: 12px;
+  font-weight: 800;
+  box-shadow: 0 8px 16px rgba(15, 23, 42, 0.14);
+}
+
+.reminder-create .form-actions .btn-primary {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border: none;
+  color: #ffffff;
+}
+
+.reminder-create .form-actions .btn-secondary {
+  background: #475569;
+  border: none;
+  color: #f8fafc;
+}
+
+@media (max-width: 520px) {
+  .reminder-create {
+    padding: 16px 14px;
+  }
+
+  .reminder-create .modal-title {
+    font-size: 28px;
+  }
+
+  .reminder-modal-intro {
+    font-size: 13px;
+  }
+
+  .reminder-create .form-row {
+    padding: 10px;
+  }
+
+  .reminder-create .form-actions {
+    flex-direction: column;
+  }
+  .reminder-create .form-actions .btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+/* ============ COLOR PALETTE ============ */
+:root {
+  /* Layering */
+  --z-base: 1;
+  --z-header: 100;
+  --z-drawer: 900;
+  --z-backdrop: 1000;
+  --z-modal: 1100;
+  --z-toast: 1200;
+  --z-tooltip: 1300;
+
+  /* Spacing scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+
+  /* Radius */
+  --r-1: 10px;
+  --r-2: 14px;
+
+  /* Typography scale */
+  --fs-1: 12px;
+  --fs-2: 14px;
+  --fs-3: 16px;
+  --fs-4: 20px;
+  --fs-5: 28px;
+
+  /* Primary gradient */
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --primary-start: #667eea;
+  --primary-end: #764ba2;
+  
+  /* Background colors */
+  --bg-primary: #f8fafc;
+  --bg-white: #ffffff;
+  --bg-card: #ffffff;
+  
+  /* Text colors */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  
+  /* Border colors */
+  --border-light: #e2e8f0;
+  --border-medium: #cbd5e1;
+  
+  /* Accent colors */
+  --accent-blue: #667eea;
+  --accent-purple: #764ba2;
+  --error-red: #ef4444;
+  --error-dark: #dc2626;
+  --success-green: #10b981;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.12);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+/* ============ BUTTONS ============ */
+.btn-primary {
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--accent-blue);
+  border: 2px solid var(--accent-blue);
+  padding: 12px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+}
+
+.btn-secondary:hover {
+  background: #f0f4ff;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: var(--error-red);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-danger:hover {
+  background: var(--error-dark);
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background: var(--success-green);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-success:hover {
+  background: #0b9b6a;
+  transform: translateY(-1px);
+}
+
+.btn-edit {
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  flex: 1;
+  font-family: inherit;
+}
+
+.btn-edit:hover {
+  background: #5568d3;
+  transform: translateY(-1px);
+}
+
+/* ============ CARDS ============ */
+.card {
+  background: var(--bg-white);
+  border-radius: var(--r-2);
+  padding: var(--s-5);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  transition: all 0.3s;
+  position: relative;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-medium);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-3);
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.card-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-value {
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+}
+
+/* Speciální layout pro připomínky – menší karty v mřížce, aby nezabíraly celou šířku */
+.reminders-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  max-width: 1180px;
+  margin: 0 auto 32px;
+  align-items: start;
+}
+
+.reminders-grid .card {
+  padding: 18px 18px 16px;
+  border-radius: 14px;
+}
+
+.reminders-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 8px;
+}
+
+.reminder-panel {
+  background: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+  padding: var(--s-5);
+  margin-bottom: var(--s-3);
+}
+
+.reminder-panel + .reminder-panel {
+  margin-top: 4px;
+}
+
+.reminder-master .panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reminder-master {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reminder-master > * {
+  width: 100%;
+}
+
+.reminder-list-priority {
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.reminder-list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.reminder-list-head-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.reminder-list-head-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6366f1;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* Form layout pro připomínky */
+.reminder-form .form-group {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--s-3);
+  align-items: center;
+  margin: 0;
+}
+
+.reminder-form .form-group label {
+  margin: 0;
+}
+
+.reminder-form .form-group input,
+.reminder-form .form-group select {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .reminder-form .form-group {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reminder-settings-block {
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  padding: 12px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.reminder-settings-block .panel-header {
+  padding: 2px 4px;
+}
+
+.reminder-settings-body {
+  margin-top: 10px;
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.reminder-settings-form {
+  display: grid;
+  gap: 10px;
+}
+
+.reminder-settings-intro {
+  border: 1px dashed #c7d2fe;
+  border-radius: 12px;
+  background: #eef2ff;
+  padding: 10px 12px;
+}
+
+.reminder-scope-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.reminder-scope-badge-global {
+  background: #4338ca;
+  color: #eef2ff;
+}
+
+.reminder-scope-badge-item {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.reminder-settings-note {
+  margin: 2px 0 0;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.reminder-settings-summary {
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+
+.reminder-settings-summary strong {
+  color: #1e293b;
+}
+
+.reminder-settings-summary span {
+  display: inline;
+  color: #475569;
+}
+
+.reminder-settings-form .form-group {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px;
+  align-items: start;
+}
+
+.reminder-settings-form .form-group > label {
+  padding-top: 10px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.reminder-settings-form .form-hint {
+  grid-column: 2;
+  margin-top: 7px;
+  color: #64748b;
+}
+
+.reminder-push-group {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.reminder-push-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reminder-push-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reminder-push-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.reminder-push-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reminder-push-actions .btn {
+  width: auto;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.reminder-push-btn-enable {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border: none;
+  color: #ffffff;
+}
+
+.reminder-push-btn-disable {
+  background: #475569;
+  border: none;
+  color: #f8fafc;
+}
+
+.reminder-push-btn-test {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+}
+
+.reminder-push-btn-test:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+  transform: translateY(-1px);
+}
+
+.reminder-push-actions .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.18);
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.reminder-push-status {
+  min-height: 20px;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+@media (max-width: 860px) {
+  .reminder-settings-form .form-group {
+    grid-template-columns: 1fr;
+  }
+
+  .reminder-settings-form .form-group > label {
+    padding-top: 0;
+  }
+
+  .reminder-settings-form .form-hint {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .reminder-push-actions {
+    flex-direction: column;
+  }
+
+  .reminder-push-actions .btn {
+    width: 100%;
+  }
+}
+
+.panel-block {
+  padding: 4px 0;
+}
+
+.reminder-templates-block {
+  border: 1px solid #a5b4fc;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eaf0ff 0%, #f8fafc 100%);
+  padding: 12px;
+  box-shadow: 0 10px 22px rgba(79, 70, 229, 0.16);
+}
+
+.reminder-templates-block .panel-header {
+  padding: 2px 4px;
+}
+
+.reminder-templates-block .panel-heading {
+  color: #312e81;
+}
+
+.reminder-templates-block .panel-subtitle {
+  color: #4338ca;
+}
+
+.panel-block + .panel-block {
+  margin-top: 8px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.panel-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.panel-meta-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #4338ca;
+  opacity: 0.92;
+}
+
+.panel-icon {
+  font-size: 18px;
+}
+
+.panel-toggle {
+  border: 1px solid var(--border-light);
+  background: #f8fafc;
+  color: var(--text-secondary);
+  border-radius: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.panel-body {
+  margin-top: var(--s-3);
+}
+
+.reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: stretch;
+  margin: var(--s-3) 0;
+}
+
+.reminder-actions .btn {
+  flex: 1 1 180px;
+  justify-content: center;
+}
+
+.reminder-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: 10px;
+}
+
+.reminder-settings-actions .btn {
+  flex: 1 1 220px;
+  justify-content: center;
+}
+
+.reminder-primary-actions .btn {
+  flex: 0 1 auto;
+  max-width: min(320px, 100%);
+}
+
+/* Hlavní „+ Přidat připomínku“ nesmí řídit flex jako obecná .reminder-actions (stretch / grow),
+   část layoutu používá .reminder-actions + .reminder-primary-actions zároveň. */
+.reminder-actions.reminder-primary-actions {
+  align-items: flex-start;
+}
+
+.reminder-actions-container > .reminder-primary-actions {
+  align-self: flex-start;
+}
+
+.reminder-per-item-note {
+  margin-top: -2px;
+  margin-bottom: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1024px) {
+  #remindersContainer .reminder-form .form-group,
+  #remindersContainer .reminder-push-group {
+    grid-template-columns: 1fr !important;
+  }
+
+  #remindersContainer .reminder-form .form-group > label {
+    padding-top: 0;
+  }
+
+  #remindersContainer .reminder-settings-form .form-hint {
+    grid-column: auto;
+  }
+
+  #remindersContainer .reminder-master .reminder-primary-actions {
+    order: 1;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  #remindersContainer .reminder-master .reminder-list-priority {
+    order: 2;
+  }
+
+  #remindersContainer .reminder-master .reminder-settings-block {
+    order: 3;
+  }
+
+  #remindersContainer .reminder-master .reminder-per-item-note {
+    order: 4;
+  }
+
+  #remindersContainer .reminder-master .reminder-templates-block {
+    order: 5;
+  }
+}
+
+@media (max-width: 768px) {
+  #remindersContainer .reminders-section {
+    gap: 10px;
+    padding-top: 4px;
+  }
+
+  #remindersContainer .reminder-panel {
+    border-radius: 14px;
+    padding: 12px !important;
+  }
+
+  #remindersContainer .reminder-list-priority {
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  #remindersContainer .reminders-grid {
+    gap: 10px !important;
+    margin: 0 auto 14px;
+  }
+
+  #remindersContainer .reminders-grid .card,
+  #remindersContainer .reminder-card {
+    border-radius: 12px;
+    padding: 12px 12px 10px !important;
+  }
+
+  #remindersContainer .reminder-card .card-header {
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+
+  #remindersContainer .reminder-card .card-title {
+    font-size: 15px !important;
+    line-height: 1.2;
+  }
+
+  #remindersContainer .reminder-card-controls {
+    gap: 6px;
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  #remindersContainer .reminder-card-icon-actions {
+    gap: 6px;
+  }
+
+  #remindersContainer .reminder-status-badge {
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 10px;
+  }
+
+  #remindersContainer .reminder-icon-btn {
+    height: 28px;
+    min-width: 40px !important;
+    padding: 0 10px !important;
+  }
+
+  #remindersContainer .reminder-channel-chip {
+    max-width: 100%;
+    height: auto;
+    min-height: 22px;
+    padding: 4px 9px;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+
+  #remindersContainer .panel-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  #remindersContainer .panel-title {
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  #remindersContainer .panel-toggle {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 6px 10px;
+    border-radius: 12px;
+  }
+
+  #remindersContainer .panel-heading {
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+  #remindersContainer .panel-subtitle {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  #remindersContainer .panel-meta-hint {
+    margin-top: 5px;
+    line-height: 1.3;
+  }
+
+  #remindersContainer .reminder-settings-body {
+    border-radius: 12px;
+    padding: 10px;
+  }
+
+  #remindersContainer .reminder-settings-summary,
+  #remindersContainer .reminder-settings-note,
+  #remindersContainer .reminder-per-item-note {
+    font-size: 12px;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 520px) {
+  .reminder-list-head {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+
+  .reminder-list-head-title {
+    font-size: 15px;
+  }
+
+  .panel-meta-hint {
+    font-size: 10px;
+  }
+
+  #remindersContainer .reminder-settings-intro {
+    padding: 9px 10px;
+  }
+
+  #remindersContainer .reminder-scope-badge {
+    font-size: 10px;
+    min-height: 22px;
+    padding: 0 8px;
+  }
+
+  #remindersContainer .reminder-push-badge {
+    max-width: 100%;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  #remindersContainer .reminder-card .card-field {
+    margin-bottom: 8px;
+  }
+
+  .reminder-settings-actions .btn {
+    flex: 1 0 100%;
+    width: 100% !important;
+  }
+
+  .reminder-actions:not(.reminder-primary-actions) .btn {
+    flex: 1 0 100%;
+    width: 100% !important;
+  }
+}
+
+.reminder-toolbar {
+  display: flex;
+  justify-content: center;
+}
+
+.reminder-add-btn {
+  width: 100%;
+  max-width: 320px;
+  justify-content: center;
+}
+
+.reminder-template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.reminder-templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-3);
+}
+
+@media (max-width: 520px) {
+  .reminder-templates {
+    grid-template-columns: 1fr;
+  }
+}
+
+.reminder-pill-btn {
+  width: 100%;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  color: #0f172a;
+  border: 2px solid #cbd5e1;
+  padding: 12px 14px;
+  border-radius: 14px;
+  min-height: 82px;
+  font-weight: 700;
+  text-align: left;
+  box-shadow: 0 8px 16px rgba(148, 163, 184, 0.22);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.reminder-pill-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 18px rgba(79, 70, 229, 0.22);
+  filter: brightness(1.02);
+}
+
+.reminder-pill-btn .tpl-main {
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.reminder-pill-btn .tpl-sub {
+  font-size: 12px;
+  line-height: 1.3;
+  color: #334155;
+  font-weight: 600;
+}
+
+.reminder-pill-btn--stk {
+  background: linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%);
+  border-color: #fca5a5;
+}
+
+.reminder-pill-btn--olej {
+  background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+  border-color: #fcd34d;
+}
+
+.reminder-pill-btn--pneu {
+  background: linear-gradient(135deg, #e0e7ff 0%, #eef2ff 100%);
+  border-color: #a5b4fc;
+}
+
+.reminder-pill-btn--pojistka {
+  background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+  border-color: #86efac;
+}
+
+.reminder-pill-btn--servis {
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+  border-color: #93c5fd;
+}
+
+.reminder-note {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--fs-2);
+  margin-top: var(--s-2);
+}
+
+.reminder-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+#remindersContainer {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.reminder-card {
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+}
+
+.reminder-card .card-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.reminder-card .card-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+/* Připomínky – override globálního .btn, aby nebyly přes celou šířku */
+.reminders-section .btn {
+  width: auto;
+  display: inline-flex;
+  min-height: 44px;
+}
+
+.reminder-add-btn {
+  width: 220px;
+  justify-content: center;
+}
+
+.reminder-template-grid .btn {
+  width: 100%;
+  font-size: 14px;
+  border-radius: 14px;
+}
+
+.reminder-template-grid .btn:hover {
+  color: inherit;
+}
+
+.reminder-template-grid .reminder-pill-btn {
+  min-height: 82px;
+  justify-content: center;
+}
+
+.reminders-grid .card-actions .btn {
+  width: 100%;
+}
+
+/* ============ RESERVATIONS SECTION ============ */
+#reservationsContainer {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.reservations-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.reservation-dashboard {
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.reservation-dashboard-head h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #0f172a;
+}
+
+.reservation-dashboard-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.reservation-dashboard-head p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.reservation-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.reservation-view-btn {
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #475569;
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.reservation-view-btn:hover {
+  background: #e2e8f0;
+}
+
+.reservation-view-btn.active {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.28);
+}
+
+.reservation-calendar-toolbar {
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.reservation-calendar-toolbar-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reservation-calendar-toolbar-meta {
+  min-width: 0;
+  text-align: center;
+  display: grid;
+  gap: 1px;
+}
+
+.reservation-calendar-toolbar-meta strong {
+  font-size: 15px;
+  color: #0f172a;
+  text-transform: capitalize;
+}
+
+.reservation-calendar-toolbar-meta span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.reservation-calendar-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.reservation-calendar-date-input {
+  min-height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #ffffff;
+}
+
+.reservation-calendar-date-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.17);
+}
+
+.reservation-calendar-today-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.reservation-calendar-today-btn:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
+.reservation-calendar-toolbar-actions .btn {
+  width: auto;
+  min-height: 36px;
+  font-size: 12px;
+  padding: 8px 11px;
+  border-radius: 10px;
+}
+
+.reservation-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reservation-filter-chip {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  min-height: 34px;
+  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.18s ease;
+}
+
+.reservation-filter-chip strong {
+  font-size: 11px;
+  color: #475569;
+}
+
+.reservation-filter-chip:hover {
+  transform: translateY(-1px);
+  border-color: #94a3b8;
+}
+
+.reservation-filter-chip.active {
+  color: #ffffff;
+  border-color: #4f46e5;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  box-shadow: 0 6px 14px rgba(79, 70, 229, 0.24);
+}
+
+.reservation-filter-chip.active strong {
+  color: #e2e8f0;
+}
+
+.reservation-filter-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px 220px;
+  gap: 10px;
+}
+
+.reservation-search-input,
+.reservation-sort-select {
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #1e293b;
+  background: #ffffff;
+}
+
+.reservation-search-input:focus,
+.reservation-sort-select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.17);
+}
+
+.reservation-customer-select {
+  min-width: 0;
+}
+
+.reservation-calendar {
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.reservation-calendar-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.reservation-calendar-nav-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  min-width: 40px;
+  min-height: 36px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.reservation-calendar-nav-btn:hover {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #3730a3;
+}
+
+.reservation-calendar-title-wrap {
+  text-align: center;
+}
+
+.reservation-calendar-title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+  text-transform: capitalize;
+}
+
+.reservation-calendar-today-link {
+  margin-top: 2px;
+  border: none;
+  background: transparent;
+  color: #4f46e5;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reservation-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.reservation-calendar-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.reservation-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.reservation-calendar-day {
+  min-height: 92px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.reservation-calendar-day.is-empty {
+  background: #f8fafc;
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.reservation-calendar-day.has-events {
+  background: #ffffff;
+}
+
+.reservation-calendar-day.is-today {
+  border-color: #a5b4fc;
+  box-shadow: inset 0 0 0 1px #a5b4fc;
+}
+
+.reservation-calendar-day.is-selected {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+
+.reservation-calendar-day-btn {
+  border: none;
+  background: transparent;
+  width: 100%;
+  min-height: 92px;
+  padding: 7px;
+  text-align: left;
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.reservation-calendar-day-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.reservation-calendar-day-number {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.reservation-calendar-day-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.reservation-calendar-events {
+  display: grid;
+  gap: 4px;
+}
+
+.reservation-calendar-event {
+  display: block;
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reservation-calendar-event.pending {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.reservation-calendar-event.confirmed {
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.reservation-calendar-event.cancelled {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.reservation-calendar-event.completed {
+  background: #e0f2fe;
+  color: #0c4a6e;
+}
+
+.reservation-calendar-overflow {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.reservation-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reservation-week-day {
+  border: 1px solid #dbe5f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  min-height: 180px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.reservation-week-day.is-selected {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.14);
+}
+
+.reservation-week-day.is-today {
+  border-color: #a5b4fc;
+}
+
+.reservation-week-day-head {
+  border: none;
+  width: 100%;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: pointer;
+}
+
+.reservation-week-day-head span {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.reservation-week-day-head strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.reservation-week-day-head em {
+  font-style: normal;
+  font-size: 11px;
+  color: #475569;
+  border: 1px solid #dbe5f0;
+  background: #ffffff;
+  border-radius: 999px;
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reservation-week-events {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 9px;
+}
+
+.reservation-week-event {
+  border: 1px solid #dbe5f0;
+  border-radius: 10px;
+  padding: 7px 8px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+}
+
+.reservation-week-event strong {
+  font-size: 11px;
+}
+
+.reservation-week-event span {
+  font-size: 11px;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.reservation-week-event small {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.reservation-week-event.pending {
+  border-left: 3px solid #f59e0b;
+}
+
+.reservation-week-event.confirmed {
+  border-left: 3px solid #10b981;
+}
+
+.reservation-week-event.cancelled {
+  border-left: 3px solid #ef4444;
+}
+
+.reservation-week-event.completed {
+  border-left: 3px solid #0284c7;
+}
+
+.reservation-week-empty {
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 4px 2px;
+}
+
+.reservation-day {
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.reservation-day-timeline {
+  display: grid;
+  gap: 6px;
+}
+
+.reservation-day-hour-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.reservation-day-hour-label {
+  font-size: 11px;
+  color: #475569;
+  font-weight: 800;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reservation-day-hour-content {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 7px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-height: 46px;
+}
+
+.reservation-day-event {
+  border: 1px solid #dbe5f0;
+  border-radius: 9px;
+  background: #ffffff;
+  text-align: left;
+  padding: 7px 8px;
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+}
+
+.reservation-day-event strong {
+  font-size: 11px;
+}
+
+.reservation-day-event span {
+  font-size: 12px;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.reservation-day-event small {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.reservation-day-event.pending {
+  border-left: 3px solid #f59e0b;
+}
+
+.reservation-day-event.confirmed {
+  border-left: 3px solid #10b981;
+}
+
+.reservation-day-event.cancelled {
+  border-left: 3px solid #ef4444;
+}
+
+.reservation-day-event.completed {
+  border-left: 3px solid #0284c7;
+}
+
+.reservation-day-empty-slot {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.8;
+}
+
+.reservation-detail-modal {
+  max-width: 640px !important;
+}
+
+.reservation-detail-body {
+  display: grid;
+  gap: 10px;
+  padding: 4px 2px;
+}
+
+.reservation-detail-body p {
+  margin: 0;
+  font-size: 14px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.reservation-detail-actions {
+  margin-top: 8px;
+}
+
+.reservation-detail-actions .btn {
+  width: auto;
+  min-width: 130px;
+}
+
+.reservation-selected-day {
+  display: grid;
+  gap: 10px;
+}
+
+.reservation-selected-day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dbe5f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.reservation-selected-day-head h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #0f172a;
+  text-transform: capitalize;
+}
+
+.reservation-selected-day-head span {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 700;
+}
+
+.reservation-empty {
+  text-align: center;
+  color: #64748b;
+  padding: 28px 20px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.reservations-list {
+  display: grid;
+  gap: 12px;
+}
+
+.reservation-card {
+  border: 1px solid #dbe5f0;
+  border-left-width: 4px;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 14px 16px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+}
+
+.reservation-card.pending {
+  border-left-color: #f59e0b;
+}
+
+.reservation-card.confirmed {
+  border-left-color: #10b981;
+}
+
+.reservation-card.cancelled {
+  border-left-color: #ef4444;
+}
+
+.reservation-card.completed {
+  border-left-color: #0ea5e9;
+}
+
+.reservation-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.reservation-card-title {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.25;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.reservation-card-datetime {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.reservation-card-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.reservation-status-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.reservation-status-pill.pending {
+  background: #f59e0b;
+}
+
+.reservation-status-pill.confirmed {
+  background: #10b981;
+}
+
+.reservation-status-pill.cancelled {
+  background: #ef4444;
+}
+
+.reservation-status-pill.completed {
+  background: #0284c7;
+}
+
+.reservation-card-note {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #334155;
+}
+
+.reservation-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #edf2f7;
+}
+
+.reservation-card-actions .btn {
+  width: auto;
+  min-height: 38px;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.reservation-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.reservation-actions .btn {
+  width: auto;
+  min-width: 260px;
+}
+
+.reservation-scope-note {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid #dbe5f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 13px;
+}
+
+.reservation-create .form-grid {
+  gap: 12px;
+}
+
+.reservation-create .form-row {
+  min-height: 0;
+}
+
+.reservation-create .form-row.span-2 {
+  min-height: 0;
+}
+
+.reservation-datetime-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.reservation-datetime-row input {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .reservation-filter-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-dashboard-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reservation-view-switch {
+    width: 100%;
+  }
+
+  .reservation-view-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .reservation-calendar {
+    padding: 10px;
+  }
+
+  .reservation-calendar-grid {
+    gap: 4px;
+  }
+
+  .reservation-calendar-day,
+  .reservation-calendar-day-btn {
+    min-height: 82px;
+  }
+
+  .reservation-calendar-day-btn {
+    padding: 6px;
+  }
+
+  .reservation-calendar-event {
+    font-size: 9px;
+    padding: 2px 5px;
+  }
+
+  .reservation-calendar-toolbar {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .reservation-calendar-toolbar-nav {
+    justify-content: center;
+  }
+
+  .reservation-calendar-toolbar-meta {
+    text-align: center;
+  }
+
+  .reservation-calendar-toolbar-actions {
+    justify-content: stretch;
+  }
+
+  .reservation-calendar-toolbar-actions .btn,
+  .reservation-calendar-date-input {
+    width: 100%;
+  }
+
+  .reservation-detail-actions .btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .reservation-week-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-week-day {
+    min-height: 0;
+  }
+
+  .reservation-day-hour-row {
+    grid-template-columns: 52px 1fr;
+  }
+
+  .reservation-filter-chip {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+
+  .reservation-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .reservation-card-actions {
+    flex-direction: column;
+  }
+
+  .reservation-card-actions .btn {
+    width: 100%;
+  }
+
+  .reservation-datetime-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-1);
+  font-size: var(--fs-2);
+  color: var(--text-primary);
+  box-shadow: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.chip:hover {
+  background: #eef2ff;
+  transform: translateY(-1px);
+}
+
+
+.reminders-section .form-group select {
+  max-width: 260px;
+}
+
+.reminders-section .form-group {
+  margin-bottom: 12px;
+}
+
+/* ============ FORMS ============ */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--border-light);
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.2s;
+  background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.vehicle-catalog-preview-group {
+  margin-top: -6px;
+}
+
+.vehicle-catalog-preview-group.hidden {
+  display: none;
+}
+
+.vehicle-catalog-preview-card {
+  display: grid;
+  gap: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+}
+
+.vehicle-catalog-preview-media {
+  position: relative;
+  min-height: 220px;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.24), transparent 45%),
+    linear-gradient(135deg, #dbeafe 0%, #cbd5e1 100%);
+}
+
+.vehicle-catalog-preview-media img {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.vehicle-catalog-preview-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(15, 23, 42, 0.65);
+}
+
+.vehicle-catalog-preview-placeholder.hidden {
+  display: none;
+}
+
+.vehicle-catalog-preview-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: grid;
+  gap: 4px;
+  padding: 20px 18px 16px;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.82) 100%);
+}
+
+.vehicle-catalog-preview-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vehicle-catalog-preview-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px 18px;
+}
+
+.vehicle-catalog-preview-note {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.vehicle-catalog-preview-quota {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.9rem;
+}
+
+.vehicle-catalog-preview-quota.hidden {
+  display: none;
+}
+
+.vehicle-catalog-preview-warning {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.92rem;
+}
+
+.vehicle-catalog-preview-warning.hidden {
+  display: none;
+}
+
+.vehicle-catalog-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vehicle-catalog-preview-alt {
+  display: grid;
+  gap: 10px;
+}
+
+.vehicle-catalog-preview-alt.hidden {
+  display: none;
+}
+
+.vehicle-catalog-preview-alt-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.vehicle-catalog-preview-alt-item {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px;
+  cursor: pointer;
+  text-align: left;
+  color: #1e293b;
+}
+
+.vehicle-catalog-preview-alt-item img {
+  width: 100%;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #e2e8f0;
+}
+
+.vehicle-catalog-preview-alt-item span {
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .vehicle-catalog-preview-media,
+  .vehicle-catalog-preview-media img {
+    min-height: 188px;
+  }
+
+  .vehicle-catalog-preview-actions .btn {
+    width: 100%;
+  }
+}
+
+/* ============ NAVBAR ============ */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: white;
+  border-bottom: 1px solid var(--border-light);
+  padding: 16px min(32px, 4vw);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  gap: 24px;
+  width: 100%;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.navbar-stats {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #475569;
+}
+
+.stat-badge strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.btn-logout {
+  background: var(--error-red);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-logout:hover {
+  background: var(--error-dark);
+  transform: translateY(-1px);
+}
+
+/* ============ TABS / NAVIGATION ============ */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  margin-left: min(32px, 4vw);
+  margin-right: min(32px, 4vw);
+  padding-left: 0;
+  padding-right: 0;
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--border-light);
+  padding-bottom: 12px;
+  position: relative;
+  z-index: var(--z-base);
+}
+
+.tab {
+  padding: 10px 18px;
+  background: #ffffff;
+  border: 1px solid #d6e0ed;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.tab:hover {
+  background: #f8fafc;
+  border-color: #b8c7db;
+  color: #334155;
+  transform: translateY(-1px);
+}
+
+.tab.active {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 10px 18px rgba(79, 70, 229, 0.24);
+  font-weight: 800;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+#dashboard .tab-content > h2 {
+  margin: 0 0 14px;
+  color: #0f172a;
+  font-size: clamp(1.55rem, 1.9vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+#dashboard .tab-content > h2 + .loading,
+#dashboard .tab-content > h2 + .card,
+#dashboard .tab-content > h2 + div {
+  margin-top: 4px;
+}
+
+/* ============ UTILITIES ============ */
+.loading {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 16px;
+  border-radius: 10px;
+  margin: 16px 0;
+  font-size: 15px;
+  border-left: 4px solid var(--error-dark);
+  font-weight: 500;
+}
+
+.empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 16px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1200px) {
+  .cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .navbar-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .tabs {
+    flex-direction: column;
+    margin-left: min(24px, 3vw);
+    margin-right: min(24px, 3vw);
+  }
+  
+  .tab {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions .btn-primary {
+    width: 100%;
+  }
+}
+
+/* ============ PROFILE SECTION ============ */
+.settings-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: var(--s-4);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+  .settings-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.settings-sidebar {
+  background: #ffffff;
+  border: 1px solid #dbe5f0;
+  border-radius: 14px;
+  padding: 14px;
+  color: #334155;
+  position: sticky;
+  top: 86px;
+  align-self: start;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.settings-sidebar-head {
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+  margin-bottom: 10px;
+}
+
+.settings-sidebar-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.settings-sidebar-head p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.settings-nav-item {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 6px;
+}
+
+.settings-nav-item:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #1e293b;
+}
+
+.settings-nav-item.active {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 10px 16px rgba(79, 70, 229, 0.22);
+}
+
+.settings-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.settings-main-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 16px 18px;
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.settings-main-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.15rem;
+}
+
+.settings-main-head .btn-primary {
+  min-width: 180px;
+}
+
+.settings-panel {
+  display: none;
+}
+
+.settings-panel.active {
+  display: block;
+}
+
+.profile-panel {
+  overflow: hidden;
+}
+
+.profile-panel .card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.profile-panel .card-title {
+  margin: 0;
+}
+
+.profile-panel-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.profile-grid + .profile-grid {
+  margin-top: var(--s-3);
+}
+
+.profile-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.profile-grid .form-group {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.profile-inline-actions {
+  display: flex;
+  gap: var(--s-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.profile-inline-actions input {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.profile-ares-btn {
+  margin-top: 0;
+  min-width: 200px;
+  justify-content: center !important;
+}
+
+.input-disabled {
+  background: #f1f5f9 !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed !important;
+}
+
+.profile-form-status {
+  min-height: 22px;
+}
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkbox-label.profile-notify-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: #f8fafc;
+  transition: background 0.2s;
+}
+
+.checkbox-label.profile-notify-item:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.checkbox-input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--accent-blue);
+}
+
+.checkbox-text {
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.profile-notify-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-notify-copy small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.profile-security-grid {
+  display: grid;
+  gap: var(--s-3);
+}
+
+@media (max-width: 1080px) {
+  .settings-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-main-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-main-head .btn-primary {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profile-grid,
+  .profile-grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-inline-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .profile-ares-btn {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* ============ LICENSE MODAL (Vyskakovací okno) ============ */
+.license-modal {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+  padding: 16px;
+  pointer-events: auto;
+}
+
+.license-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: var(--z-backdrop);
+}
+
+.license-modal.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+.license-modal-content {
+  position: fixed;
+  inset: 12px;
+  margin: auto;
+  background: white;
+  border-radius: 20px;
+  width: calc(100% - 24px);
+  max-width: 900px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease;
+  z-index: calc(var(--z-modal) + 1);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.license-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.license-modal-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.license-modal-close {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #94a3b8;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.license-modal-close:hover {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.license-modal-body {
+  padding: 28px;
+}
+
+.license-current-section {
+  margin-bottom: 32px;
+}
+
+.license-current-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+}
+
+.license-current-info {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+}
+
+.license-current-badge {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.license-plan-badge {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.license-plan-badge.plan-free {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.license-plan-badge.plan-basic {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.license-plan-badge.plan-premium {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  color: #92400e;
+}
+
+.license-status-badge {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.license-status-badge.status-active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.license-status-badge.status-inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.license-current-details {
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.license-detail-item {
+  margin-bottom: 8px;
+}
+
+.license-detail-item strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.license-remaining {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.license-limit-reached {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.license-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #e2e8f0 20%, #e2e8f0 80%, transparent 100%);
+  margin: 32px 0;
+}
+
+.license-plans-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 24px 0;
+}
+
+.license-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.license-plan-card {
+  background: white;
+  border-radius: 16px;
+  border: 2px solid #e2e8f0;
+  padding: 24px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.license-plan-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
+}
+
+.license-plan-card.plan-current {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.plan-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.plan-icon {
+  font-size: 32px;
+}
+
+.plan-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.plan-badge-popular {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.plan-card-body {
+  margin-bottom: 20px;
+}
+
+.plan-features {
+  margin-bottom: 16px;
+}
+
+.plan-feature {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.plan-upsell {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+  border: 1px dashed rgba(102, 126, 234, 0.35);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.plan-upsell strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: var(--primary-end);
+}
+
+.feature-upsell {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(102,126,234,0.10), rgba(118,75,162,0.10));
+  border: 1px dashed rgba(102,126,234,0.35);
+  align-items: flex-start;
+  width: min(820px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.feature-upsell .feature-upsell-media {
+  width: 90px;
+  height: 90px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.35), rgba(118,75,162,0.15)), var(--primary-gradient);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 32px;
+  box-shadow: 0 10px 30px rgba(118, 75, 162, 0.25);
+}
+
+.feature-upsell .feature-upsell-body {
+  flex: 1;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.feature-upsell .feature-upsell-body h4 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary-end);
+}
+
+.feature-upsell .feature-upsell-body ul {
+  padding-left: 18px;
+  margin: 8px 0 12px 0;
+  color: var(--text-secondary);
+}
+
+.feature-upsell .feature-upsell-body .feature-upsell-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.plan-price {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-start);
+  margin-top: 16px;
+}
+
+.plan-card-footer {
+  margin-top: auto;
+}
+
+.plan-action-btn {
+  width: 100%;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.plan-action-btn.plan-active {
+  background: #e2e8f0;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.plan-action-btn.plan-upgrade {
+  background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+  color: white;
+}
+
+.plan-action-btn.plan-upgrade:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.plan-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .license-modal-content {
+    max-width: 100%;
+    border-radius: 0;
+    max-height: 100vh;
+  }
+  
+  .license-plans-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .license-modal-header {
+    padding: 20px;
+  }
+  
+  .license-modal-body {
+    padding: 20px;
+  }
+}

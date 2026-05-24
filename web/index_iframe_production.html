@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Správa vozidel</title>
+    <style>
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+        }
+        html, body { 
+            height: 100%; 
+            overflow: hidden; 
+        }
+        body { 
+            margin: 0; 
+            padding: 0; 
+        }
+        iframe { 
+            width: 100%; 
+            min-height: 100vh; 
+            height: 100vh;
+            border: none; 
+            display: block; 
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #667eea;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">Načítání aplikace...</div>
+    <iframe 
+        id="appFrame" 
+        src="https://hub.toozservis.cz/web/index.html" 
+        allow="camera; microphone; geolocation" 
+        scrolling="auto"
+        style="opacity: 0; transition: opacity 0.3s;"
+        onload="document.getElementById('loading').style.display='none'; document.getElementById('appFrame').style.opacity='1';">
+    </iframe>
+    <script>
+        const iframe = document.getElementById('appFrame');
+        const loading = document.getElementById('loading');
+        
+        // Skrytí loading po načtení
+        iframe.addEventListener('load', () => {
+            loading.style.display = 'none';
+            iframe.style.opacity = '1';
+            
+            // Automaticky upravit výšku iframe podle obsahu (pokud není cross-origin)
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const height = Math.max(
+                    iframeDoc.body.scrollHeight,
+                    iframeDoc.body.offsetHeight,
+                    iframeDoc.documentElement.clientHeight,
+                    iframeDoc.documentElement.scrollHeight,
+                    iframeDoc.documentElement.offsetHeight
+                );
+                iframe.style.height = height + 'px';
+            } catch (e) {
+                // Cross-origin - použít default výšku
+                iframe.style.height = '100vh';
+            }
+        });
+        
+        // Poslouchat změny velikosti okna
+        window.addEventListener('resize', () => {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                const height = Math.max(
+                    iframeDoc.body.scrollHeight,
+                    iframeDoc.body.offsetHeight,
+                    iframeDoc.documentElement.clientHeight,
+                    iframeDoc.documentElement.scrollHeight,
+                    iframeDoc.documentElement.offsetHeight
+                );
+                iframe.style.height = height + 'px';
+            } catch (e) {
+                // Cross-origin - ignorovat
+            }
+        });
+        
+        // Timeout pro skrytí loading (pokud iframe se nenačte)
+        setTimeout(() => {
+            if (loading.style.display !== 'none') {
+                loading.textContent = 'Chyba při načítání aplikace. Zkuste obnovit stránku.';
+                loading.style.color = '#e53e3e';
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
+
+
+

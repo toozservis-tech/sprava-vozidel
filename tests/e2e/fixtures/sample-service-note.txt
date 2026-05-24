@@ -1,0 +1,4 @@
+Service invoice sample
+Reference: E2E-SMOKE-001
+Work performed: oil and filter change
+Total: 2450 CZK

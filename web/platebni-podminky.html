@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Platební podmínky | Správa vozidel</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #334155;
+      --border: #dbe5f0;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.58;
+    }
+    .wrap {
+      width: min(980px, calc(100% - 24px));
+      margin: 22px auto 34px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 10px; font-size: 1.7rem; }
+    h2 { margin: 0 0 10px; font-size: 1.16rem; }
+    p, li { color: var(--muted); }
+    ul { margin: 8px 0; padding-left: 18px; }
+    .logos {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0 2px;
+      flex-wrap: wrap;
+    }
+    .logos img { height: 20px; width: auto; }
+    a { color: var(--accent); }
+    .link-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .link-row a {
+      display: inline-block;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 6px 10px;
+      font-size: 0.92rem;
+    }
+    .small { font-size: 0.92rem; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.94em;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Platební podmínky digitální služby Správa vozidel</h1>
+      <p>
+        Tento dokument upravuje podmínky online plateb a aktivace placených tarifů služby Správa vozidel.
+      </p>
+      <div class="logos">
+        <img src="assets/comgate-logo-horizontal-red.png" alt="Comgate">
+        <img src="assets/visa-official.svg" alt="Visa">
+        <img src="assets/mastercard-mark.svg" alt="Mastercard">
+      </div>
+      <div class="link-row">
+        <a href="obchodni-podminky.html">Obchodní podmínky</a>
+        <a href="reklamacni-rad.html">Reklamační řád</a>
+        <a href="ochrana-osobnich-udaju.html">Ochrana osobních údajů</a>
+        <a href="cookies.html">Cookies</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>1. Poskytovatel a platební infrastruktura</h2>
+      <p>
+        Poskytovatel služby: ToozServis Auto/Pneu Tomáš Zachurčok (TooZ Servis), IČO 87854716,
+        Gorkého 2351/19a, 568 02 Svitavy, Česká republika,
+        e-mail pro právní komunikaci: <a href="mailto:info@toozservis.cz">info@toozservis.cz</a>,
+        tel: <a href="tel:+420731552299">+420 731 552 299</a>.
+      </p>
+      <p>
+        Online platby jsou zprostředkovány přes platební bránu Comgate, a.s.
+        Poskytovatel nepřichází do kontaktu s plnými údaji platební karty zákazníka.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2 id="doprava-a-platba">2. Doprava a platba</h2>
+      <ul>
+        <li>Služba Správa vozidel je digitální služba, fyzická doprava se neuplatňuje. Přístup a aktivace funkce probíhá online po potvrzení úhrady.</li>
+        <li>Poskytovatel platební brány: Comgate, a.s. <a href="https://www.comgate.cz/platebni-brana" target="_blank" rel="noopener noreferrer">www.comgate.cz/platebni-brana</a>.</li>
+        <li>Podporované metody: platba kartou (VISA, Mastercard) a platební tlačítka bank (online bankovní převody).</li>
+        <li>Průběh platby kartou: zákazník je přesměrován na zabezpečenou platební stránku, kde dokončí autorizaci a po potvrzení je vrácen zpět do služby.
+          Detail: <a href="https://help.comgate.cz/v1/docs/cs/platby-kartou" target="_blank" rel="noopener noreferrer">help.comgate.cz/v1/docs/cs/platby-kartou</a>.
+        </li>
+        <li>Průběh bankovního převodu přes tlačítko banky: zákazník je přesměrován do internetového bankovnictví své banky, kde platbu potvrdí.
+          Detail: <a href="https://help.comgate.cz/docs/bankovni-prevody" target="_blank" rel="noopener noreferrer">help.comgate.cz/docs/bankovni-prevody</a>.
+        </li>
+      </ul>
+      <p class="small">
+        Kontakty Comgate, a.s. pro reklamace a dotazy k platbám:
+        Gočárova třída 1754/48b, Hradec Králové,
+        e-mail: <a href="mailto:podpora@comgate.cz">podpora@comgate.cz</a>,
+        tel: <a href="tel:+420228224267">+420 228 224 267</a>,
+        web: <a href="https://www.comgate.cz/platebni-brana" target="_blank" rel="noopener noreferrer">www.comgate.cz/platebni-brana</a>.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>3. Okamžik úhrady a vznik nároku na aktivaci</h2>
+      <ul>
+        <li>Nárok na aktivaci placeného tarifu vzniká až po potvrzení transakčního stavu <strong>PAID</strong>.</li>
+        <li>Stavy <strong>PENDING</strong>, <strong>CANCELLED</strong>, <strong>FAILED</strong>, <strong>EXPIRED</strong> nebo jakýkoli jiný nefinální/negativní stav nárok na aktivaci nezakládají.</li>
+        <li>Pokud je stav platby nejasný, rozhodující je potvrzení platební brány a interní verifikace poskytovatele.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>4. Souhlasy před platbou a zahájení digitální služby</h2>
+      <ul>
+        <li>Před odesláním platby spotřebitel potvrzuje seznámení s právními dokumenty a souhlas se zahájením digitální služby před uplynutím 14 dnů.</li>
+        <li>Spotřebitel potvrzuje vědomí, že tím může ztratit právo na odstoupení v rozsahu, v jakém bylo plněno.</li>
+        <li>Souhlasové kroky se evidují jako prokazatelný technický záznam (např. timestamp, user ID, text souhlasu, verze dokumentu, IP/relace v rozsahu technicky dostupných údajů).</li>
+        <li>Po objednávce je zákazníkovi standardně zasláno nebo může být zasláno potvrzení uzavření smlouvy e-mailem.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>5. Rizikové transakce, podvody a pozastavení aktivace</h2>
+      <ul>
+        <li>Poskytovatel může provést automatickou nebo manuální kontrolu rizikové transakce.</li>
+        <li>Při podezření na podvod, chargeback abuse, zneužití promo režimu, testovacího režimu nebo obcházení pravidel může poskytovatel aktivaci pozastavit, omezit účet nebo vyžádat dodatečné ověření identity/platby.</li>
+        <li>Testovací/sandbox transakce ani interní ověřovací platby nepředstavují nárok na placenou službu.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>6. Refundace a storna</h2>
+      <ul>
+        <li>Refundace se provádí pouze v oprávněných případech, zejména: duplicitní platba, prokazatelně chybná aktivace, oprávněná reklamace, zákonný nárok spotřebitele.</li>
+        <li>Žádost o prověření platby musí obsahovat identifikaci účtu, datum, částku a ID transakce.</li>
+        <li>Refundace se standardně provádí stejnou nebo odpovídající platební metodou dle pravidel platební brány a právních předpisů.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>7. Důkazní podklady pro platební spory</h2>
+      <ul>
+        <li>Platební a refundační řízení se neposuzuje jen podle tvrzení uživatele, ale i podle logů Comgate, interních auditních záznamů, stavových přechodů a serverových timestamps.</li>
+        <li>Pro určení výsledku jsou rozhodné ověřitelné transakční záznamy platební brány a systému poskytovatele.</li>
+      </ul>
+      <p class="small">Tím nejsou dotčena zákonná práva spotřebitele.</p>
+    </section>
+
+    <section class="card">
+      <h2>8. Fakturační období</h2>
+      <ul>
+        <li>Placené tarify jsou poskytovány na zvolené období (měsíční/roční).</li>
+        <li>Po uplynutí období může být účet bez nové úhrady převeden do omezeného režimu.</li>
+        <li>Není-li výslovně sjednána automatická obnova, další platba není strhávána bez nového platebního kroku zákazníka.</li>
+      </ul>
+    </section>
+
+    <section class="card small">
+      <h2>9. Verze a účinnost</h2>
+      <ul>
+        <li><strong>Verze dokumentu:</strong> TH2-PP-2026-03-09</li>
+        <li><strong>Datum účinnosti:</strong> 9. 3. 2026</li>
+        <li>Aktuální verze je vždy zveřejněna online na adrese <span class="mono">/web/platebni-podminky.html</span>.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
+<!-- CHANGES: Zpřesnění aktivace pouze po stavu PAID; výslovné vyloučení nároku při PENDING/CANCELLED/FAILED/EXPIRED; doplnění risk/fraud/chargeback kontrol; zpřesnění refund scénářů; posílení důkazní role logů Comgate a interních auditních záznamů; sjednocení identifikace poskytovatele a cross-linků. -->

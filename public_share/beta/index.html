@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beta program | Správa vozidel</title>
+  <meta name="description" content="Beta onboarding pro autoservisy, řidiče i malé flotily. Reálné testování, developer admin dohled a férové lifetime Premium za skutečný přínos.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/public/beta/beta.css">
+</head>
+<body>
+  <div class="beta-shell">
+    <header class="beta-topbar">
+      <a href="/beta" class="beta-brand">
+        <span class="beta-brand-mark">SV</span>
+        <span>
+          Beta – Správa vozidel
+          <span class="beta-brand-sub">testování a zpětná vazba</span>
+        </span>
+      </a>
+      <div class="beta-topbar-actions">
+        <a href="/beta/portal" class="btn btn-secondary">Už testuji</a>
+        <a href="#beta-form" class="btn btn-primary">Chci do beta programu</a>
+      </div>
+    </header>
+
+    <main class="beta-main">
+      <section class="hero">
+        <article class="hero-card">
+          <span class="hero-badge">Beta onboarding napojený na reálné účty a developer admin</span>
+          <h1>Nechceme jen kontakty.<br><span class="highlight-line">Chceme aktivní beta testery.</span></h1>
+          <p class="hero-copy">
+            Služba Správa vozidel nabízí beta program pro autoservisy, běžné řidiče i menší firmy nebo flotily.
+            Schválení testeři se propojí s reálnými účty, jejich aktivita se skutečně měří a lifetime Premium získají
+            jen ti, kteří produktu reálně pomůžou.
+          </p>
+          <ul class="hero-list">
+            <li>Schvalování přes developer admin</li>
+            <li>Vazba na účty, servisy a licence</li>
+            <li>Měření aktivity, feedbacku a bug reportů</li>
+            <li>Férové lifetime Premium podle dopadu</li>
+          </ul>
+          <div class="hero-actions">
+            <a href="#beta-form" class="btn btn-primary">Poslat beta přihlášku</a>
+            <a href="/beta/portal" class="btn btn-ghost">Otevřít beta portál</a>
+          </div>
+          <p class="hero-note">
+            První skutečně aktivní beta testeři mohou získat doživotní Premium zdarma výměnou za testování, zpětnou vazbu a pomoc s vývojem.
+          </p>
+        </article>
+
+        <aside class="hero-side">
+          <article class="beta-card">
+            <span class="card-tag teal-tag">Kdo se hodí</span>
+            <div class="stat-stack">
+              <div class="mini-stat">
+                <span>Autoservis</span>
+                <strong>servis</strong>
+              </div>
+              <div class="mini-stat">
+                <span>Běžný řidič</span>
+                <strong>uživatel</strong>
+              </div>
+              <div class="mini-stat">
+                <span>Firma / malá flotila</span>
+                <strong>company</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="beta-card promise-card">
+            <span class="card-tag gold-tag">Lifetime Premium</span>
+            <h3>Odměna není automatická</h3>
+            <p>
+              Nestačí jen registrace. Developer admin vyhodnocuje skutečnou aktivitu, kvalitu feedbacku, nahlášené bugy
+              a reálný dopad testování na produkt. Lifetime Premium dostanou jen ti, kteří opravdu pomáhají.
+            </p>
+          </article>
+        </aside>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>Pro koho beta stavíme</h2>
+            <p>Vyberte si typ účastníka. Tím nastavíte registraci i pozdější způsob vyhodnocení aktivity v beta programu.</p>
+          </div>
+        </div>
+        <div class="audience-grid">
+          <article class="audience-card is-selected" data-beta-audience="user">
+            <span class="card-tag">Uživatel</span>
+            <h3>Řidič a majitel auta</h3>
+            <p>Potřebujete spravovat vozidla, servisní historii, rezervace nebo připomínky a chcete ovlivnit podobu produktu od začátku.</p>
+          </article>
+          <article class="audience-card" data-beta-audience="service">
+            <span class="card-tag teal-tag">Servis</span>
+            <h3>Autoservis nebo dílna</h3>
+            <p>Chcete testovat provoz se zákaznickými účty, záznamy, rezervacemi a servisním workflow napojeným na realitu.</p>
+          </article>
+          <article class="audience-card" data-beta-audience="company">
+            <span class="card-tag gold-tag">Firma</span>
+            <h3>Menší firma nebo flotila</h3>
+            <p>Potřebujete uhlídat více vozidel, interní přehled a provozní realitu bez enterprise složitosti a bez odděleného sandboxu.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>Co beta opravdu obsahuje</h2>
+            <p>Program není izolovaný formulář. Přihláška jde do databáze, schvaluje se, propojuje se s reálnými účty a promítá se do developer adminu.</p>
+          </div>
+        </div>
+        <div class="perk-grid">
+          <article class="perk-card">
+            <h3>Developer admin dohled</h3>
+            <p>Nové přihlášky, schválení účastníků, linked účty, aktivita, feedback i doporučení pro lifetime Premium na jednom místě.</p>
+          </article>
+          <article class="perk-card">
+            <h3>Reálná data</h3>
+            <p>Beta účastník se neodděluje do paralelního systému. Napojí se na skutečný účet, servisní účet nebo tenant.</p>
+          </article>
+          <article class="perk-card">
+            <h3>Activity scoring</h3>
+            <p>Loginy, vozidla, servisní záznamy, rezervace, feedback a bug reporty se přepočítávají do activity a impact skóre.</p>
+          </article>
+          <article class="perk-card">
+            <h3>Férové odměny</h3>
+            <p>Lifetime Premium se přiděluje jen ručním rozhodnutím developera na základě skutečného přínosu, ne plošně všem.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <h2>Jak probíhá schválení</h2>
+            <p>Beta onboarding je navržený tak, aby odlišil skutečné testery od sběru leadů a napojil se na stávající provozní systém.</p>
+          </div>
+        </div>
+        <div class="process-grid">
+          <article class="process-card">
+            <span class="process-index">1</span>
+            <h3>Přihláška</h3>
+            <p>Vyplníte registraci a uvedete, kdo jste a kolik vozidel chcete reálně spravovat nebo testovat.</p>
+          </article>
+          <article class="process-card">
+            <span class="process-index">2</span>
+            <h3>Link na účet</h3>
+            <p>Systém i developer admin hledají vazbu na uživatele nebo servis podle e-mailu, telefonu a tenant kontextu.</p>
+          </article>
+          <article class="process-card">
+            <span class="process-index">3</span>
+            <h3>Aktivní testování</h3>
+            <p>Po schválení máte beta portál pro feedback a bug reporty, zatímco backend průběžně sčítá reálnou aktivitu.</p>
+          </article>
+          <article class="process-card">
+            <span class="process-index">4</span>
+            <h3>Odměna za dopad</h3>
+            <p>Lifetime Premium se přidělí jen tam, kde je vidět konkrétní přínos pro produkt, stabilitu a testovací pokrytí.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="beta-form">
+        <div class="section-head">
+          <div>
+            <h2>Beta registrace</h2>
+            <p>Vyplňte přihlášku. Pokud už máte účet ve službě Správa vozidel, použijte stejný kontakt. To výrazně urychlí schválení a navázání v developer adminu.</p>
+          </div>
+        </div>
+
+        <div class="beta-form-wrap">
+          <article class="beta-panel">
+            <form id="betaApplicationForm" class="beta-form" novalidate>
+              <div class="field-row">
+                <label class="field">
+                  <span>Jméno / název</span>
+                  <input type="text" name="name" placeholder="Např. Autoservis Novák / Jan Dvořák" required>
+                </label>
+                <label class="field">
+                  <span>E-mail</span>
+                  <input type="email" name="email" placeholder="vas@email.cz" required>
+                </label>
+              </div>
+
+              <div class="field-row">
+                <label class="field">
+                  <span>Telefon</span>
+                  <input type="tel" name="phone" placeholder="+420 777 000 111" required>
+                </label>
+                <label class="field">
+                  <span>Typ zájemce</span>
+                  <select name="applicant_type" id="betaApplicantType" required>
+                    <option value="user">Uživatel</option>
+                    <option value="service">Servis</option>
+                    <option value="company">Firma / flotila</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="field-row">
+                <label class="field">
+                  <span>Počet vozidel</span>
+                  <input type="number" min="0" max="10000" step="1" name="vehicle_count" placeholder="Např. 1, 8 nebo 45">
+                  <span class="field-hint" id="betaVehicleHint">U běžného uživatele stačí počet aut, která chcete ve službě Správa vozidel aktivně spravovat.</span>
+                </label>
+                <label class="field">
+                  <span>Co chcete testovat</span>
+                  <textarea name="note" placeholder="Popište stručně svůj provoz, use-case a proč chcete být v beta programu."></textarea>
+                </label>
+              </div>
+
+              <label class="checkbox-row">
+                <input type="checkbox" name="gdpr_consent" value="1" required>
+                <span>Souhlasím se zpracováním kontaktních údajů pro účely beta programu, navázání na účet a komunikace ohledně testování.</span>
+              </label>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Odeslat beta přihlášku</button>
+                <a href="/beta/portal" class="btn btn-secondary">Už mám účet a chci portál</a>
+              </div>
+              <div class="form-status" id="betaFormStatus" aria-live="polite"></div>
+            </form>
+          </article>
+
+          <aside class="beta-panel">
+            <span class="card-tag teal-tag">Co urychlí schválení</span>
+            <ul class="side-list">
+              <li>
+                <strong>Stejný kontakt jako v aplikaci</strong>
+                <span>Použijte e-mail nebo telefon, které už máte ve službě Správa vozidel.</span>
+              </li>
+              <li>
+                <strong>Konkrétní provozní use-case</strong>
+                <span>Napište, jestli budete testovat servisní záznamy, rezervace, více vozidel nebo servisní provoz.</span>
+              </li>
+              <li>
+                <strong>Ochota dávat feedback</strong>
+                <span>Beta program stojí na reálné zpětné vazbě, bug reportech a ochotě produkt používat aktivně.</span>
+              </li>
+            </ul>
+
+            <div class="note-box" style="margin-top:18px;">
+              <strong>GDPR a audit</strong><br>
+              Přihláška se ukládá do databáze, eviduje se schválení, důvod rozhodnutí i případné přidělení lifetime Premium.
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="beta-footer">
+      <div class="footer-card">
+        Beta program služby Správa vozidel je navržený pro reálný onboarding a developer admin workflow. Pokud už máte účet, používejte pro beta registraci stejný kontakt a následně beta portál na adrese <strong>/beta/portal</strong>.
+      </div>
+    </footer>
+  </div>
+
+  <script src="/public/beta/beta.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+A0_server_boot_sanity	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A0_server_boot_sanity.log	0
+A1_lint_type_build	SKIPPED	no	No lint/type/build configuration files detected.	/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A1_lint_type_build.log	0
+A2_python_compile_sanity	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A2_python_compile_sanity.log	0
+A3_health_route_pytest	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A3_health_route_pytest.log	0
+A4_playwright_runtime_check	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/A4_playwright_runtime_check.log	1
+B1_security_runtime_routes	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/B1_security_runtime_routes.log	0
+B2_security_pytest_regressions	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/B2_security_pytest_regressions.log	3
+C1_core_e2e_smoke	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/C1_core_e2e_smoke.log	38
+C2_admin_e2e_smoke	SKIPPED	no	E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD not set.	/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/C2_admin_e2e_smoke.log	0
+D1_responsive_e2e	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/D1_responsive_e2e.log	61
+E1_cross_browser_chromium_firefox	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/E1_cross_browser_chromium_firefox.log	120
+E2_cross_browser_webkit	SKIPPED	no	PW_ENABLE_WEBKIT is not set to 1.	/opt/toozhub2/app/artifacts/qa/postchange/20260310T211534Z/E2_cross_browser_webkit.log	0

@@ -1,0 +1,236 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - img "TOOZSERVIS logo" [ref=e5]
+        - generic [ref=e6]: Správa vozidel
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - strong [ref=e9]: "Přihlášen jako:"
+          - generic [ref=e10]: e2e.toozhub@example.com
+        - generic [ref=e13]: Server online
+        - generic [ref=e15] [cursor=pointer]: "Licence: FREE"
+      - button "Odhlásit se" [ref=e17] [cursor=pointer]
+    - generic [ref=e18]:
+      - text: ✓ ✓ ✓ ✓
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - button "Vozidla" [ref=e21] [cursor=pointer]
+          - button "Přidat vozidlo" [ref=e22] [cursor=pointer]
+          - button "Připomínky" [ref=e23] [cursor=pointer]
+          - button "Rezervace" [ref=e24] [cursor=pointer]
+          - button "Servisy" [ref=e25] [cursor=pointer]
+          - button "Nastavení" [ref=e26] [cursor=pointer]
+          - button "Podpora" [ref=e27] [cursor=pointer]
+        - generic [ref=e29]:
+          - generic [ref=e30]:
+            - generic [ref=e31]:
+              - generic [ref=e32]:
+                - generic [ref=e33]: Uživatelská pracovní plocha
+                - heading "Pracovní plocha řidiče" [level=3] [ref=e34]
+                - paragraph [ref=e35]: Spravujte vozidla, kilometrové zápisy, rezervace a připomínky z jednoho místa. Nejrychlejší cesta vede přes Smoke Vehicle 1775394632893.
+                - generic [ref=e36]:
+                  - button "🚗 Přidat vozidlo" [ref=e37] [cursor=pointer]:
+                    - generic [ref=e38]: 🚗
+                    - generic [ref=e39]: Přidat vozidlo
+                  - button "🛣️ Zapsat aktuální km" [ref=e40] [cursor=pointer]:
+                    - generic [ref=e41]: 🛣️
+                    - generic [ref=e42]: Zapsat aktuální km
+                  - button "📅 Nová rezervace" [ref=e43] [cursor=pointer]:
+                    - generic [ref=e44]: 📅
+                    - generic [ref=e45]: Nová rezervace
+                  - button "⏰ Nová připomínka" [ref=e46] [cursor=pointer]:
+                    - generic [ref=e47]: ⏰
+                    - generic [ref=e48]: Nová připomínka
+                  - button "🧾 Servisní záznam" [ref=e49] [cursor=pointer]:
+                    - generic [ref=e50]: 🧾
+                    - generic [ref=e51]: Servisní záznam
+              - generic [ref=e52]:
+                - generic [ref=e53]:
+                  - generic [ref=e54]: Vozidla
+                  - generic [ref=e55]: "1"
+                  - generic [ref=e56]: 1 digitální karta auta
+                - generic [ref=e57]:
+                  - generic [ref=e58]: STK pozornost
+                  - generic [ref=e59]: "0"
+                  - generic [ref=e60]: Žádná STK není urgentní
+                - generic [ref=e61]:
+                  - generic [ref=e62]: Připomínky
+                  - generic [ref=e63]: "0"
+                  - generic [ref=e64]: Aktivní ruční i automatické položky
+                - generic [ref=e65]:
+                  - generic [ref=e66]: Rezervace
+                  - generic [ref=e67]: "0"
+                  - generic [ref=e68]: Čekající nebo potvrzené termíny
+                - generic [ref=e69]:
+                  - generic [ref=e70]: Licence
+                  - generic [ref=e71]: FREE
+                  - generic [ref=e72]: Web zůstává hlavní místo pro účet a platby
+            - generic [ref=e73]:
+              - button "1 vozidel Digitální karty vozidel Otevřete detail, zapište km, projděte historii a doklady bez zbytečného proklikávání." [ref=e74] [cursor=pointer]:
+                - generic [ref=e75]: 1 vozidel
+                - heading "Digitální karty vozidel" [level=4] [ref=e76]
+                - paragraph [ref=e77]: Otevřete detail, zapište km, projděte historii a doklady bez zbytečného proklikávání.
+              - 'button "0 aktivních Rezervace Hlavní tok je teď jednoduchý: vytvořit, sledovat stav, případně zrušit." [ref=e78] [cursor=pointer]':
+                - generic [ref=e79]: 0 aktivních
+                - heading "Rezervace" [level=4] [ref=e80]
+                - paragraph [ref=e81]: "Hlavní tok je teď jednoduchý: vytvořit, sledovat stav, případně zrušit."
+              - button "0 položek Připomínky Šablony a aktivní přehled termínů zůstávají po ruce z jedné pracovní plochy." [ref=e82] [cursor=pointer]:
+                - generic [ref=e83]: 0 položek
+                - heading "Připomínky" [level=4] [ref=e84]
+                - paragraph [ref=e85]: Šablony a aktivní přehled termínů zůstávají po ruce z jedné pracovní plochy.
+              - button "FREE Účet a nastavení Profil, bezpečnost, export dat a licence jsou přehledněji seskupené a zůstávají canonical na webu." [ref=e86] [cursor=pointer]:
+                - generic [ref=e87]: FREE
+                - heading "Účet a nastavení" [level=4] [ref=e88]
+                - paragraph [ref=e89]: Profil, bezpečnost, export dat a licence jsou přehledněji seskupené a zůstávají canonical na webu.
+              - button "Podpora Kontakt a pomoc Podpora zůstává přímo v účtu bez obcházení jiných částí aplikace." [ref=e90] [cursor=pointer]:
+                - generic [ref=e91]: Podpora
+                - heading "Kontakt a pomoc" [level=4] [ref=e92]
+                - paragraph [ref=e93]: Podpora zůstává přímo v účtu bez obcházení jiných částí aplikace.
+          - generic [ref=e94]:
+            - heading "Moje vozidla" [level=2] [ref=e95]
+            - generic [ref=e96]:
+              - button "Zapsat aktuální km" [ref=e97] [cursor=pointer]
+              - button "+ Servisní záznam" [ref=e98] [cursor=pointer]
+              - group "Styl zobrazení vozidel" [ref=e99]:
+                - button "Mřížka" [pressed] [ref=e100] [cursor=pointer]
+                - button "Seznam" [ref=e101] [cursor=pointer]
+                - button "Kompaktní" [ref=e102] [cursor=pointer]
+          - generic [ref=e103]: "Mřížka: barevné karty s SPZ, STK a motorem pro detailní přehled."
+          - generic [ref=e106] [cursor=pointer]:
+            - generic [ref=e107]:
+              - heading "Smoke Vehicle 1775394632893" [level=3] [ref=e108]
+              - generic [ref=e109]: STK OK
+            - generic [ref=e110]:
+              - generic [ref=e111]:
+                - generic [ref=e112]: SPZ
+                - generic [ref=e113]: SMK2893
+              - generic [ref=e114]:
+                - generic [ref=e115]: Platnost STK
+                - generic [ref=e116]: 1. 3. 2027
+              - generic [ref=e117]:
+                - generic [ref=e118]: Motor
+                - generic [ref=e119]: Nezadáno
+  - contentinfo "Platební a právní informace" [ref=e120]:
+    - generic [ref=e121]:
+      - generic [ref=e122]:
+        - generic [ref=e123]: Online platby
+        - link "Comgate" [ref=e124] [cursor=pointer]:
+          - /url: https://www.comgate.cz/platebni-brana
+          - img "Comgate" [ref=e125]
+        - img "Visa" [ref=e126]
+        - img "Mastercard" [ref=e127]
+        - img "Google Pay" [ref=e128]
+        - img "Apple Pay" [ref=e129]
+      - generic [ref=e130]:
+        - link "Obchodní podmínky" [ref=e131] [cursor=pointer]:
+          - /url: obchodni-podminky.html
+        - link "Doprava a platba" [ref=e132] [cursor=pointer]:
+          - /url: platebni-podminky.html#doprava-a-platba
+        - link "Platební podmínky" [ref=e133] [cursor=pointer]:
+          - /url: platebni-podminky.html
+        - link "Reklamační řád" [ref=e134] [cursor=pointer]:
+          - /url: reklamacni-rad.html
+        - link "Ochrana osobních údajů" [ref=e135] [cursor=pointer]:
+          - /url: ochrana-osobnich-udaju.html
+        - link "Cookies" [ref=e136] [cursor=pointer]:
+          - /url: cookies.html
+      - generic [ref=e137]:
+        - generic [ref=e138]: Rychlé sekce TooZServis.cz
+        - generic [ref=e139]:
+          - link "Domů" [ref=e140] [cursor=pointer]:
+            - /url: https://www.toozservis.cz/
+          - link "Služby" [ref=e141] [cursor=pointer]:
+            - /url: https://www.toozservis.cz/#sluzby
+          - link "Ceník" [ref=e142] [cursor=pointer]:
+            - /url: https://www.toozservis.cz/#cenik
+          - link "Reference" [ref=e143] [cursor=pointer]:
+            - /url: https://www.toozservis.cz/#reference
+          - link "Kontakt" [ref=e144] [cursor=pointer]:
+            - /url: https://www.toozservis.cz/#kontakt
+          - link "Správa vozidel" [ref=e145] [cursor=pointer]:
+            - /url: https://www.toozservis.cz/sprava-vozidel/
+        - paragraph [ref=e146]: Odkazy se otevírají v nové kartě. Rozpracované změny v aplikaci se neukládají automaticky.
+  - generic [ref=e149]:
+    - generic [ref=e150]:
+      - heading "Smoke Vehicle 1775394632893" [level=2] [ref=e151]
+      - button "×" [active] [ref=e152] [cursor=pointer]
+    - generic [ref=e154]:
+      - generic [ref=e155]:
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - paragraph [ref=e158]: Digitální karta vozidla
+            - heading "Smoke Vehicle 1775394632893" [level=3] [ref=e159]
+            - paragraph [ref=e160]: Nezadáno
+            - generic [ref=e162]: SPZ SMK2893
+          - generic [ref=e163]:
+            - generic [ref=e164]:
+              - generic [ref=e165]: Fotka vozidla
+              - generic [ref=e166]: Bez fotky
+              - generic [ref=e167]: Nahrajte snímek pro plnohodnotnou digitální kartu.
+            - button "📷 Upravit fotku" [ref=e169] [cursor=pointer]
+        - generic [ref=e170]:
+          - button "Zapsat aktuální km" [ref=e171] [cursor=pointer]
+          - button "+ Přidat záznam" [ref=e172] [cursor=pointer]
+          - button "📄 PDF" [ref=e173] [cursor=pointer]
+          - button "🗑️ Smazat" [ref=e174] [cursor=pointer]
+        - generic [ref=e175]:
+          - generic [ref=e176]:
+            - generic [ref=e177]: Platnost STK
+            - generic [ref=e178]: 1. 3. 2027
+            - generic [ref=e179]: STK OK
+          - generic [ref=e180]:
+            - generic [ref=e181]: Aktuální km
+            - generic [ref=e182]: 125 000 km
+            - generic [ref=e183]: Poslední zápis 5. 4. 2026
+          - generic [ref=e184]:
+            - generic [ref=e185]: Poslední STK km
+            - generic [ref=e186]: Bez STK záznamu
+            - generic [ref=e187]: Zatím bez přepisu ze STK
+          - generic [ref=e188]:
+            - generic [ref=e189]: Poslední aktivita
+            - generic [ref=e190]: "2"
+            - generic [ref=e191]: 🛣️ Zápis km · 5. 4. 2026
+      - generic [ref=e192]:
+        - button "Přehled" [pressed] [ref=e193] [cursor=pointer]
+        - button "Podrobné údaje" [ref=e194] [cursor=pointer]
+        - button "Kilometry" [ref=e195] [cursor=pointer]
+        - button "Servisní historie" [ref=e196] [cursor=pointer]
+        - button "Dokumenty / přílohy" [ref=e197] [cursor=pointer]
+      - generic [ref=e199]:
+        - generic [ref=e200]:
+          - heading "Aktuální stav" [level=4] [ref=e201]
+          - paragraph [ref=e202]:
+            - text: "SPZ:"
+            - strong [ref=e203]: SMK2893
+          - paragraph [ref=e204]:
+            - text: "VIN:"
+            - strong [ref=e205]: Nezadáno
+          - paragraph [ref=e206]:
+            - text: "Rok:"
+            - strong [ref=e207]: Nezadáno
+          - paragraph [ref=e208]:
+            - text: "Motor:"
+            - strong [ref=e209]: Nezadáno
+        - generic [ref=e210]:
+          - heading "Co je po ruce" [level=4] [ref=e211]
+          - paragraph [ref=e212]: Samostatný zápis km už není schovaný uvnitř servisního záznamu.
+          - paragraph [ref=e213]: Servisní historie a dokumenty se načítají až po otevření detailu, takže seznam vozidel zůstává rychlý.
+        - generic [ref=e214]:
+          - heading "Poznámky k vozidlu" [level=4] [ref=e215]
+          - paragraph [ref=e216]: Zatím bez poznámek. Doplňte vlastní kontext pro servis nebo účet.
+        - generic [ref=e217]:
+          - heading "Pojištění a výbava" [level=4] [ref=e218]
+          - paragraph [ref=e219]:
+            - text: "Pojišťovna:"
+            - strong [ref=e220]: Nezadáno
+          - paragraph [ref=e221]:
+            - text: "Platnost pojištění:"
+            - strong [ref=e222]: —
+          - paragraph [ref=e223]:
+            - text: "Pneumatiky:"
+            - strong [ref=e224]: Nezadáno
+```

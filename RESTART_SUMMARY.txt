@@ -1,0 +1,21 @@
+=== RESTART SERVERU - SHRNUTÍ ===
+
+STAV:
+✓ Router je správně zaregistrován v kódu
+✓ Logy potvrzují: /api/v1/license/status je zaregistrovaný
+❌ Starý server proces (PID 172776) stále běží
+
+AKCE POTŘEBNÁ:
+1. Najděte terminál, kde běží server (pts/0 session)
+2. Ukončete proces: Ctrl+C nebo kill 172776
+3. Spusťte nový server:
+   cd /opt/toozhub2/app
+   /opt/toozhub2/app/.venv/bin/python -m uvicorn src.server.main:app --host 127.0.0.1 --port 8000
+
+NEBO použijte systemd:
+   sudo systemctl restart toozhub2
+
+OVĚŘENÍ:
+curl -i http://127.0.0.1:8000/api/v1/license/status
+# Mělo by vrátit 401 (ne 404)
+

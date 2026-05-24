@@ -1,0 +1,17 @@
+{
+  "name": "toozhub2-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E tests for Správa vozidel",
+  "scripts": {
+    "bootstrap": "bash ./bootstrap-e2e.sh",
+    "test": "bash ./run-playwright.sh test",
+    "test:headed": "bash ./run-playwright.sh test --headed",
+    "test:ui": "bash ./run-playwright.sh test --ui",
+    "test:debug": "bash ./run-playwright.sh test --debug",
+    "report": "bash ./run-playwright.sh show-report ../../artifacts/qa/playwright-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.19.26"
+  }
+}

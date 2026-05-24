@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cookies a lokální úložiště | Správa vozidel</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #334155;
+      --border: #dbe5f0;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.58;
+    }
+    .wrap {
+      width: min(1080px, calc(100% - 24px));
+      margin: 22px auto 34px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 10px; font-size: 1.64rem; }
+    h2 { margin: 0 0 10px; font-size: 1.14rem; }
+    p, li { color: var(--muted); }
+    ul { margin: 8px 0; padding-left: 18px; }
+    a { color: var(--accent); }
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .links a {
+      display: inline-block;
+      border: 1px solid #bfdbfe;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 6px 10px;
+      font-size: 0.92rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 0.93rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f1f5f9; color: #0f172a; }
+    .small { font-size: 0.92rem; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.94em;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="card">
+      <h1>Informace o cookies a lokálním úložišti</h1>
+      <p>
+        Správa vozidel aktuálně používá pouze nezbytné technické prostředky ukládání dat
+        (zejména <strong>localStorage</strong> a <strong>sessionStorage</strong>) pro přihlášení, bezpečnost a provoz aplikace.
+      </p>
+      <p>
+        Aktuálně nejsou aktivní analytické ani marketingové cookies provozované TooZ Servis.
+      </p>
+      <div class="links">
+        <a href="obchodni-podminky.html">Obchodní podmínky</a>
+        <a href="platebni-podminky.html">Platební podmínky</a>
+        <a href="reklamacni-rad.html">Reklamační řád</a>
+        <a href="ochrana-osobnich-udaju.html">Ochrana osobních údajů</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>1. Přehled používaných klíčů/úložišť</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Název klíče / cookie</th>
+            <th>Poskytovatel</th>
+            <th>Účel</th>
+            <th>Doba uchování</th>
+            <th>Typ</th>
+            <th>Nezbytnost</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="mono">accessToken</span></td>
+            <td>TooZ Servis</td>
+            <td>Autentizace uživatele.</td>
+            <td>Do odhlášení / expirace tokenu (dle session nebo local režimu).</td>
+            <td>localStorage nebo sessionStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">currentUser</span></td>
+            <td>TooZ Servis</td>
+            <td>Uložení základních údajů přihlášeného účtu pro UI.</td>
+            <td>Do odhlášení / resetu session.</td>
+            <td>localStorage nebo sessionStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">wasLoggedIn</span></td>
+            <td>TooZ Servis</td>
+            <td>Technický příznak autentizačního stavu.</td>
+            <td>Do odhlášení / resetu session.</td>
+            <td>localStorage nebo sessionStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">staySignedIn</span></td>
+            <td>TooZ Servis</td>
+            <td>Volba, zda má přihlášení přetrvat i po zavření prohlížeče.</td>
+            <td>Do změny nastavení nebo vymazání úložiště.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">rememberedLoginEmail</span>, <span class="mono">rememberedLoginEmailEnabled</span></td>
+            <td>TooZ Servis</td>
+            <td>Předvyplnění přihlašovacího e-mailu dle volby uživatele.</td>
+            <td>Do změny volby nebo vymazání úložiště.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">loginMode</span></td>
+            <td>TooZ Servis</td>
+            <td>Zapamatování typu přihlášení (uživatel / servis).</td>
+            <td>Do změny volby nebo vymazání úložiště.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">sprava_vozidel_api_url</span> <span class="small">(legacy: toozhub_api_url)</span></td>
+            <td>TooZ Servis</td>
+            <td>Technická adresa API pro klienta; nový klíč se používá při zápisu, starý se při čtení migruje.</td>
+            <td>Do změny nastavení nebo vymazání úložiště.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">clientGeoTelemetry</span></td>
+            <td>TooZ Servis</td>
+            <td>Bezpečnostní geolokační metadata (pokud jsou dostupná).</td>
+            <td>Uloženo do vymazání; aplikace standardně používá jen časově čerstvá data.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">pendingServiceInviteToken</span></td>
+            <td>TooZ Servis</td>
+            <td>Zpracování pozvánky do servisního workspace.</td>
+            <td>Do zpracování pozvánky nebo vymazání úložiště.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">sprava_vozidel_*_view_mode</span> <span class="small">(legacy toozhub_*)</span></td>
+            <td>TooZ Servis</td>
+            <td>Uložení preferovaného zobrazení v UI (včetně filtru/kalendáře připomínek).</td>
+            <td>Do změny volby nebo vymazání úložiště.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+          <tr>
+            <td><span class="mono">sprava_vozidel_reminder_notification_check_at</span> <span class="small">(legacy toozhub_*)</span></td>
+            <td>TooZ Servis</td>
+            <td>Technická deduplikace kontroly připomínek/notifikací.</td>
+            <td>Do vymazání úložiště.</td>
+            <td>localStorage</td>
+            <td>Ano</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">
+        Poznámka: aplikace může fungovat i přes infrastrukturu třetích stran (např. reverzní proxy/WAF), která může nastavovat
+        vlastní technické bezpečnostní cookies nutné pro doručení služby.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>2. Analytické a marketingové cookies</h2>
+      <ul>
+        <li>V aktuální verzi nejsou aktivní analytické ani marketingové cookies provozované TooZ Servis.</li>
+        <li>Pokud budou v budoucnu aktivovány volitelné analytické/marketingové nástroje, budou spuštěny až po udělení platného souhlasu, pokud to vyžaduje právo.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>3. Jak nastavení ovlivnit</h2>
+      <ul>
+        <li>Data v localStorage/sessionStorage lze odstranit v nastavení prohlížeče.</li>
+        <li>Blokace technického ukládání může způsobit omezení nebo nefunkčnost přihlášení a klíčových funkcí služby.</li>
+      </ul>
+    </section>
+
+    <section class="card small">
+      <h2>4. Verze a účinnost</h2>
+      <ul>
+        <li><strong>Verze dokumentu:</strong> TH2-CK-2026-03-08</li>
+        <li><strong>Datum účinnosti:</strong> 8. 3. 2026</li>
+        <li>Aktuální verze je vždy zveřejněna online na adrese <span class="mono">/web/cookies.html</span>.</li>
+      </ul>
+      <p>
+        Dotazy: <a href="mailto:info@toozservis.cz">info@toozservis.cz</a>.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
+<!-- TODO: Implementovat consent banner pro volitelné cookies s volbami „Přijmout vše“ / „Odmítnout vše“ / „Nastavení“; odmítnutí musí být stejně snadné jako přijetí. -->
+<!-- CHANGES: Dokument vyčištěn na reálně používané technické ukládání dat; doplněna konkrétní tabulka klíčů; výslovně uvedeno, že analytické/marketingové cookies nejsou aktivní; doplněn postup pro budoucí consent režim; sjednocení cross-linků a identifikace. -->

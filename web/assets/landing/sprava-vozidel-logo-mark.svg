@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Správa vozidel">
+  <defs>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0f172a" flood-opacity=".14"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="none"/>
+  <g filter="url(#softShadow)">
+    <circle cx="256" cy="256" r="232" fill="#fff"/>
+    <path d="M88 326A190 190 0 0 1 331 79" fill="none" stroke="#111" stroke-width="17" stroke-linecap="round"/>
+    <path d="M353 83a190 190 0 0 1 72 236" fill="none" stroke="#ed1b2f" stroke-width="17" stroke-linecap="round"/>
+    <path d="M75 344a211 211 0 0 0 274 82" fill="none" stroke="#111" stroke-width="6" stroke-linecap="round"/>
+    <path d="M402 130a211 211 0 0 1 28 222" fill="none" stroke="#ed1b2f" stroke-width="6" stroke-linecap="round"/>
+
+    <g fill="none" stroke="#111" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M101 239v-43c0-22 17-39 39-39h87c18 0 31 8 40 23l30 50v64H124c-13 0-23-10-23-23Z" stroke-width="13"/>
+      <path d="M146 159h76c18 0 30 8 38 24l17 35H146Z" stroke-width="10"/>
+      <path d="M103 231h50l-23 35h-26" stroke-width="13"/>
+      <path d="M255 228h42" stroke-width="11"/>
+      <circle cx="161" cy="298" r="22" fill="#111" stroke-width="0"/>
+      <circle cx="263" cy="298" r="22" fill="#111" stroke-width="0"/>
+      <path d="M104 208h-28c-10 0-17 7-17 17v13" stroke-width="11"/>
+      <path d="M86 249h34" stroke-width="11"/>
+    </g>
+
+    <g>
+      <path d="M285 105h88c19 0 34 15 34 34v156c0 19-15 34-34 34h-88c-19 0-34-15-34-34V139c0-19 15-34 34-34Z" fill="#fff" stroke="#111" stroke-width="15"/>
+      <path d="M300 96c0-22 18-40 40-40s40 18 40 40v24h-80Z" fill="#fff" stroke="#111" stroke-width="15" stroke-linejoin="round"/>
+      <path d="M291 162l17 17 36-45" fill="none" stroke="#ed1b2f" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M291 220l17 17 36-45" fill="none" stroke="#ed1b2f" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M291 278l17 17 36-45" fill="none" stroke="#ed1b2f" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M345 171h34M345 229h34M345 287h34" fill="none" stroke="#111" stroke-width="12" stroke-linecap="round"/>
+      <circle cx="387" cy="312" r="46" fill="#fff" stroke="#111" stroke-width="14"/>
+      <path d="M365 312l16 17 31-39" fill="none" stroke="#ed1b2f" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <text x="256" y="390" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="900" letter-spacing="6" fill="#111">SPRÁVA</text>
+    <text x="256" y="440" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="900" letter-spacing="12" fill="#ed1b2f">VOZIDEL</text>
+    <path d="M193 465h44M273 465h44" fill="none" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="256" cy="465" r="5" fill="#ed1b2f"/>
+  </g>
+</svg>

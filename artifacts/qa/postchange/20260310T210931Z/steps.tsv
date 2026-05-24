@@ -1,0 +1,9 @@
+A0_server_boot_sanity	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/A0_server_boot_sanity.log	0
+A1_lint_type_build	SKIPPED	no	No lint/type/build configuration files detected.	/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/A1_lint_type_build.log	0
+A2_python_compile_sanity	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/A2_python_compile_sanity.log	0
+A3_health_route_pytest	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/A3_health_route_pytest.log	0
+A4_playwright_runtime_check	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/A4_playwright_runtime_check.log	1
+B1_security_runtime_routes	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/B1_security_runtime_routes.log	0
+B2_security_pytest_regressions	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/B2_security_pytest_regressions.log	4
+C1_core_e2e_smoke	PASS	yes		/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/C1_core_e2e_smoke.log	36
+C2_admin_e2e_smoke	FAIL	no	exit_code=1	/opt/toozhub2/app/artifacts/qa/postchange/20260310T210931Z/C2_admin_e2e_smoke.log	223

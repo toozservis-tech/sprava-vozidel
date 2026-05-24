@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ověření dokumentu | Správa vozidel</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --primary: #1d4ed8;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+            --warn-bg: #fef3c7;
+            --warn-text: #92400e;
+            --danger-bg: #fee2e2;
+            --danger-text: #991b1b;
+            --neutral-bg: #e2e8f0;
+            --neutral-text: #334155;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+            color: var(--text);
+        }
+        .page {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 32px 20px 56px;
+        }
+        .hero, .card {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
+        }
+        .hero {
+            padding: 28px;
+            margin-bottom: 18px;
+        }
+        .brand {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+        h1 {
+            margin: 10px 0 8px;
+            font-size: 32px;
+            line-height: 1.08;
+        }
+        .lead {
+            margin: 0;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.55;
+        }
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 14px;
+            margin: 18px 0 0;
+        }
+        .status.valid { background: var(--success-bg); color: var(--success-text); }
+        .status.superseded { background: var(--warn-bg); color: var(--warn-text); }
+        .status.revoked { background: var(--danger-bg); color: var(--danger-text); }
+        .status.not_found { background: var(--neutral-bg); color: var(--neutral-text); }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .card {
+            padding: 22px;
+            margin-bottom: 18px;
+        }
+        .label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+        }
+        .value {
+            font-size: 18px;
+            line-height: 1.35;
+            font-weight: 700;
+            word-break: break-word;
+        }
+        .value.small {
+            font-size: 15px;
+            font-weight: 600;
+        }
+        form {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        input {
+            flex: 1 1 240px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 16px;
+        }
+        button {
+            border: 0;
+            border-radius: 12px;
+            background: var(--primary);
+            color: #fff;
+            padding: 14px 18px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .note {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+            margin-top: 14px;
+        }
+        .error {
+            color: var(--danger-text);
+            font-size: 14px;
+            margin-top: 12px;
+            min-height: 20px;
+        }
+        .loading {
+            color: var(--muted);
+            font-size: 14px;
+            margin-top: 12px;
+            min-height: 20px;
+        }
+        @media (max-width: 640px) {
+            .page { padding: 20px 14px 40px; }
+            h1 { font-size: 26px; }
+            .grid { grid-template-columns: 1fr; }
+            .hero, .card { border-radius: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <section class="hero">
+            <div class="brand">Správa vozidel</div>
+            <h1>Ověření dokumentu</h1>
+            <p class="lead">
+                Ověřte pravost servisního výpisu pomocí QR kódu nebo ručním zadáním ověřovacího kódu.
+                Veřejné ověření zobrazuje jen omezený rozsah údajů kvůli ochraně osobních údajů.
+            </p>
+            <div id="statusBadge" class="status not_found">Připraveno k ověření</div>
+            <div class="loading" id="loadingText"></div>
+            <div class="error" id="errorText"></div>
+            <form id="verifyForm">
+                <input id="verificationCodeInput" type="text" placeholder="Např. C440-D2A8-6723" autocomplete="off">
+                <button type="submit">Ověřit kód</button>
+            </form>
+            <p class="note">Pokud je dokument platný, zobrazíme jen jeho stav, identifikaci a základní metadata vozidla.</p>
+        </section>
+
+        <section class="card">
+            <div class="grid">
+                <div>
+                    <div class="label">Stav dokumentu</div>
+                    <div class="value small" id="docStatus">Zatím neověřeno</div>
+                </div>
+                <div>
+                    <div class="label">Typ dokumentu</div>
+                    <div class="value small" id="docType">-</div>
+                </div>
+                <div>
+                    <div class="label">ID dokumentu</div>
+                    <div class="value small" id="docId">-</div>
+                </div>
+                <div>
+                    <div class="label">Ověřovací kód</div>
+                    <div class="value small" id="docCode">-</div>
+                </div>
+                <div>
+                    <div class="label">Datum vystavení</div>
+                    <div class="value small" id="docIssuedAt">-</div>
+                </div>
+                <div>
+                    <div class="label">Aktuální verze</div>
+                    <div class="value small" id="docCurrentVersion">-</div>
+                </div>
+                <div>
+                    <div class="label">Vystavující servis</div>
+                    <div class="value small" id="docIssuer">-</div>
+                </div>
+                <div>
+                    <div class="label">Verze dokumentu</div>
+                    <div class="value small" id="docVersion">-</div>
+                </div>
+                <div>
+                    <div class="label">Vozidlo</div>
+                    <div class="value small" id="docVehicle">-</div>
+                </div>
+                <div>
+                    <div class="label">Maskovaný VIN</div>
+                    <div class="value small" id="docVin">-</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        function getApiBaseUrl() {
+            const saved = localStorage.getItem('app_api_url') || localStorage.getItem('toozhub_api_url');
+            if (saved) return saved;
+            if (window.location.hostname === 'hub.toozservis.cz') return 'https://hub.toozservis.cz';
+            return window.location.origin;
+        }
+
+        function normalizeCode(raw) {
+            const clean = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+            return clean.match(/.{1,4}/g)?.join('-') || '';
+        }
+
+        function extractTokenFromLocation() {
+            const queryToken = new URLSearchParams(window.location.search).get('token');
+            if (queryToken) return queryToken;
+            const match = window.location.pathname.match(/\/verify\/([^/?#]+)/);
+            return match ? decodeURIComponent(match[1]) : '';
+        }
+
+        function formatDateTime(value) {
+            if (!value) return '-';
+            try {
+                return new Date(value).toLocaleString('cs-CZ', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                return value;
+            }
+        }
+
+        function translateStatus(status) {
+            switch (status) {
+                case 'valid': return 'Ověřeno';
+                case 'superseded': return 'Nahrazeno novější verzí';
+                case 'revoked': return 'Dokument byl zneplatněn';
+                case 'not_found': return 'Dokument nebyl nalezen';
+                default: return 'Neznámý stav';
+            }
+        }
+
+        function setStatus(status) {
+            const badge = document.getElementById('statusBadge');
+            badge.className = `status ${status || 'not_found'}`;
+            badge.textContent = translateStatus(status || 'not_found');
+            document.getElementById('docStatus').textContent = translateStatus(status || 'not_found');
+        }
+
+        function setLoading(text) {
+            document.getElementById('loadingText').textContent = text || '';
+        }
+
+        function setError(text) {
+            document.getElementById('errorText').textContent = text || '';
+        }
+
+        function renderResult(result) {
+            setStatus(result.status);
+            document.getElementById('docType').textContent = result.document_type || '-';
+            document.getElementById('docId').textContent = result.document_id || '-';
+            document.getElementById('docCode').textContent = result.verification_code || '-';
+            document.getElementById('docIssuedAt').textContent = formatDateTime(result.issued_at);
+            document.getElementById('docCurrentVersion').textContent = result.is_current_version ? 'Ano' : 'Ne';
+            document.getElementById('docIssuer').textContent = result.issued_service_name || '-';
+            document.getElementById('docVersion').textContent = result.version ? `Revize ${result.version}` : '-';
+            document.getElementById('docVehicle').textContent = [result.vehicle_brand, result.vehicle_model].filter(Boolean).join(' ') || '-';
+            document.getElementById('docVin').textContent = result.vehicle_vin_masked || '-';
+        }
+
+        async function verifyByToken(token) {
+            if (!token) return;
+            setLoading('Ověřuji dokument...');
+            setError('');
+            try {
+                const response = await fetch(`${getApiBaseUrl()}/api/public/documents/verify/${encodeURIComponent(token)}`);
+                const result = await response.json();
+                renderResult(result);
+            } catch (error) {
+                setError('Nepodařilo se načíst stav dokumentu.');
+            } finally {
+                setLoading('');
+            }
+        }
+
+        async function verifyByCode(code) {
+            const normalized = normalizeCode(code);
+            if (!normalized) {
+                setError('Zadejte ověřovací kód dokumentu.');
+                return;
+            }
+            document.getElementById('verificationCodeInput').value = normalized;
+            setLoading('Vyhledávám dokument podle ověřovacího kódu...');
+            setError('');
+            try {
+                const response = await fetch(`${getApiBaseUrl()}/api/public/documents/verify-by-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ verification_code: normalized })
+                });
+                const result = await response.json();
+                renderResult(result);
+            } catch (error) {
+                setError('Nepodařilo se ověřit zadaný kód.');
+            } finally {
+                setLoading('');
+            }
+        }
+
+        document.getElementById('verifyForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            verifyByCode(document.getElementById('verificationCodeInput').value);
+        });
+
+        const token = extractTokenFromLocation();
+        if (token) {
+            verifyByToken(token);
+        }
+    </script>
+</body>
+</html>
