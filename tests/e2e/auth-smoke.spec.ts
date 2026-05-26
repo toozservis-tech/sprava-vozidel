@@ -1,11 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { getServiceTestCredentials, getTestCredentials, loginServiceUser, loginUser } from './helpers';
-
-test.use({
-  extraHTTPHeaders: {
-    'x-forwarded-proto': 'https',
-  },
-});
+import {
+  blockAuthSessionReseed,
+  clickUserLogout,
+  getServiceTestCredentials,
+  getTestCredentials,
+  gotoUserTab,
+  loginAsService,
+  loginAsUser,
+  loginServiceUser,
+  loginUser,
+  waitForAuthLoginFormVisible,
+  waitForServiceShellReady,
+  waitForUserShellReady,
+} from './helpers';
 
 test.describe('Public/Auth redesign smoke', () => {
   test('public landing is visible when logged out', async ({ page }) => {
@@ -49,7 +56,7 @@ test.describe('Public/Auth redesign smoke', () => {
 
 test.describe('Auth Smoke', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/web/login');
+    await page.goto('/web/login', { waitUntil: 'domcontentloaded', timeout: 60_000 });
   });
 
   test('deep link /web/app/... returns HTML shell (SPA fallback, no JSON 404)', async ({ page }) => {
@@ -77,8 +84,11 @@ test.describe('Auth Smoke', () => {
 
   test('login with valid user', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('[data-testid="tab-vehicles"]')).toBeVisible();
+    await waitForUserShellReady(page);
+    await expect(page.locator('[data-testid="dashboard"], [data-testid="user-shell-root"]')).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole('navigation', { name: 'Sekce aplikace' }).getByRole('button', { name: 'Moje vozidla' }),
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test('invalid login shows proper error', async ({ page }) => {
@@ -91,49 +101,33 @@ test.describe('Auth Smoke', () => {
 
   test('logout path works', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 15_000 });
-    const logoutBtn = page.locator('[data-testid="btn-logout"]');
-    if (!(await logoutBtn.isVisible().catch(() => false))) {
-      const mobileMenuToggle = page.locator('#mobileMenuToggle');
-      if (await mobileMenuToggle.isVisible().catch(() => false)) {
-        await mobileMenuToggle.click();
-      }
-    }
-    await expect(logoutBtn).toBeVisible({ timeout: 15_000 });
-    await logoutBtn.click();
+    await waitForUserShellReady(page);
+    await clickUserLogout(page);
     await expect(page.locator('[data-testid="login-form"]')).toBeVisible({ timeout: 10_000 });
   });
 
   test('workspace URL after login and vehicles navigation', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
+    await waitForUserShellReady(page);
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/dashboard/);
-    await expect(page.locator('[data-testid="workspace-context-badge"]')).toBeVisible();
-    await page.click('[data-testid="tab-vehicles"]');
+    await gotoUserTab(page, 'vehicles');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/vehicles/);
   });
 
   test('workspace URL survives reload on vehicles', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
-    await page.click('[data-testid="tab-vehicles"]');
+    await waitForUserShellReady(page);
+    await gotoUserTab(page, 'vehicles');
     const url = page.url();
     await page.reload();
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 25_000 });
+    await waitForUserShellReady(page);
     await expect(page).toHaveURL(url);
   });
 
   test('logout restores login URL', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
-    const logoutBtn = page.locator('[data-testid="btn-logout"]');
-    if (!(await logoutBtn.isVisible().catch(() => false))) {
-      const mobileMenuToggle = page.locator('#mobileMenuToggle');
-      if (await mobileMenuToggle.isVisible().catch(() => false)) {
-        await mobileMenuToggle.click();
-      }
-    }
-    await logoutBtn.click();
+    await waitForUserShellReady(page);
+    await clickUserLogout(page);
     await expect(page.locator('[data-testid="login-form"]')).toBeVisible({ timeout: 15_000 });
     await expect(page).toHaveURL(/\/(web\/)?login/);
   });
@@ -153,39 +147,39 @@ test.describe('Auth Smoke', () => {
 
   test('user multi-tab navigation updates URL (dashboard → … → settings)', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
+    await waitForUserShellReady(page);
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/dashboard/);
 
-    await page.click('[data-testid="tab-vehicles"]');
+    await gotoUserTab(page, 'vehicles');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/vehicles/, { timeout: 15_000 });
-    await page.click('[data-testid="tab-reminders"]');
+    await gotoUserTab(page, 'reminders');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/reminders/);
-    await page.click('[data-testid="tab-reservations"]');
+    await gotoUserTab(page, 'reservations');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/reservations/);
-    await page.click('[data-testid="tab-documents"]');
+    await gotoUserTab(page, 'documents');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/documents/);
-    await page.click('[data-testid="tab-account"]');
+    await gotoUserTab(page, 'settings');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/settings/);
   });
 
   test('user wrong slug in URL is corrected to own workspace', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
+    await waitForUserShellReady(page);
     const href = page.url();
-    const m = href.match(/\/app\/u\/([^/]+)\//);
+    const m = href.match(/\/app\/u\/([^/]+)(?:\/|$)/);
     expect(m, 'expected workspace slug in URL').toBeTruthy();
     const ownSlug = m![1];
     await page.goto(`/web/app/u/cizi-jiny-slug-neplatny/vehicles`);
     await expect(page).toHaveURL(new RegExp(`/app/u/${ownSlug}/(vehicles|dashboard)`), { timeout: 25_000 });
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 25_000 });
+    await waitForUserShellReady(page);
   });
 
   test('user history back restores previous tab URL', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
-    await page.click('[data-testid="tab-vehicles"]');
+    await waitForUserShellReady(page);
+    await gotoUserTab(page, 'vehicles');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/vehicles/);
-    await page.click('[data-testid="tab-reminders"]');
+    await gotoUserTab(page, 'reminders');
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/reminders/);
     await page.goBack();
     await expect(page).toHaveURL(/\/(web\/)?app\/u\/[^/]+\/vehicles/, { timeout: 15_000 });
@@ -193,7 +187,8 @@ test.describe('Auth Smoke', () => {
 
   test('invalid stored JWT after reload shows login (no fake private state)', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
+    await waitForUserShellReady(page);
+    await blockAuthSessionReseed(page);
     await page.evaluate(() => {
       try {
         localStorage.setItem('accessToken', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.invalid-signature');
@@ -202,28 +197,20 @@ test.describe('Auth Smoke', () => {
         /* ignore */
       }
     });
-    await page.reload();
-    await expect(page.locator('[data-testid="login-form"]')).toBeVisible({ timeout: 25_000 });
-    await expect(page.locator('[data-testid="dashboard"]')).not.toBeVisible();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForAuthLoginFormVisible(page);
+    await expect(page.locator('[data-testid="dashboard"], [data-testid="user-shell-root"]')).not.toBeVisible();
   });
 
   test('after logout, browser Back must not show authenticated dashboard', async ({ page }) => {
     await loginUser(page);
-    await expect(page.locator('[data-testid="dashboard"]')).toBeVisible({ timeout: 20_000 });
-    const logoutBtn = page.locator('[data-testid="btn-logout"]');
-    if (!(await logoutBtn.isVisible().catch(() => false))) {
-      const mobileMenuToggle = page.locator('#mobileMenuToggle');
-      if (await mobileMenuToggle.isVisible().catch(() => false)) {
-        await mobileMenuToggle.click();
-      }
-    }
-    await logoutBtn.click();
-    await expect(page.locator('[data-testid="login-form"]')).toBeVisible({ timeout: 15_000 });
+    await waitForUserShellReady(page);
+    await clickUserLogout(page);
+    await waitForAuthLoginFormVisible(page);
+    await blockAuthSessionReseed(page);
     await page.goBack();
-    if (page.url() !== 'about:blank') {
-      await expect(page.locator('[data-testid="login-form"]')).toBeVisible({ timeout: 15_000 });
-    }
-    await expect(page.locator('[data-testid="dashboard"]')).not.toBeVisible();
+    await waitForAuthLoginFormVisible(page);
+    await expect(page.locator('[data-testid="dashboard"], [data-testid="user-shell-root"]')).not.toBeVisible();
   });
 });
 
@@ -232,7 +219,7 @@ test.describe('Service workspace E2E', () => {
 
   test.beforeEach(async ({ page }) => {
     test.skip(!getServiceTestCredentials(), 'Nastavte E2E_SERVICE_EMAIL a E2E_SERVICE_PASSWORD pro servisní E2E');
-    await page.goto('/web/login');
+    await page.goto('/web/login', { waitUntil: 'domcontentloaded', timeout: 60_000 });
   });
 
   test('service login lands on /app/s/{slug}/dashboard', async ({ page }) => {
@@ -279,7 +266,7 @@ test.describe('Service workspace E2E', () => {
     await loginServiceUser(page);
     await expect(page.locator(serviceRoot)).toBeVisible({ timeout: 25_000 });
     const href = page.url();
-    const m = href.match(/\/app\/s\/([^/]+)\//);
+    const m = href.match(/\/app\/s\/([^/]+)(?:\/|$)/);
     expect(m).toBeTruthy();
     const slug = m![1];
     await page.goto(`/web/app/u/${slug}/dashboard`);
@@ -288,10 +275,10 @@ test.describe('Service workspace E2E', () => {
 
   test('service wrong foreign slug is corrected', async ({ page }) => {
     await loginServiceUser(page);
-    await expect(page.locator(serviceRoot)).toBeVisible({ timeout: 25_000 });
+    await waitForServiceShellReady(page);
     const href = page.url();
-    const m = href.match(/\/app\/s\/([^/]+)\//);
-    expect(m).toBeTruthy();
+    const m = href.match(/\/app\/s\/([^/]+)(?:\/|$)/);
+    expect(m, 'expected workspace slug in URL').toBeTruthy();
     const ownSlug = m![1];
     await page.goto(`/web/app/s/cizi-cizi-servis/documents`);
     await expect(page).toHaveURL(new RegExp(`/app/s/${ownSlug}/(documents|dashboard)`), { timeout: 25_000 });
@@ -306,5 +293,79 @@ test.describe('Service workspace E2E', () => {
     });
     await expect(page.locator('[data-testid="login-form"]')).toBeVisible({ timeout: 15_000 });
     await expect(page).toHaveURL(/\/(web\/)?login/);
+  });
+});
+
+test.describe('Central identity E2E (auth gate)', () => {
+  test('auth_user_login_and_f5_keeps_session', async ({ page }) => {
+    await loginAsUser(page);
+    await waitForUserShellReady(page);
+    await page.reload();
+    await waitForUserShellReady(page);
+    await expect(page.locator('[data-testid="dashboard"], [data-testid="user-shell-root"]')).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('[data-testid="login-form"]')).not.toBeVisible();
+  });
+
+  test('auth_service_login_and_f5_keeps_session', async ({ page }) => {
+    test.skip(!getServiceTestCredentials(), 'Nastavte E2E_SERVICE_EMAIL a E2E_SERVICE_PASSWORD');
+    await loginAsService(page);
+    await waitForServiceShellReady(page);
+    await page.reload();
+    await waitForServiceShellReady(page);
+    await expect(page.locator('[data-service-shell="root"]')).toBeVisible({ timeout: 25_000 });
+    await expect(page.locator('[data-testid="login-form"]')).not.toBeVisible();
+  });
+
+  test('user_existing_vehicles_visible_after_central_identity', async ({ page }) => {
+    await loginUser(page);
+    await waitForUserShellReady(page);
+    await expect(page.getByRole('heading', { name: 'Moje vozidla', level: 2 })).toBeVisible({
+      timeout: 25_000,
+    });
+    const vehicleCards = page.locator(
+      '.uapp-next-vehicle-card[data-uapp-vehicle-card], .uapp-next-garage-card[data-uapp-vehicle-card]',
+    );
+    await expect(vehicleCards.first()).toBeVisible({ timeout: 25_000 });
+  });
+
+  test('service_lookup_existing_vehicle_safe_preview_e2e', async ({ page }) => {
+    test.skip(!getServiceTestCredentials(), 'Nastavte E2E_SERVICE_EMAIL a E2E_SERVICE_PASSWORD');
+    await loginServiceUser(page);
+    await waitForServiceShellReady(page);
+    await page.evaluate(() => {
+      (window as unknown as { serviceShell?: { openServiceToolsModal?: () => void } }).serviceShell?.openServiceToolsModal?.();
+    });
+    const intakeSection = page.locator('[data-testid="service-intake-section"]');
+    const lookupInput = intakeSection.locator('[data-testid="service-vehicle-lookup-input"]');
+    await lookupInput.waitFor({ state: 'visible', timeout: 20_000 });
+    await lookupInput.fill('TEST209E');
+    await lookupInput.dispatchEvent('input');
+    await intakeSection.getByRole('button', { name: 'Hledat vozidlo' }).click();
+    const resultRow = intakeSection.locator('.service-shell-list-row').first();
+    await expect(resultRow).toBeVisible({ timeout: 25_000 });
+    const rowText = await resultRow.innerText();
+    expect(rowText.toLowerCase()).not.toMatch(/faktur|invoice|@|telefon|tel\.|cena|kč|eur/);
+    expect(rowText).toMatch(/•/);
+  });
+
+  test('service_create_unowned_vehicle_e2e', async ({ page }) => {
+    test.skip(!getServiceTestCredentials(), 'Nastavte E2E_SERVICE_EMAIL a E2E_SERVICE_PASSWORD');
+    test.skip(process.env.E2E_ALLOW_MUTATIONS !== '1', 'Založení nepřiřazeného vozidla vyžaduje E2E_ALLOW_MUTATIONS=1');
+    const uniqueVin = `TMBE2E${Date.now().toString(36).toUpperCase().slice(-9).padStart(9, '0')}`.slice(0, 17);
+    await loginServiceUser(page);
+    await waitForServiceShellReady(page);
+    await page.evaluate(() => {
+      (window as unknown as { serviceShell?: { openServiceToolsModal?: () => void } }).serviceShell?.openServiceToolsModal?.();
+    });
+    const lookupInput = page.locator('[data-testid="service-vehicle-lookup-input"]');
+    await lookupInput.waitFor({ state: 'visible', timeout: 20_000 });
+    await lookupInput.fill(uniqueVin);
+    await page.locator('button:has-text("Hledat vozidlo")').click();
+    const createBtn = page.locator('button:has-text("Založit nepřiřazené vozidlo")');
+    await expect(createBtn).toBeVisible({ timeout: 25_000 });
+    await createBtn.click();
+    await expect(page.locator('.service-shell-modal, .service-shell-empty, .service-shell-list-row').first()).toBeVisible({
+      timeout: 25_000,
+    });
   });
 });

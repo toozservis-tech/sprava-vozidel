@@ -1649,11 +1649,21 @@
     }
   }
 
+  const STABLE_NAV_TEST_IDS = {
+    home: 'user-dashboard',
+    vehicles: 'user-vehicles-tab',
+    reminders: 'user-reminders-tab',
+    reservations: 'user-reservations-tab',
+    documents: 'user-documents-tab',
+    settings: 'user-settings-tab',
+  };
+
   function navButton(label, iconSvg, action, active, badge, locked) {
     const badgeHtml = badge > 0 ? `<span class="uapp-next-nav-badge">${esc(String(badge))}</span>` : '';
     const lockHtml = locked ? '<span class="uapp-next-nav-lock" aria-hidden="true" title="Vyžaduje vyšší licenci">🔒</span>' : '';
     const lockClass = locked ? ' is-locked' : '';
-    const testId = `dashboard-nav-${String(action || 'unknown').replace(/[^a-z0-9]+/gi, '-')}`;
+    const stableTestId = STABLE_NAV_TEST_IDS[action];
+    const testId = stableTestId || `dashboard-nav-${String(action || 'unknown').replace(/[^a-z0-9]+/gi, '-')}`;
     return `<button type="button" class="${active ? 'is-active' : ''}${lockClass}" data-uapp-action="${esc(action)}" data-testid="${esc(testId)}"${locked ? ' data-uapp-locked="1"' : ''}><span class="uapp-next-nav-ico" aria-hidden="true">${iconSvg}</span><span class="uapp-next-nav-label">${esc(label)}</span>${lockHtml}${badgeHtml}</button>`;
   }
 
@@ -4637,7 +4647,7 @@
 
     root.replaceChildren();
     root.innerHTML = `
-      <div class="uapp-next-shell" data-testid="${testId}">
+      <div class="uapp-next-shell" data-testid="user-shell-root" data-user-view-testid="${esc(testId)}">
         ${renderMobileChrome()}
         ${renderSidebar(data, activeView)}
         <main class="uapp-next-main">

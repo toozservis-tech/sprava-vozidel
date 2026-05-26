@@ -21,6 +21,7 @@ from src.core.config import (
 )
 from src.core.branding import APP_DISPLAY_NAME
 from src.core.rate_limiter import rate_limiter
+from src.server.e2e_rate_limit import e2e_rate_limit_bypass_active
 from src.core.security import create_access_token, hash_password, needs_rehash, verify_password
 from src.modules.email_client.templates import build_app_url, render_email_layout, render_panel
 from src.modules.vehicle_hub.account_state import (
@@ -186,11 +187,11 @@ def register_user(
         raise HTTPException(status_code=400, detail="Heslo musí mít alespoň 6 znaků")
 
     client_ip = extract_client_ip(request) or "unknown"
-    if not rate_limiter.check_rate_limit(
+    if not e2e_rate_limit_bypass_active(request) and not rate_limiter.check_rate_limit(
         f"register_ip:{client_ip}", max_calls=REGISTER_RATE_LIMIT_IP_MAX, period=3600
     ):
         raise HTTPException(status_code=429, detail="Příliš mnoho pokusů o registraci. Zkuste to později.")
-    if not rate_limiter.check_rate_limit(
+    if not e2e_rate_limit_bypass_active(request) and not rate_limiter.check_rate_limit(
         f"register_email:{normalized_email}", max_calls=REGISTER_RATE_LIMIT_EMAIL_MAX, period=3600
     ):
         raise HTTPException(status_code=429, detail="Příliš mnoho pokusů o registraci pro tento e-mail.")
@@ -598,7 +599,9 @@ def login_user(login_data: UserLogin, request: Request, db=Depends(get_db)):
             )
 
         key = f"login:{normalized_email}:{client_ip}"
-        if not rate_limiter.check_rate_limit(key, max_calls=LOGIN_RATE_LIMIT_MAX, period=60):
+        if not e2e_rate_limit_bypass_active(request) and not rate_limiter.check_rate_limit(
+            key, max_calls=LOGIN_RATE_LIMIT_MAX, period=60
+        ):
             log_security_event(
                 event_type="login_rate_limited",
                 request=request,

@@ -2,6 +2,13 @@ import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.BASE_URL || 'http://127.0.0.1:8000';
+const e2eBypassSecret = (process.env.E2E_RATE_LIMIT_BYPASS_SECRET || '').trim();
+const e2eExtraHeaders: Record<string, string> = {
+  'x-forwarded-proto': 'https',
+};
+if (e2eBypassSecret && (process.env.E2E_RATE_LIMIT_BYPASS || '').trim() === '1') {
+  e2eExtraHeaders['x-e2e-rate-limit-bypass'] = e2eBypassSecret;
+}
 const configuredRetries = Number.parseInt(process.env.PW_RETRIES || '', 10);
 const retries = Number.isInteger(configuredRetries) && configuredRetries >= 0
   ? configuredRetries
@@ -211,7 +218,7 @@ export default defineConfig({
   use: {
     baseURL,
     ignoreHTTPSErrors: isLocalServer,
-    extraHTTPHeaders: isLocalServer ? { 'x-forwarded-proto': 'https' } : undefined,
+    extraHTTPHeaders: isLocalServer ? e2eExtraHeaders : undefined,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

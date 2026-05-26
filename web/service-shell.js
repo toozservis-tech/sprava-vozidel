@@ -307,7 +307,7 @@
     root = document.createElement('div');
     root.id = rootId;
     root.className = 'service-app-root hidden';
-    root.setAttribute('data-testid', 'service-app-root');
+    root.setAttribute('data-testid', 'service-shell-root');
     root.setAttribute('data-service-shell', 'root');
     if (dashboard?.parentNode) {
       dashboard.parentNode.insertBefore(root, dashboard);
@@ -3143,11 +3143,11 @@
             showInviteFromSearch: true,
             extraHtml: '',
           })}
-          <section class="service-shell-side-card">
+          <section class="service-shell-side-card" data-testid="service-intake-section">
             <h3>Najít vozidlo podle VIN / SPZ</h3>
             <p>Bezpečný lookup nad existující databází vozidel zákazníků. Pokud vozidlo existuje, nabídne se detail, přístup nebo nová zakázka.</p>
             <div class="service-shell-table-tools">
-              <input class="service-shell-search" type="search" placeholder="VIN nebo SPZ" value="${escape(state.vehicleLookupQuery)}" oninput="window.serviceShell.setVehicleLookupQuery(this.value)">
+              <input class="service-shell-search" type="search" placeholder="VIN nebo SPZ" data-testid="service-vehicle-lookup-input" value="${escape(state.vehicleLookupQuery)}" oninput="window.serviceShell.setVehicleLookupQuery(this.value)">
               <button type="button" class="btn btn-primary" onclick="window.serviceShell.searchVehicles()">Hledat vozidlo</button>
             </div>
             ${vehicleMeta?.has_conflict ? `<div class="service-shell-inline-error">VIN a SPZ ukazují na rozdílné záznamy. Ověřte vstup a pokračujte přes správný detail.</div>` : ''}

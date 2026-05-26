@@ -228,6 +228,15 @@ ENABLE_AUTOPILOT_API = _env_flag("ENABLE_AUTOPILOT_API", True)
 # Soft production lock: no feature changes, only guardrails around dev/debug surfaces and write logging.
 PRODUCTION_LOCK_MODE = _env_flag("PRODUCTION_LOCK_MODE", False)
 
+# Playwright/pytest login z 127.0.0.1 — pouze s E2E_RATE_LIMIT_BYPASS=1 a shodným X-E2E-Rate-Limit-Bypass.
+E2E_RATE_LIMIT_BYPASS = _env_flag("E2E_RATE_LIMIT_BYPASS", False)
+E2E_RATE_LIMIT_BYPASS_SECRET = os.getenv("E2E_RATE_LIMIT_BYPASS_SECRET", "").strip()
+
+# Servisní mapa – tile provider (vyžadováno map_config.py / capabilities router).
+MAP_PROVIDER = os.getenv("MAP_PROVIDER", "mapy_com").strip() or "mapy_com"
+MAPY_COM_API_KEY = os.getenv("MAPY_COM_API_KEY", "").strip()
+MAP_TILE_URL = os.getenv("MAP_TILE_URL", "").strip()
+
 # FakturyWeb API pro export servisních faktur.
 FAKTURYWEB_API_BASE_URL = os.getenv("FAKTURYWEB_API_BASE_URL", "https://www.fakturyweb.cz")
 FAKTURYWEB_EMAIL = os.getenv("FAKTURYWEB_EMAIL", "").strip()
