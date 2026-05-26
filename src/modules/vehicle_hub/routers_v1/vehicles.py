@@ -55,6 +55,16 @@ from src.server.security_tracking import extract_client_ip
 from ..tachometer_parser import normalize_result as normalize_tachometer_result
 from ..database import get_db
 from ..audit_log import write_global_audit_log
+from ..central_vehicle_identity import (
+    build_owner_safe_service_history,
+    find_vehicle_by_identifiers,
+    mark_vehicle_claimed,
+    normalize_plate,
+    normalize_vin,
+    sync_vehicle_identity_fields,
+    validate_normalized_vin,
+    vehicle_state,
+)
 from ..tachometer_browser import (
     TachometerBrowserError,
     TachometerBrowserInvalidCaptcha,
@@ -75,6 +85,7 @@ from ..models import (
     ServiceInvoice,
     ServiceRecord as ServiceRecordModel,
     VehicleTachometerHistoryEntry as VehicleTachometerHistoryEntryModel,
+    VehicleOwnership,
 )
 from ..orv_scans import apply_orv_review_audit, apply_orv_scan_to_vehicle, create_orv_scan_record, serialize_orv_scan
 from ..ownership import (
@@ -151,6 +162,23 @@ from .schemas import (
 )
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles-v1"])
+
+
+class VehicleClaimLookupRequestV1(BaseModel):
+    vin: Optional[str] = Field(default=None, max_length=32)
+    plate: Optional[str] = Field(default=None, max_length=32)
+
+
+class VehicleClaimInitRequestV1(BaseModel):
+    vin: Optional[str] = Field(default=None, max_length=32)
+    plate: Optional[str] = Field(default=None, max_length=32)
+    verification_method: Optional[str] = Field(default="manual_confirmation", max_length=64)
+
+
+class VehicleClaimConfirmRequestV1(BaseModel):
+    vin: Optional[str] = Field(default=None, max_length=32)
+    plate: Optional[str] = Field(default=None, max_length=32)
+    confirm_ownership: bool = True
 
 VEHICLE_PHOTOS_DIR = DATA_DIR / "vehicle_photos"
 VEHICLE_PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
@@ -3123,6 +3151,178 @@ def _revoke_vehicle_service_links_for_owner_release(
     )
 
 
+def _vehicle_claim_lookup_payload(db: Session, *, vehicle: Optional[VehicleModel], matched_by: str) -> dict[str, Any]:
+    if not vehicle:
+        return {"found": False, "status": "not_found", "claim_available": False}
+    owner_assignment = get_primary_vehicle_owner_assignment(db, int(vehicle.id))
+    state = vehicle_state(db, vehicle)
+    preview = {
+        "vehicle_id": int(vehicle.id),
+        "matched_by": matched_by,
+        "brand": getattr(vehicle, "brand", None),
+        "model": getattr(vehicle, "model", None),
+        "year": getattr(vehicle, "year", None),
+        "vin_masked": (lambda vin: f"{vin[:3]}...{vin[-4:]}" if len(vin) >= 8 else None)(
+            normalize_vin(getattr(vehicle, "vin", None) or getattr(vehicle, "normalized_vin", None))
+        ),
+        "plate_masked": (lambda plate: f"{plate[:2]}***{plate[-2:]}" if len(plate) > 4 else "***")(
+            normalize_plate(getattr(vehicle, "plate", None) or getattr(vehicle, "normalized_plate", None))
+        ),
+        "vehicle_status": state,
+    }
+    if owner_assignment:
+        return {
+            "found": True,
+            "status": "owned_by_active_owner",
+            "claim_available": False,
+            "needs_review": True,
+            "vehicle_preview": preview,
+            "message": "Vozidlo už má aktivního vlastníka. Automatické převzetí není povoleno.",
+        }
+    if state == "service_provisioned_unowned":
+        return {
+            "found": True,
+            "status": "service_provisioned_unowned",
+            "claim_available": True,
+            "needs_review": False,
+            "vehicle_preview": preview,
+            "message": "Toto vozidlo už bylo v systému evidováno servisem. Po ověření vlastnictví se vám propíše bezpečná servisní historie bez cen a faktur.",
+        }
+    return {
+        "found": True,
+        "status": state,
+        "claim_available": False,
+        "needs_review": True,
+        "vehicle_preview": preview,
+    }
+
+
+@router.post("/claim/lookup")
+def owner_vehicle_claim_lookup(
+    payload: VehicleClaimLookupRequestV1,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    vin_norm = normalize_vin(payload.vin)
+    plate_norm = normalize_plate(payload.plate)
+    if vin_norm:
+        validate_normalized_vin(vin_norm)
+    if not vin_norm and not plate_norm:
+        raise HTTPException(status_code=422, detail="Zadejte VIN nebo SPZ.")
+    vehicle, matched_by = find_vehicle_by_identifiers(db, vin=vin_norm or None, plate=plate_norm or None)
+    body = _vehicle_claim_lookup_payload(db, vehicle=vehicle, matched_by=matched_by)
+    write_global_audit_log(
+        db,
+        entity_type="vehicle_claim",
+        entity_id=int(vehicle.id) if vehicle else None,
+        action="owner_vehicle_claim_lookup",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(getattr(current_user, "tenant_id", None) or 1),
+        vehicle_id=int(vehicle.id) if vehicle else None,
+        metadata={"matched_by": matched_by, "found": bool(vehicle), "status": body.get("status")},
+    )
+    db.commit()
+    return body
+
+
+@router.post("/{vehicle_id}/claim/init")
+def owner_vehicle_claim_init(
+    vehicle_id: int,
+    payload: VehicleClaimInitRequestV1,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo nenalezeno.")
+    if get_primary_vehicle_owner_assignment(db, int(vehicle.id)):
+        raise HTTPException(status_code=409, detail="Vozidlo už má aktivního vlastníka.")
+    vin_norm = normalize_vin(payload.vin)
+    plate_norm = normalize_plate(payload.plate)
+    vehicle_vin = normalize_vin(getattr(vehicle, "vin", None) or getattr(vehicle, "normalized_vin", None))
+    vehicle_plate = normalize_plate(getattr(vehicle, "plate", None) or getattr(vehicle, "normalized_plate", None))
+    if vin_norm and vin_norm != vehicle_vin:
+        raise HTTPException(status_code=422, detail="VIN nesouhlasí s evidovaným vozidlem.")
+    if not vin_norm and plate_norm and plate_norm != vehicle_plate:
+        raise HTTPException(status_code=422, detail="SPZ nesouhlasí s evidovaným vozidlem.")
+    if hasattr(vehicle, "claim_status"):
+        vehicle.claim_status = "claim_requested"
+    write_global_audit_log(
+        db,
+        entity_type="vehicle_claim",
+        entity_id=int(vehicle.id),
+        action="owner_vehicle_claim_requested",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(getattr(current_user, "tenant_id", None) or 1),
+        vehicle_id=int(vehicle.id),
+        metadata={"verification_method": payload.verification_method or "manual_confirmation"},
+    )
+    db.commit()
+    return {"claim_started": True, "vehicle_id": int(vehicle.id), "status": "claim_requested"}
+
+
+@router.post("/{vehicle_id}/claim/confirm")
+def owner_vehicle_claim_confirm(
+    vehicle_id: int,
+    payload: VehicleClaimConfirmRequestV1,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not payload.confirm_ownership:
+        raise HTTPException(status_code=422, detail="Pro převzetí vozidla potvrďte vlastnictví.")
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo nenalezeno.")
+    if get_primary_vehicle_owner_assignment(db, int(vehicle.id)):
+        raise HTTPException(status_code=409, detail="Vozidlo už má aktivního vlastníka.")
+    vin_norm = normalize_vin(payload.vin)
+    plate_norm = normalize_plate(payload.plate)
+    vehicle_vin = normalize_vin(getattr(vehicle, "vin", None) or getattr(vehicle, "normalized_vin", None))
+    vehicle_plate = normalize_plate(getattr(vehicle, "plate", None) or getattr(vehicle, "normalized_plate", None))
+    if vin_norm:
+        validate_normalized_vin(vin_norm)
+        if vin_norm != vehicle_vin:
+            raise HTTPException(status_code=422, detail="VIN nesouhlasí s evidovaným vozidlem.")
+    elif plate_norm and plate_norm != vehicle_plate:
+        raise HTTPException(status_code=422, detail="SPZ nesouhlasí s evidovaným vozidlem.")
+    elif not plate_norm:
+        raise HTTPException(status_code=422, detail="Zadejte VIN nebo SPZ pro potvrzení.")
+
+    mark_vehicle_claimed(db, vehicle=vehicle, owner=current_user, actor=current_user)
+    write_global_audit_log(
+        db,
+        entity_type="vehicle_claim",
+        entity_id=int(vehicle.id),
+        action="owner_vehicle_claim_approved",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(getattr(current_user, "tenant_id", None) or 1),
+        vehicle_id=int(vehicle.id),
+        metadata={"matched_by": "vin" if vin_norm else "plate"},
+    )
+    db.commit()
+    db.refresh(vehicle)
+    return {"claimed": True, "vehicle_id": int(vehicle.id), "status": "claimed_by_owner"}
+
+
+@router.get("/{vehicle_id}/safe-history")
+def get_owner_safe_service_history(
+    vehicle_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo nenalezeno.")
+    if not user_owns_vehicle(db, current_user, vehicle):
+        raise HTTPException(status_code=403, detail="Nemáte přístup k bezpečné historii tohoto vozidla.")
+    items = build_owner_safe_service_history(db, vehicle_id=int(vehicle.id), owner_customer_id=int(current_user.id))
+    db.commit()
+    return {"vehicle_id": int(vehicle.id), "items": items}
+
+
 @router.post("/parse-orv", response_model=ORVParseResponseV1)
 def parse_orv(
     payload: ORVParseRequestV1,
@@ -3266,6 +3466,15 @@ def create_vehicle(
                 )
 
             _apply_vehicle_claim_payload(existing_global_vehicle, vehicle_data)
+            sync_vehicle_identity_fields(existing_global_vehicle)
+            if hasattr(existing_global_vehicle, "global_vehicle_status"):
+                existing_global_vehicle.global_vehicle_status = "claimed_by_owner"
+            if hasattr(existing_global_vehicle, "claim_status"):
+                existing_global_vehicle.claim_status = "claimed"
+            if hasattr(existing_global_vehicle, "claimed_at"):
+                existing_global_vehicle.claimed_at = datetime.utcnow()
+            if hasattr(existing_global_vehicle, "claimed_by_customer_id"):
+                existing_global_vehicle.claimed_by_customer_id = int(current_user.id)
             claim_cat_id, claim_cat_url = _canonical_catalog_vehicle_fields(
                 vehicle_data.catalog_image_id,
                 vehicle_data.catalog_image_url,
@@ -3345,6 +3554,36 @@ def create_vehicle(
                 },
             )
 
+        if not normalized_vin and vehicle_data.plate:
+            plate_candidate, matched_by = find_vehicle_by_identifiers(db, plate=vehicle_data.plate)
+            if plate_candidate is not None and matched_by == "plate":
+                write_global_audit_log(
+                    db,
+                    entity_type="vehicle",
+                    entity_id=int(plate_candidate.id),
+                    action="vehicle_duplicate_conflict_detected",
+                    actor_user_id=current_user.id,
+                    actor_role=getattr(current_user, "role", None),
+                    tenant_id=tenant_id,
+                    vehicle_id=int(plate_candidate.id),
+                    metadata={"matched_by": "plate", "flow": "user_create_vehicle"},
+                )
+                db.commit()
+                return JSONResponse(
+                    status_code=409,
+                    content={
+                        "error": {
+                            "code": "PLATE_MATCH_REQUIRES_REVIEW",
+                            "message": "SPZ už v systému existuje. Kvůli možné změně registrační značky je potřeba ověření, nevznikla nová duplicita.",
+                            "details": {
+                                "vehicle_id": int(plate_candidate.id),
+                                "vehicle_status": vehicle_state(db, plate_candidate),
+                                "matched_by": "plate",
+                            },
+                        }
+                    },
+                )
+
         # KROK 2: Vytvořit vozidlo
         canon_cat_id, canon_cat_url = _canonical_catalog_vehicle_fields(
             vehicle_data.catalog_image_id,
@@ -3359,6 +3598,11 @@ def create_vehicle(
             year=vehicle_data.year,
             engine=vehicle_data.engine,
             vin=normalized_vin or None,
+            normalized_vin=normalized_vin or None,
+            normalized_plate=normalize_plate(vehicle_data.plate) or None,
+            global_vehicle_status="owned_vehicle",
+            source_origin="user_created",
+            claim_status="none",
             plate=vehicle_data.plate,
             notes=vehicle_data.notes,
             catalog_image_id=canon_cat_id,
@@ -3377,6 +3621,7 @@ def create_vehicle(
         )
         
         db.add(vehicle)
+        sync_vehicle_identity_fields(vehicle)
         db.flush()
         apply_orv_scan_to_vehicle(
             db=db,

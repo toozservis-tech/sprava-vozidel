@@ -33,6 +33,16 @@ from src.core.datetime_cz import naive_utc_to_iso_z, prague_today
 from src.modules.email_client.service import EmailService
 from src.modules.email_client.templates import render_email_layout, render_panel
 from ..audit_log import write_global_audit_log
+from ..central_vehicle_identity import (
+    active_owner_assignment,
+    find_vehicle_by_identifiers,
+    normalize_plate,
+    normalize_vin,
+    query_hash,
+    sync_vehicle_identity_fields,
+    validate_normalized_vin,
+    vehicle_state,
+)
 from ..database import get_db
 from ..models import (
     Customer,
@@ -110,6 +120,21 @@ Jakákoliv změna musí projít production auditem.
 """
 
 logger = logging.getLogger(__name__)
+
+
+class CentralVehicleLookupRequestV1(BaseModel):
+    query: str = Field(..., min_length=2, max_length=128)
+    query_type: Optional[str] = Field(default="auto", pattern="^(vin|plate|auto)$")
+
+
+class ServiceProvisionUnownedVehicleRequestV1(BaseModel):
+    vin: Optional[str] = Field(default=None, max_length=32)
+    plate: Optional[str] = Field(default=None, max_length=32)
+    brand: str = Field(..., min_length=1, max_length=80)
+    model: str = Field(..., min_length=1, max_length=120)
+    year: Optional[int] = Field(default=None, ge=1886, le=2100)
+    mileage: Optional[int] = Field(default=None, ge=0)
+    intake_note: Optional[str] = Field(default=None, max_length=2000)
 
 
 def _service_access_email_notification_message(email_result: dict[str, Any]) -> str:
@@ -2648,6 +2673,274 @@ def get_service_customer_detail(
 
     customer = _get_linked_customer_or_404(db, current_user, int(customer_id))
     return _build_customer_detail_payload(db, current_user=current_user, customer=customer)
+
+
+def _central_lookup_identifier(payload: CentralVehicleLookupRequestV1) -> tuple[str, str, str]:
+    query = str(payload.query or "").strip()
+    qtype = str(payload.query_type or "auto").lower()
+    vin_norm = normalize_vin(query)
+    plate_norm = normalize_plate(query)
+    if qtype == "vin" or (qtype == "auto" and len(vin_norm) == 17):
+        validate_normalized_vin(vin_norm, required=True)
+        return query, vin_norm, "vin"
+    if qtype == "plate" or qtype == "auto":
+        if not plate_norm:
+            raise HTTPException(status_code=422, detail="Zadejte SPZ nebo VIN vozidla.")
+        return query, plate_norm, "plate"
+    raise HTTPException(status_code=422, detail="Neplatný typ lookupu.")
+
+
+def _safe_vehicle_preview(vehicle: VehicleModel) -> dict[str, Any]:
+    return {
+        "vehicle_id": int(vehicle.id),
+        "brand": getattr(vehicle, "brand", None),
+        "model": getattr(vehicle, "model", None),
+        "year": getattr(vehicle, "year", None),
+        "vin_masked": masked_vin(getattr(vehicle, "vin", None) or getattr(vehicle, "normalized_vin", None)),
+        "plate_masked": masked_plate(getattr(vehicle, "plate", None) or getattr(vehicle, "normalized_plate", None)),
+        "in_system": True,
+    }
+
+
+def _service_access_status_for_vehicle(db: Session, *, current_user: Customer, vehicle: VehicleModel) -> tuple[str, bool]:
+    if (
+        active_owner_assignment(db, int(vehicle.id)) is None
+        and getattr(vehicle, "provisioned_by_service_customer_id", None) == getattr(current_user, "id", None)
+        and vehicle_state(db, vehicle) == "service_provisioned_unowned"
+    ):
+        return "approved", False
+    link = get_active_vehicle_service_link(db, service_customer_id=int(current_user.id), vehicle_id=int(vehicle.id))
+    if link:
+        return "approved", False
+    request_row = (
+        db.query(ServiceAccessRequest)
+        .filter(
+            ServiceAccessRequest.service_customer_id == int(current_user.id),
+            ServiceAccessRequest.vehicle_id == int(vehicle.id),
+        )
+        .order_by(ServiceAccessRequest.id.desc())
+        .first()
+    )
+    if request_row:
+        status = str(request_row.status or "pending")
+        return status, status in {"rejected", "revoked"}
+    return "not_requested", True
+
+
+def _audit_central_lookup(
+    db: Session,
+    *,
+    current_user: Customer,
+    raw_query: str,
+    normalized_query: str,
+    identifier_type: str,
+    vehicle: Optional[VehicleModel],
+    owner_id: Optional[int],
+    result_status: str,
+) -> ServiceVehicleLookupAudit:
+    audit = ServiceVehicleLookupAudit(
+        tenant_id=int(getattr(current_user, "tenant_id", None) or 1),
+        service_customer_id=int(current_user.id),
+        lookup_query_raw=raw_query or None,
+        lookup_query_normalized=normalized_query or None,
+        lookup_query_hash=query_hash(normalized_query),
+        lookup_identifier_type=identifier_type,
+        matched_vehicle_id=int(vehicle.id) if vehicle else None,
+        matched_owner_customer_id=owner_id,
+        result_status=result_status,
+        returned_candidate_count=1 if vehicle else 0,
+        created_at=datetime.utcnow(),
+    )
+    db.add(audit)
+    db.flush()
+    write_global_audit_log(
+        db,
+        entity_type="service_vehicle_lookup",
+        entity_id=int(audit.id),
+        action="service_vehicle_lookup",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(getattr(current_user, "tenant_id", None) or 1),
+        vehicle_id=int(vehicle.id) if vehicle else None,
+        metadata={
+            "identifier_type": identifier_type,
+            "result_status": result_status,
+            "query_hash": query_hash(normalized_query),
+        },
+    )
+    db.flush()
+    return audit
+
+
+@router.post("/vehicles/lookup")
+def central_service_vehicle_lookup(
+    payload: CentralVehicleLookupRequestV1,
+    request: Request,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_workspace_schema(db)
+
+    raw_query, normalized_query, identifier_type = _central_lookup_identifier(payload)
+    vehicle, matched_by = find_vehicle_by_identifiers(
+        db,
+        vin=normalized_query if identifier_type == "vin" else None,
+        plate=normalized_query if identifier_type == "plate" else None,
+    )
+    if not vehicle:
+        _audit_central_lookup(
+            db,
+            current_user=current_user,
+            raw_query=raw_query,
+            normalized_query=normalized_query,
+            identifier_type=identifier_type,
+            vehicle=None,
+            owner_id=None,
+            result_status="not_found",
+        )
+        db.commit()
+        return {
+            "found": False,
+            "status": "not_found",
+            "can_create_unowned_vehicle": True,
+            "message": "Vozidlo není v systému.",
+        }
+
+    owner_assignment = active_owner_assignment(db, int(vehicle.id))
+    owner_id = int(owner_assignment.customer_id) if owner_assignment else None
+    access_status, can_request_access = _service_access_status_for_vehicle(db, current_user=current_user, vehicle=vehicle)
+    if access_status == "approved":
+        status = "found_access_approved"
+        result_status = "already_approved"
+    elif access_status == "pending":
+        status = "found_access_required"
+        result_status = "pending_request"
+    elif owner_id is None:
+        status = "found_service_unowned"
+        result_status = "service_unowned"
+    else:
+        status = "found_access_required"
+        result_status = "matched"
+
+    _audit_central_lookup(
+        db,
+        current_user=current_user,
+        raw_query=raw_query,
+        normalized_query=normalized_query,
+        identifier_type=matched_by if matched_by != "none" else identifier_type,
+        vehicle=vehicle,
+        owner_id=owner_id,
+        result_status=result_status,
+    )
+    db.commit()
+    body: dict[str, Any] = {
+        "found": True,
+        "status": status,
+        "vehicle_preview": _safe_vehicle_preview(vehicle),
+        "access": {
+            "status": access_status,
+            "can_request_access": bool(can_request_access and owner_id is not None),
+        },
+        "owner_data": None,
+        "service_history": None,
+        "documents": None,
+        "photos": None,
+        "prices": None,
+        "invoices": None,
+    }
+    if access_status == "approved":
+        body["access"]["scope"] = ["vehicle_history_read", "create_service_record"]
+        body["can_open_detail"] = True
+    return body
+
+
+@router.post("/vehicles/provision-unowned")
+def provision_unowned_service_vehicle(
+    payload: ServiceProvisionUnownedVehicleRequestV1,
+    request: Request,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_workspace_schema(db)
+
+    vin_norm = normalize_vin(payload.vin)
+    plate_norm = normalize_plate(payload.plate)
+    validate_normalized_vin(vin_norm, required=False)
+    if not vin_norm and not plate_norm:
+        raise HTTPException(status_code=422, detail="Zadejte VIN nebo SPZ.")
+
+    existing_by_vin, _ = find_vehicle_by_identifiers(db, vin=vin_norm or None)
+    if existing_by_vin:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "vehicle_exists",
+                "message": "Vozidlo s tímto VIN už v centrální databázi existuje.",
+                "vehicle_id": int(existing_by_vin.id),
+                "status": vehicle_state(db, existing_by_vin),
+            },
+        )
+
+    if not vin_norm and plate_norm:
+        plate_candidate, matched_by = find_vehicle_by_identifiers(db, plate=plate_norm)
+        if plate_candidate:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "plate_candidate_requires_review",
+                    "message": "SPZ už má kandidáta. Bez VIN nelze automaticky založit nebo sloučit vozidlo.",
+                    "vehicle_id": int(plate_candidate.id),
+                    "matched_by": matched_by,
+                },
+            )
+
+    vehicle = VehicleModel(
+        tenant_id=int(getattr(current_user, "tenant_id", None) or 1),
+        user_email=f"_service_unowned_{int(current_user.id)}_{int(datetime.utcnow().timestamp())}@unassigned.vehicle.internal",
+        nickname=f"{payload.brand} {payload.model}".strip(),
+        brand=payload.brand.strip(),
+        model=payload.model.strip(),
+        year=payload.year,
+        vin=vin_norm or None,
+        plate=payload.plate.strip().upper() if payload.plate else None,
+        current_mileage_km=payload.mileage,
+        notes=(payload.intake_note or "").strip() or None,
+        provisioned_by_service_customer_id=int(current_user.id),
+        provisioned_by_service_tenant_id=int(getattr(current_user, "tenant_id", None) or 0) or None,
+        global_vehicle_status="service_provisioned_unowned",
+        source_origin="service_created",
+        claim_status="unclaimed",
+        status="active",
+    )
+    sync_vehicle_identity_fields(vehicle)
+    db.add(vehicle)
+    db.flush()
+    write_global_audit_log(
+        db,
+        entity_type="vehicle",
+        entity_id=int(vehicle.id),
+        action="service_unowned_vehicle_created",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(getattr(current_user, "tenant_id", None) or 1),
+        vehicle_id=int(vehicle.id),
+        metadata={
+            "normalized_vin": vin_norm or None,
+            "normalized_plate": plate_norm or None,
+            "source_origin": "service_created",
+        },
+    )
+    db.commit()
+    db.refresh(vehicle)
+    return {
+        "created": True,
+        "vehicle_id": int(vehicle.id),
+        "status": "service_provisioned_unowned",
+        "message": "Vozidlo evidováno bez majitele.",
+        "vehicle_preview": _safe_vehicle_preview(vehicle),
+    }
 
 
 @router.post("/vehicle-lookup", response_model=ServiceVehicleLookupResponseV1)

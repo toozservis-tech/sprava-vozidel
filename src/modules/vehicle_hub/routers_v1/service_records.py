@@ -35,6 +35,7 @@ from ..mileage_reports import (
     summarize_mileage_timeline,
 )
 from ..audit_log import write_global_audit_log
+from ..central_vehicle_identity import vehicle_state
 from ..ownership import get_primary_vehicle_owner
 from ..models import (
     Customer,
@@ -1118,19 +1119,26 @@ def create_service_record(
 
         access_link = None
         owner_customer = get_primary_vehicle_owner(db, vehicle)
+        service_owns_unassigned_vehicle = (
+            is_service(getattr(current_user, "role", None))
+            and owner_customer is None
+            and getattr(vehicle, "provisioned_by_service_customer_id", None) == getattr(current_user, "id", None)
+            and vehicle_state(db, vehicle) == "service_provisioned_unowned"
+        )
         if str(getattr(current_user, "role", "") or "").strip().lower() == "service":
-            access_link = require_service_vehicle_link(
-                db,
-                current_user=current_user,
-                vehicle_id=vehicle_id,
-                require_create_record=True,
-            )
-            vin_norm, vin_kind = normalize_lookup_query(getattr(vehicle, "vin", None))
-            if vin_kind != "vin" or not vin_norm:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Pro servisní záznam je nutný platný VIN u vozidla (17 znaků). Doplňte jej v evidenci vozidla.",
+            if not service_owns_unassigned_vehicle:
+                access_link = require_service_vehicle_link(
+                    db,
+                    current_user=current_user,
+                    vehicle_id=vehicle_id,
+                    require_create_record=True,
                 )
+                vin_norm, vin_kind = normalize_lookup_query(getattr(vehicle, "vin", None))
+                if vin_kind != "vin" or not vin_norm:
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Pro servisní záznam je nutný platný VIN u vozidla (17 znaků). Doplňte jej v evidenci vozidla.",
+                    )
 
         record_status = _normalize_record_status(getattr(record_data, "record_status", None), default="draft")
 
@@ -1160,6 +1168,11 @@ def create_service_record(
             total_price=getattr(record_data, "total_price", None) if getattr(record_data, "total_price", None) is not None else record_data.price,
         )
         attach_service_access_to_record(record=record, current_user=current_user, access_link=access_link)
+        if service_owns_unassigned_vehicle:
+            record.created_by_service_customer_id = int(current_user.id)
+            record.service_id = int(current_user.id)
+            record.origin = "service_created"
+            record.visibility_scope = "safe_history_after_claim"
         
         db.add(record)
         db.flush()

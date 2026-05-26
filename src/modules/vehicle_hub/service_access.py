@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import re
 from datetime import datetime
 from typing import Optional
@@ -11,6 +10,7 @@ from sqlalchemy.orm import Session
 from src.core.rbac import is_admin, is_service, normalize_role
 
 from .audit_log import write_global_audit_log
+from .central_vehicle_identity import normalize_plate, query_hash
 from .models import (
     Customer,
     ServiceAccessRequest,
@@ -28,7 +28,7 @@ _VIN_RE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
 
 def normalize_lookup_query(raw_value: Optional[str]) -> tuple[str, str]:
     value = str(raw_value or "").strip().upper()
-    collapsed = re.sub(r"\s+", "", value)
+    collapsed = normalize_plate(value)
     if not collapsed:
         return "", "unknown"
     if _VIN_RE.fullmatch(collapsed):
@@ -188,13 +188,12 @@ def log_vehicle_lookup(
     result_status: str,
     returned_candidate_count: int,
 ) -> ServiceVehicleLookupAudit:
-    query_hash = hashlib.sha256(normalized_query.encode("utf-8")).hexdigest() if normalized_query else None
     audit = ServiceVehicleLookupAudit(
         tenant_id=current_user.tenant_id or 1,
         service_customer_id=current_user.id,
         lookup_query_raw=raw_query or None,
         lookup_query_normalized=normalized_query or None,
-        lookup_query_hash=query_hash,
+        lookup_query_hash=query_hash(normalized_query),
         lookup_identifier_type=identifier_type or "unknown",
         matched_vehicle_id=getattr(vehicle, "id", None),
         matched_owner_customer_id=getattr(owner_customer, "id", None),
@@ -220,9 +219,23 @@ def resolve_vehicle_for_lookup(
     candidate_query = db.query(Vehicle).order_by(Vehicle.created_at.asc(), Vehicle.id.asc())
 
     if identifier_type == "vin":
-        vehicle = candidate_query.filter(Vehicle.vin == normalized_query).first()
+        vehicle = (
+            candidate_query
+            .filter(
+                (getattr(Vehicle, "normalized_vin", Vehicle.vin) == normalized_query)
+                | (Vehicle.vin == normalized_query)
+            )
+            .first()
+        )
     else:
-        vehicle = candidate_query.filter(Vehicle.plate == normalized_query).first()
+        vehicle = (
+            candidate_query
+            .filter(
+                (getattr(Vehicle, "normalized_plate", Vehicle.plate) == normalized_query)
+                | (Vehicle.plate == normalized_query)
+            )
+            .first()
+        )
 
     if not vehicle:
         return None, None, normalized_query, identifier_type, "not_found"

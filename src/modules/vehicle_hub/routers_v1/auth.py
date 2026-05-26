@@ -195,6 +195,12 @@ def can_access_vehicle(
     # Obecný vehicle_read_policy zde nesmí otevřít bypass bez explicitního odkazu.
     role_key = normalize_role(current_user.role)
     if is_service(role_key):
+        if (
+            not user_owns_vehicle(db, current_user, vehicle)
+            and getattr(vehicle, "provisioned_by_service_customer_id", None) == getattr(current_user, "id", None)
+            and str(getattr(vehicle, "global_vehicle_status", "") or "") == "service_provisioned_unowned"
+        ):
+            return True
         return service_can_read_vehicle(db, current_user, vehicle_id)
 
     return vehicle_read_policy(role=role_key, is_owner=False, has_service_access=False).allowed

@@ -2795,6 +2795,31 @@
     }
   }
 
+  function mapCentralVehicleLookupResponse(response) {
+    if (!response?.found) return [];
+    const preview = response.vehicle_preview || {};
+    const access = response.access || {};
+    const status = response.status || access.status || 'found';
+    return [{
+      vehicle_id: Number(preview.vehicle_id || 0),
+      nickname: [preview.brand, preview.model].filter(Boolean).join(' '),
+      brand: preview.brand || null,
+      model: preview.model || null,
+      year: preview.year || null,
+      plate_masked: preview.plate_masked || null,
+      vin_masked: preview.vin_masked || null,
+      status,
+      can_open_detail: Boolean(response.can_open_detail),
+      can_request_access: Boolean(access.can_request_access),
+      can_create_work_order: Boolean(response.can_open_detail),
+      blocking_reason: status === 'found_access_required'
+        ? 'Vozidlo je v systému. Detail je zamčený, dokud majitel nepovolí přístup.'
+        : status === 'found_service_unowned'
+          ? 'Vozidlo je evidováno bez majitele.'
+          : null,
+    }];
+  }
+
   async function searchVehicles(queryOverride = null) {
     const query = String(queryOverride ?? state.vehicleLookupQuery ?? '').trim();
     state.vehicleLookupQuery = query;
@@ -2807,8 +2832,8 @@
     state.vehicleLookupLoading = true;
     renderServiceToolsModal();
     try {
-      const response = await window.apiCall('/api/v1/services/workspace/vehicle-lookup', 'POST', { query });
-      state.vehicleLookupResults = Array.isArray(response?.candidates) ? response.candidates : [];
+      const response = await window.apiCall('/api/v1/services/workspace/vehicles/lookup', 'POST', { query, query_type: 'auto' });
+      state.vehicleLookupResults = mapCentralVehicleLookupResponse(response);
       state.vehicleLookupMeta = response || null;
     } catch (error) {
       state.vehicleLookupError = error?.message || 'Lookup vozidla selhal.';
@@ -2825,6 +2850,69 @@
       });
       state.pendingAccessVehicleIds = nextPending;
       renderServiceToolsModal();
+    }
+  }
+
+  function openProvisionUnownedVehicleModal() {
+    const query = String(state.vehicleLookupQuery || '').trim();
+    openModal({
+      key: 'provision-unowned-vehicle',
+      entityType: 'vehicle',
+      title: 'Založit nepřiřazené vozidlo',
+      description: 'Vozidlo bude evidováno bez majitele. Servis s ním může pracovat v příjmu a budoucí majitel ho později bezpečně převezme.',
+      renderContent: () => `
+        <div class="service-shell-form-grid">
+          <label>Zadaný VIN nebo SPZ<input id="serviceShellProvisionQuery" value="${escape(query)}"></label>
+          <label>Značka<input id="serviceShellProvisionBrand" placeholder="např. Škoda"></label>
+          <label>Model<input id="serviceShellProvisionModel" placeholder="např. Octavia"></label>
+          <label>Rok<input id="serviceShellProvisionYear" type="number" min="1900" max="2100"></label>
+          <label>Stav km<input id="serviceShellProvisionMileage" type="number" min="0"></label>
+          <label class="service-shell-form-grid--wide">Poznámka k příjmu<textarea id="serviceShellProvisionNote" rows="3"></textarea></label>
+        </div>
+        <div class="service-shell-inline-alert">Nevznikne vlastnická vazba. Servisní historie se budoucímu majiteli ukáže pouze v bezpečném režimu bez cen a faktur.</div>
+      `,
+      renderFooter: () => `
+        <div class="service-shell-modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zrušit</button>
+          <button type="button" class="btn btn-primary" onclick="window.serviceShell.provisionUnownedVehicleFromLookup()">Založit nepřiřazené vozidlo</button>
+        </div>
+      `,
+    });
+  }
+
+  async function provisionUnownedVehicleFromLookup() {
+    const query = String(document.getElementById('serviceShellProvisionQuery')?.value || '').trim();
+    const brand = String(document.getElementById('serviceShellProvisionBrand')?.value || '').trim();
+    const model = String(document.getElementById('serviceShellProvisionModel')?.value || '').trim();
+    const yearRaw = Number(document.getElementById('serviceShellProvisionYear')?.value || 0);
+    const mileageRaw = Number(document.getElementById('serviceShellProvisionMileage')?.value || 0);
+    const note = String(document.getElementById('serviceShellProvisionNote')?.value || '').trim();
+    if (!query || !brand || !model) {
+      showServiceToast('warning', 'Nepřiřazené vozidlo', 'Vyplňte VIN/SPZ, značku a model.');
+      return;
+    }
+    const normalized = query.toUpperCase().replace(/[\s-]+/g, '');
+    const payload = {
+      brand,
+      model,
+      year: Number.isFinite(yearRaw) && yearRaw > 0 ? yearRaw : null,
+      mileage: Number.isFinite(mileageRaw) && mileageRaw > 0 ? mileageRaw : null,
+      intake_note: note || null,
+    };
+    if (normalized.length === 17) {
+      payload.vin = normalized;
+    } else {
+      payload.plate = query;
+    }
+    try {
+      const response = await window.apiCall('/api/v1/services/workspace/vehicles/provision-unowned', 'POST', payload);
+      showServiceToast('success', 'Nepřiřazené vozidlo', response?.message || 'Vozidlo evidováno bez majitele.');
+      state.vehicleLookupQuery = query;
+      closeModal();
+      openServiceToolsModal();
+      await searchVehicles(query);
+    } catch (error) {
+      showServiceToast('error', 'Nepřiřazené vozidlo', error?.message || 'Vozidlo se nepodařilo založit.');
     }
   }
 
@@ -3031,7 +3119,12 @@
           </div>
         `;
         }).join('')
-        : '<div class="service-shell-empty">Zatím žádné výsledky.</div>';
+        : vehicleMeta?.found === false && vehicleMeta?.can_create_unowned_vehicle
+          ? `<div class="service-shell-empty">
+              <p>Vozidlo není v systému.</p>
+              <button type="button" class="btn btn-primary" onclick="window.serviceShell.openProvisionUnownedVehicleModal()">Založit nepřiřazené vozidlo</button>
+            </div>`
+          : '<div class="service-shell-empty">Zatím žádné výsledky.</div>';
 
     openModal({
       key: 'service-tools',
@@ -3062,7 +3155,7 @@
             <div class="service-shell-list">${vehicleRows}</div>
             <div class="service-shell-modal-footer service-shell-modal-footer--inline">
               <div class="service-shell-inline-alert">
-                <span>Nové vozidlo zakládejte vždy u konkrétního zákazníka v jeho detailu, ne jako samostatné vozidlo servisu.</span>
+                <span>Pokud vozidlo není v systému, servis ho smí založit jako nepřiřazené. Majitel ho později může převzít po ověření.</span>
               </div>
             </div>
           </section>
@@ -7923,6 +8016,8 @@
     submitCustomerLinkNote,
     unlinkCustomer,
     searchVehicles,
+    openProvisionUnownedVehicleModal,
+    provisionUnownedVehicleFromLookup,
     requestVehicleAccess,
     openVehicleFromLookup,
     openVehicleFromLookupByIndex,
