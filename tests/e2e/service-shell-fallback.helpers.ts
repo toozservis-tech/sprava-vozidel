@@ -33,7 +33,12 @@ function json(route: Route, status: number, body: unknown): Promise<void> {
   });
 }
 
-export async function installServiceShellMocks(page: Page): Promise<void> {
+export async function installServiceShellMocks(
+  page: Page,
+  options: { seedCurrentUser?: boolean; forceServiceWorkspaceRole?: boolean } = {},
+): Promise<void> {
+  const seedCurrentUser = options.seedCurrentUser !== false;
+  const forceServiceWorkspaceRole = options.forceServiceWorkspaceRole !== false;
   let linkedCustomer = false;
   let nextWorkOrderId = 777;
   let nextRecordId = 602;
@@ -319,14 +324,21 @@ export async function installServiceShellMocks(page: Page): Promise<void> {
     audit_log: item.audit_log,
   });
 
-  await page.addInitScript((user) => {
+  await page.addInitScript(({ user, seedUser, forceRole }) => {
     localStorage.setItem('accessToken', 'test-token');
-    localStorage.setItem('currentUser', JSON.stringify(user));
     localStorage.setItem('wasLoggedIn', 'true');
     localStorage.setItem('loginMode', 'service');
-    (window as typeof window & { currentUser?: unknown; isServiceWorkspaceRole?: () => boolean }).currentUser = user;
-    (window as typeof window & { isServiceWorkspaceRole?: () => boolean }).isServiceWorkspaceRole = () => true;
-  }, serviceUser);
+    if (seedUser) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      (window as typeof window & { currentUser?: unknown }).currentUser = user;
+    } else {
+      localStorage.removeItem('currentUser');
+      (window as typeof window & { currentUser?: unknown }).currentUser = undefined;
+    }
+    if (forceRole) {
+      (window as typeof window & { isServiceWorkspaceRole?: () => boolean }).isServiceWorkspaceRole = () => true;
+    }
+  }, { user: serviceUser, seedUser: seedCurrentUser, forceRole: forceServiceWorkspaceRole });
 
   await page.route('**/health', (route) => json(route, 200, { status: 'ok' }));
   await page.context().route('**/api/public/quote/quote-public-token', async (route) => {
@@ -407,9 +419,83 @@ export async function installServiceShellMocks(page: Page): Promise<void> {
     if (path === '/api/v1/customers/me' || path === '/user/me') return json(route, 200, serviceUser);
     if (path.startsWith('/api/v1/license')) return json(route, 200, {});
     if (path === '/api/v1/services/my-contacts') return json(route, 200, { services: [] });
+    if (path === '/api/v1/services/workspace/partner-public-profile') {
+      return json(route, 200, {
+        service_name: 'ToozServis',
+        verified: true,
+        public_profile_enabled: true,
+      });
+    }
 
     if (path === '/api/service/dashboard/summary') {
       return json(route, 200, buildSummary());
+    }
+    if (path === '/api/service/dashboard/overview') {
+      return json(route, 200, {
+        today_vehicles: 2,
+        waiting_intake: 1,
+        open_work_orders: workOrders.filter((item) => String(item.status || '').toLowerCase() !== 'completed').length,
+        in_progress_work_orders: workOrders.filter((item) => ['approved', 'in_progress'].includes(String(item.status || '').toLowerCase())).length,
+        waiting_approval: serviceQuotes.filter((item) => String(item.status || '').toLowerCase() === 'sent').length,
+        monthly_invoice_total: 186400,
+        monthly_invoice_count: 12,
+        currency: 'CZK',
+      });
+    }
+    if (path === '/api/service/dashboard/work-orders') {
+      return json(route, 200, {
+        items: workOrders.map((item) => ({
+          id: item.id,
+          vehicle_id: item.vehicle_id,
+          vehicle_title: 'Škoda Octavia III',
+          license_plate: item.vehicle_spz,
+          vin_short: 'VIN...6789',
+          customer_display: 'Linked C.',
+          personal_data_hidden: false,
+          status: item.status,
+          status_label: item.status === 'approved' ? 'Práce probíhá' : item.status,
+          technician_name: item.technician_name,
+          work_time_minutes: 95,
+          priority: 'normal',
+          vin_record: true,
+          owner_access_granted: true,
+          audited: true,
+          missing_photos: false,
+          approval_required: false,
+          detail_path: `/app/s/toozservis/work-orders/${item.id}`,
+        })),
+      });
+    }
+    if (path === '/api/service/dashboard/pending-authorizations') {
+      return json(route, 200, { items: [] });
+    }
+    if (path === '/api/service/dashboard/today-reservations') {
+      return json(route, 200, {
+        items: [
+          {
+            id: 901,
+            time: '09:00',
+            title: 'Příjem vozidla',
+            vehicle_title: 'Škoda Octavia',
+            status: 'accepted',
+            status_label: 'Přijato',
+            detail_path: '/app/s/toozservis/reservations/901',
+          },
+        ],
+      });
+    }
+    if (path === '/api/service/dashboard/risks') {
+      return json(route, 200, {
+        items: [
+          {
+            type: 'missing_photos',
+            label: 'Chybí vstupní fotodokumentace u 1 vozidla',
+            severity: 'warning',
+            count: 1,
+            target_path: '/app/s/toozservis/photos?filter=missing',
+          },
+        ],
+      });
     }
     if (path === '/api/service/technicians/performance') {
       return json(route, 200, {

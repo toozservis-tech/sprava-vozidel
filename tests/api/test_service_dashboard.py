@@ -12,6 +12,7 @@ from src.modules.vehicle_hub.models import (
     Customer,
     Reminder,
     Reservation,
+    ServiceAccessRequest,
     ServiceCustomerLink,
     ServiceInvoice,
     ServiceQuote,
@@ -210,6 +211,48 @@ def test_service_dashboard_work_orders_and_summary(tmp_path: Path) -> None:
                 is_completed=False,
             )
         )
+        db.add(
+            ServiceAccessRequest(
+                tenant_id=tenant.id,
+                service_customer_id=service.id,
+                owner_customer_id=owner.id,
+                vehicle_id=second_vehicle.id,
+                requested_scope="history_read",
+                status="pending",
+                request_message="Žádost o přístup k historii",
+            )
+        )
+        other_tenant = Tenant(name="Foreign Service Dashboard Tenant", license_key="foreign-dashboard-key")
+        db.add(other_tenant)
+        db.flush()
+        foreign_owner = Customer(
+            tenant_id=other_tenant.id,
+            email="foreign-owner@example.com",
+            password_hash="hash-foreign-owner",
+            role="user",
+            name="Foreign Owner",
+        )
+        foreign_service = Customer(
+            tenant_id=other_tenant.id,
+            email="foreign-service@example.com",
+            password_hash="hash-foreign-service",
+            role="service",
+            name="Foreign Service",
+        )
+        db.add_all([foreign_owner, foreign_service])
+        db.flush()
+        foreign_vehicle = _seed_vehicle(db, tenant_id=other_tenant.id, owner=foreign_owner, nickname="Foreign Car")
+        db.add(
+            ServiceAccessRequest(
+                tenant_id=other_tenant.id,
+                service_customer_id=foreign_service.id,
+                owner_customer_id=foreign_owner.id,
+                vehicle_id=foreign_vehicle.id,
+                requested_scope="history_read",
+                status="pending",
+                request_message="Foreign request",
+            )
+        )
         db.commit()
 
         summary = dashboard_router.get_service_dashboard_summary(current_user=service, db=db)
@@ -266,6 +309,38 @@ def test_service_dashboard_work_orders_and_summary(tmp_path: Path) -> None:
         assert queue["draft_invoices"] == 1
         assert queue["open_reminders"] == 1
         assert any(item["label"] == "Chybí souhlas klienta" for item in queue["alerts"])
+
+        overview = dashboard_router.get_service_dashboard_overview(current_user=service, db=db)
+        assert overview["today_vehicles"] >= 1
+        assert overview["open_work_orders"] >= 1
+        assert overview["waiting_approval"] >= 1
+        assert overview["currency"] == "CZK"
+
+        dashboard_work_orders = dashboard_router.get_service_dashboard_work_orders(current_user=service, db=db)
+        dashboard_items = dashboard_work_orders["items"]
+        assert {item["vehicle_id"] for item in dashboard_items} == {second_vehicle.id}
+        assert all(item["owner_access_granted"] is True for item in dashboard_items)
+        assert all("detail_path" in item for item in dashboard_items)
+
+        pending_authorizations = dashboard_router.get_service_dashboard_pending_authorizations(current_user=service, db=db)
+        assert len(pending_authorizations["items"]) == 1
+        pending_item = pending_authorizations["items"][0]
+        assert pending_item["vehicle_id"] == second_vehicle.id
+        assert pending_item["personal_data_protected"] is True
+        assert "Foreign" not in str(pending_authorizations)
+
+        today_reservations = dashboard_router.get_service_dashboard_today_reservations(current_user=service, db=db)
+        assert len(today_reservations["items"]) == 1
+        assert today_reservations["items"][0]["detail_path"].startswith("/app/s/")
+
+        risks = dashboard_router.get_service_dashboard_risks(current_user=service, db=db)
+        assert any(item["type"] in {"waiting_approval", "draft_invoices", "missing_photos"} for item in risks["items"])
+
+        try:
+            dashboard_router.get_service_dashboard_overview(current_user=owner, db=db)
+            raise AssertionError("Majitelský účet nesmí číst servisní dashboard.")
+        except HTTPException as exc:
+            assert exc.status_code == 403
 
         try:
             dashboard_router.create_service_work_order(

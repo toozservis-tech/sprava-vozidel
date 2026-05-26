@@ -17,6 +17,7 @@ from ..models import (
     Customer,
     Reminder as ReminderModel,
     Reservation as ReservationModel,
+    ServiceAccessRequest,
     ServiceCustomerLink,
     ServiceDocumentIngestion,
     ServiceInvoice,
@@ -27,6 +28,7 @@ from ..models import (
     ServiceWorkOrder,
     ServiceWorkOrderAuditLog,
     Vehicle as VehicleModel,
+    VehiclePhotoAsset,
     VehicleServiceLink,
 )
 from ..ownership import get_owned_vehicle, get_primary_vehicle_owner
@@ -776,6 +778,247 @@ def get_service_dashboard_summary(
             ReminderModel.due_date.isnot(None),
             ReminderModel.due_date < today,
         ).count(),
+    }
+
+
+@router.get("/dashboard/overview")
+def get_service_dashboard_overview(
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    today = date.today()
+    month_start = today.replace(day=1)
+    work_base = db.query(ServiceWorkOrder).filter(ServiceWorkOrder.service_customer_id == int(current_user.id))
+    reservation_base = db.query(ReservationModel).filter(
+        ReservationModel.tenant_id == int(current_user.tenant_id),
+        ReservationModel.service_id == int(current_user.id),
+    )
+    invoice_base = db.query(ServiceInvoice).filter(
+        ServiceInvoice.tenant_id == int(current_user.tenant_id),
+        ServiceInvoice.service_id == int(current_user.id),
+        ServiceInvoice.status == "issued",
+        ServiceInvoice.issued_at.isnot(None),
+        ServiceInvoice.issued_at >= datetime(month_start.year, month_start.month, month_start.day),
+    )
+    today_vehicle_ids = {
+        int(row[0])
+        for row in work_base.filter(ServiceWorkOrder.due_date == today).with_entities(ServiceWorkOrder.vehicle_id).all()
+        if row[0]
+    }
+    today_vehicle_ids.update(
+        int(row[0])
+        for row in reservation_base.filter(func.date(ReservationModel.start_datetime) == today.isoformat())
+        .with_entities(ReservationModel.vehicle_id)
+        .all()
+        if row[0]
+    )
+    invoice_total = invoice_base.with_entities(func.coalesce(func.sum(ServiceInvoice.total), 0)).scalar() or 0
+    invoice_count = invoice_base.count()
+    return {
+        "today_vehicles": len(today_vehicle_ids),
+        "waiting_intake": reservation_base.filter(
+            func.date(ReservationModel.start_datetime) == today.isoformat(),
+            ReservationModel.status.in_(("PENDING", "CONFIRMED")),
+        ).count(),
+        "open_work_orders": work_base.filter(ServiceWorkOrder.status != "completed").count(),
+        "in_progress_work_orders": work_base.filter(ServiceWorkOrder.status.in_(tuple(WORK_ORDER_STATUSES_IN_PROGRESS))).count(),
+        "waiting_approval": work_base.filter(ServiceWorkOrder.status == "awaiting_client_approval").count()
+        + db.query(ServiceAccessRequest)
+        .filter(
+            ServiceAccessRequest.service_customer_id == int(current_user.id),
+            ServiceAccessRequest.status == "pending",
+        )
+        .count(),
+        "monthly_invoice_total": round(float(invoice_total or 0), 2),
+        "monthly_invoice_count": int(invoice_count),
+        "currency": "CZK",
+    }
+
+
+@router.get("/dashboard/work-orders")
+def get_service_dashboard_work_orders(
+    status: Optional[str] = Query(default="open"),
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not isinstance(status, str):
+        status = "open"
+    if not isinstance(limit, int):
+        limit = 10
+    payload = list_service_work_orders(status=None if status == "open" else status, current_user=current_user, db=db)
+    items = []
+    for item in (payload.get("items") or [])[:limit]:
+        raw_status = str(item.get("status") or "")
+        label_map = {
+            "awaiting_client_approval": "Čeká na schválení",
+            "approved": "Diagnostika",
+            "in_progress": "Práce probíhá",
+            "completed": "Hotovo",
+            "issue": "Riziko",
+        }
+        priority = "urgent" if raw_status in {"issue", "awaiting_client_approval"} else "normal"
+        vin = str(item.get("vehicle_vin") or "")
+        vehicle_title = str(item.get("vehicle_technical_data") or "").strip() or str(item.get("vehicle_label") or "Vozidlo")
+        items.append(
+            {
+                **item,
+                "vehicle_title": vehicle_title,
+                "license_plate": item.get("vehicle_spz"),
+                "vin_short": f"{vin[:3]}...{vin[-4:]}" if len(vin) > 8 else vin,
+                "customer_display": item.get("customer_name") or "Osobní údaje skryty",
+                "personal_data_hidden": False,
+                "status_label": label_map.get(raw_status, item.get("status_label") or raw_status),
+                "priority": priority,
+                "vin_record": bool(vin),
+                "owner_access_granted": True,
+                "audited": True,
+                "missing_photos": False,
+                "approval_required": raw_status == "awaiting_client_approval",
+                "work_time_minutes": 95 if raw_status in {"approved", "in_progress"} else 45,
+                "detail_path": f"/app/s/service/work-orders/{int(item.get('id') or 0)}",
+            }
+        )
+    if status == "open":
+        items = [item for item in items if str(item.get("status") or "").lower() != "completed"]
+    return {"items": items[:limit]}
+
+
+@router.get("/dashboard/pending-authorizations")
+def get_service_dashboard_pending_authorizations(
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    rows = (
+        db.query(ServiceAccessRequest, VehicleModel)
+        .join(VehicleModel, VehicleModel.id == ServiceAccessRequest.vehicle_id)
+        .filter(
+            ServiceAccessRequest.service_customer_id == int(current_user.id),
+            ServiceAccessRequest.status == "pending",
+        )
+        .order_by(ServiceAccessRequest.requested_at.desc(), ServiceAccessRequest.id.desc())
+        .limit(20)
+        .all()
+    )
+    return {
+        "items": [
+            {
+                "id": int(req.id),
+                "vehicle_id": int(vehicle.id),
+                "vehicle_title": " ".join([x for x in [vehicle.brand, vehicle.model] if x]).strip() or vehicle.nickname or "Vozidlo",
+                "license_plate": vehicle.plate,
+                "reason": req.request_message or "Žádost o přístup k historii",
+                "status": req.status,
+                "status_label": "Čeká na zákazníka",
+                "personal_data_protected": True,
+                "created_at": req.requested_at.isoformat() if req.requested_at else None,
+                "detail_path": f"/app/s/service/authorizations/{int(req.id)}",
+            }
+            for req, vehicle in rows
+        ]
+    }
+
+
+@router.get("/dashboard/today-reservations")
+def get_service_dashboard_today_reservations(
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    today = date.today()
+    rows = (
+        db.query(ReservationModel, VehicleModel)
+        .outerjoin(VehicleModel, VehicleModel.id == ReservationModel.vehicle_id)
+        .filter(
+            ReservationModel.tenant_id == int(current_user.tenant_id),
+            ReservationModel.service_id == int(current_user.id),
+            func.date(ReservationModel.start_datetime) == today.isoformat(),
+        )
+        .order_by(ReservationModel.start_datetime.asc(), ReservationModel.id.asc())
+        .limit(20)
+        .all()
+    )
+    status_labels = {"PENDING": "Čeká", "CONFIRMED": "Potvrzeno", "CANCELLED": "Zrušeno", "ACCEPTED": "Přijato"}
+    return {
+        "items": [
+            {
+                "id": int(res.id),
+                "time": res.start_datetime.strftime("%H:%M") if res.start_datetime else "",
+                "service_type": res.service_type or "Servis",
+                "vehicle_title": (
+                    " ".join([x for x in [getattr(vehicle, "brand", None), getattr(vehicle, "model", None)] if x]).strip()
+                    if vehicle
+                    else "Vozidlo"
+                ),
+                "status": res.status,
+                "status_label": status_labels.get(str(res.status or "").upper(), str(res.status or "Čeká")),
+                "detail_path": f"/app/s/service/reservations/{int(res.id)}",
+            }
+            for res, vehicle in rows
+        ]
+    }
+
+
+@router.get("/dashboard/risks")
+def get_service_dashboard_risks(
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    active_orders = (
+        db.query(ServiceWorkOrder)
+        .filter(ServiceWorkOrder.service_customer_id == int(current_user.id), ServiceWorkOrder.status != "completed")
+        .all()
+    )
+    active_vehicle_ids = [int(order.vehicle_id) for order in active_orders if order.vehicle_id]
+    photo_vehicle_ids = set()
+    if active_vehicle_ids:
+        photo_vehicle_ids = {
+            int(row[0])
+            for row in db.query(VehiclePhotoAsset.vehicle_id)
+            .filter(
+                VehiclePhotoAsset.tenant_id == int(current_user.tenant_id),
+                VehiclePhotoAsset.vehicle_id.in_(active_vehicle_ids),
+            )
+            .distinct()
+            .all()
+        }
+    missing_photos = max(0, len(set(active_vehicle_ids)) - len(photo_vehicle_ids))
+    awaiting = sum(1 for order in active_orders if order.status == "awaiting_client_approval")
+    issue = sum(1 for order in active_orders if order.status == "issue")
+    draft_invoices = (
+        db.query(ServiceInvoice)
+        .filter(
+            ServiceInvoice.tenant_id == int(current_user.tenant_id),
+            ServiceInvoice.service_id == int(current_user.id),
+            ServiceInvoice.status == "draft",
+        )
+        .count()
+    )
+    completed = sum(1 for order in active_orders if order.status == "completed")
+    raw_items = [
+        ("missing_photos", f"Chybí vstupní fotodokumentace u {missing_photos} vozidel", "warning", missing_photos, "/photos?filter=missing"),
+        ("price_approval", "Zakázka bez schválené ceny", "danger", awaiting, "/work-orders?filter=awaiting"),
+        ("unverified_vin", "Neověřený VIN u nově přijatého vozidla", "danger", issue, "/vehicles?filter=vin"),
+        ("invoice_waiting", "Faktura čeká na vystavení", "warning", draft_invoices, "/invoices?filter=draft"),
+        ("handover_ready", "Vozidlo připraveno k předání", "success", completed, "/work-orders?filter=completed"),
+    ]
+    return {
+        "items": [
+            {"type": key, "label": label, "severity": severity, "count": int(count), "target_path": target}
+            for key, label, severity, count, target in raw_items
+            if int(count) > 0 or key in {"missing_photos", "invoice_waiting", "handover_ready"}
+        ]
     }
 
 

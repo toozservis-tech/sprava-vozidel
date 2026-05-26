@@ -31,6 +31,11 @@
 
   /** Jednoduché monochromatické SVG ikony (stroke) — bez emoji, odlišné od jiných produktů. */
   const NAV_ICON_SVGS = {
+    car: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M7 17h10M5 17H3v-5l2-5h14l2 5v5h-2M7 17a2 2 0 1 1-4 0M21 17a2 2 0 1 1-4 0M6 7l-1.5 5h15L18 7"/></svg>',
+    clipboard: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M9 5h6M9 3h6v4H9zM6 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1M8 13h8M8 17h5"/></svg>',
+    camera: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle fill="none" stroke="currentColor" stroke-width="1.75" cx="12" cy="13" r="4"/></svg>',
+    shield: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    box: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg>',
     pin: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M12 17v5M9 10l-3 8 8-3 8-8-5-5-8 8zM14 6l4 4"/></svg>',
     users:
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
@@ -69,123 +74,18 @@
   /** Levý navigační sloupec (účet servisu): ikona, štítek, volitelné submenu. */
   const NAV_RAIL_CONFIG = [
     { group: 'prehled', navIcon: 'pin', label: 'Přehled', section: 'dashboard', submenu: null },
-    { group: 'zakaznici', navIcon: 'users', label: 'Zákazníci', section: 'clients', submenu: null },
-    { group: 'zpravy', navIcon: 'chat', label: 'Zprávy', section: 'messages', submenu: null },
-    {
-      group: 'fakturace',
-      navIcon: 'invoice',
-      label: 'Fakturace',
-      section: 'invoices',
-      submenu: [
-        ['invoices', 'Všechny faktury'],
-        ['invoice-new', 'Nová faktura'],
-        ['quotes', 'Cenové nabídky'],
-        ['credit-notes', 'Opravné doklady'],
-        ['vat-overview', 'Přehled DPH'],
-      ],
-    },
-    {
-      group: 'doklady',
-      navIcon: 'folder',
-      label: 'Doklady',
-      section: 'documents',
-      submenu: [
-        ['documents', 'Všechny doklady'],
-        ['document-new', 'Nový doklad'],
-        ['documents-archive', 'Archiv'],
-      ],
-    },
-    {
-      group: 'interni-dokumenty',
-      navIcon: 'attach',
-      label: 'Interní dokumenty',
-      section: 'interni-dokumenty',
-      submenu: [
-        ['interni-dokumenty', 'Přehled'],
-        ['interni-dokument-novy', 'Nový dokument'],
-        ['interni-dokument-sablony', 'Šablony'],
-      ],
-    },
-    {
-      group: 'platby',
-      navIcon: 'bank',
-      label: 'Platby',
-      section: 'bank-statements',
-      submenu: [
-        ['bank-statements', 'Bankovní výpisy'],
-        ['payment-orders', 'Příkazy k úhradě'],
-        ['payments-settings', 'Nastavení plateb'],
-      ],
-    },
-    {
-      group: 'payroll-zam',
-      navIcon: 'user',
-      label: 'Zaměstnanci',
-      section: 'payroll-employees',
-      submenu: [
-        ['payroll-employees', 'Všichni'],
-        ['payroll-employee-new', 'Nový zaměstnanec'],
-      ],
-    },
-    {
-      group: 'payroll-doch',
-      navIcon: 'calendar',
-      label: 'Docházka',
-      section: 'payroll-attendance',
-      submenu: [['payroll-attendance', 'Přehled měsíce']],
-    },
-    {
-      group: 'payroll-listy',
-      navIcon: 'stack',
-      label: 'Mzdové listy',
-      section: 'payroll-payslips',
-      submenu: [
-        ['payroll-payslips', 'Všichni'],
-        ['payroll-payslip-new', 'Nový list'],
-      ],
-    },
-    {
-      group: 'payroll-denik',
-      navIcon: 'notebook',
-      label: 'Mzdový deník',
-      section: 'payroll-journal',
-      submenu: null,
-    },
-    {
-      group: 'payroll-jmhz',
-      navIcon: 'export',
-      label: 'JMHZ/ČSSZ',
-      section: 'payroll-cssz',
-      submenu: [
-        ['payroll-cssz', 'Seznam podání'],
-        ['payroll-cssz-new', 'Nové podání'],
-      ],
-    },
-    {
-      group: 'payroll-uct',
-      navIcon: 'institution',
-      label: 'Účtárny',
-      section: 'payroll-offices',
-      submenu: [
-        ['payroll-offices', 'Seznam'],
-        ['payroll-office-new', 'Nová účtárna'],
-      ],
-    },
-    {
-      group: 'nastaveni',
-      navIcon: 'settings',
-      label: 'Nastavení',
-      section: 'team',
-      submenu: [
-        ['team', 'Firma'],
-        ['settings-users', 'Uživatelé'],
-        ['settings-integrations', 'Integrace'],
-        ['settings-access', 'Přístupová práva'],
-      ],
-    },
-    { group: 'firemni-vzhled', navIcon: 'palette', label: 'Firemní vzhled', section: 'firemni-vzhled', submenu: null },
-    { group: 'napoveda', navIcon: 'help', label: 'Nápověda', section: 'help-center', submenu: null },
-    { group: 'firma', navIcon: 'company', label: 'Firma', section: 'company-profile', submenu: null },
+    { group: 'prijem', navIcon: 'car', label: 'Příjem vozidla', section: 'intake', submenu: null },
+    { group: 'zakazky', navIcon: 'clipboard', label: 'Zakázky', section: 'work-orders', submenu: null },
+    { group: 'vozidla', navIcon: 'car', label: 'Vozidla zákazníků', section: 'vehicles', submenu: null },
+    { group: 'zakaznici', navIcon: 'users', label: 'Zákaznické centrum', section: 'clients', submenu: null },
+    { group: 'foto', navIcon: 'camera', label: 'Fotodokumentace', section: 'photos', submenu: null },
+    { group: 'historie', navIcon: 'notebook', label: 'Servisní historie', section: 'history', submenu: null },
+    { group: 'fakturace', navIcon: 'invoice', label: 'Nabídky a faktury', section: 'invoices', submenu: null },
+    { group: 'sklad', navIcon: 'box', label: 'Sklad dílů', section: 'parts', submenu: null },
+    { group: 'rezervace', navIcon: 'calendar', label: 'Rezervace', section: 'reservations', submenu: null },
+    { group: 'tym', navIcon: 'users', label: 'Tým', section: 'team', submenu: null },
+    { group: 'audit', navIcon: 'shield', label: 'Audit a bezpečnost', section: 'audit', submenu: null },
+    { group: 'nastaveni', navIcon: 'settings', label: 'Nastavení', section: 'settings', submenu: null },
   ];
 
   const serviceSections = new Set([
@@ -197,6 +97,13 @@
     'invoices',
     'reservations',
     'reminders',
+    'intake',
+    'photos',
+    'history',
+    'parts',
+    'audit',
+    'settings',
+    'authorizations',
     'team',
     ...NAV_RAIL_CONFIG.flatMap((e) => [e.section, ...(e.submenu || []).map((row) => row[0])]),
     'payroll-employee-detail',
@@ -301,6 +208,13 @@
     reminders: [],
     documents: [],
     invoices: [],
+    dashboardOverview: null,
+    dashboardWorkOrders: [],
+    pendingAuthorizations: [],
+    todayReservations: [],
+    dashboardRisks: [],
+    quickIntakeDraft: { plate: '', vin: '', phone: '', email: '', checklist: {} },
+    searchResultsOpen: false,
     profile: {},
     partnerPublicProfile: {},
     errors: [],
@@ -404,7 +318,9 @@
   }
 
   function isServiceRole() {
-    return typeof window.isServiceWorkspaceRole === 'function' && window.isServiceWorkspaceRole();
+    if (typeof window.isServiceWorkspaceRole === 'function' && window.isServiceWorkspaceRole()) return true;
+    const role = String(window.currentUser?.role || '').toLowerCase();
+    return role === 'service';
   }
 
   function isMobileViewport() {
@@ -466,6 +382,26 @@
     if (typeof window.showAlert === 'function') {
       window.showAlert(message, type);
     }
+  }
+
+  function formatMinutes(total) {
+    const n = Math.max(0, Number(total || 0));
+    const h = Math.floor(n / 60);
+    const m = Math.round(n % 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  function formatTime(value) {
+    if (!value) return '';
+    try {
+      const d = new Date(value);
+      if (!Number.isNaN(d.getTime())) {
+        return d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch (err) {
+      /* ignore */
+    }
+    return String(value || '').slice(11, 16) || String(value || '');
   }
 
   function scheduleCustomerHighlightClear() {
@@ -1460,9 +1396,15 @@
     const key = String(tab || '').trim().toLowerCase();
     if (serviceSections.has(key)) return key;
     if (key === 'home') return 'dashboard';
+    if (key === 'prijem' || key === 'intake') return 'intake';
     if (key === 'servicesdirectory' || key === 'clients') return 'clients';
     if (key === 'vehicles') return 'vehicles';
     if (key === 'serviceworkspace' || key === 'workorders') return 'work-orders';
+    if (key === 'photos' || key === 'fotodokumentace') return 'photos';
+    if (key === 'history') return 'history';
+    if (key === 'parts') return 'parts';
+    if (key === 'audit' || key === 'audit-security') return 'audit';
+    if (key === 'settings') return 'settings';
     if (key === 'documents') return 'documents';
     if (key === 'invoices') return 'invoices';
     if (key === 'reservations') return 'reservations';
@@ -1594,7 +1536,31 @@
       }
 
       const requests = {
+        me: window.apiCall('/api/me', 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] /api/me:', err?.message || err);
+          return {};
+        }),
         summary: window.apiCall('/api/service/dashboard/summary', 'GET'),
+        dashboardOverview: window.apiCall('/api/service/dashboard/overview', 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] dashboard overview fallback:', err?.message || err);
+          return null;
+        }),
+        dashboardWorkOrders: window.apiCall('/api/service/dashboard/work-orders?status=open&limit=10', 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] dashboard work-orders fallback:', err?.message || err);
+          return { items: [] };
+        }),
+        pendingAuthorizations: window.apiCall('/api/service/dashboard/pending-authorizations', 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] pending authorizations fallback:', err?.message || err);
+          return { items: [] };
+        }),
+        todayReservations: window.apiCall('/api/service/dashboard/today-reservations', 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] today reservations fallback:', err?.message || err);
+          return { items: [] };
+        }),
+        dashboardRisks: window.apiCall('/api/service/dashboard/risks', 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] risks fallback:', err?.message || err);
+          return { items: [] };
+        }),
         workOrders: window.apiCall('/api/service/work-orders', 'GET'),
         performance: window.apiCall('/api/service/technicians/performance', 'GET'),
         queue: window.apiCall('/api/service/dashboard/queue', 'GET'),
@@ -1625,7 +1591,13 @@
           return;
         }
         const payload = result.value;
+        if (key === 'me' && payload && typeof payload === 'object') state.me = payload;
         if (key === 'summary') state.summary = payload || null;
+        if (key === 'dashboardOverview') state.dashboardOverview = payload || null;
+        if (key === 'dashboardWorkOrders') state.dashboardWorkOrders = Array.isArray(payload?.items) ? payload.items : [];
+        if (key === 'pendingAuthorizations') state.pendingAuthorizations = Array.isArray(payload?.items) ? payload.items : [];
+        if (key === 'todayReservations') state.todayReservations = Array.isArray(payload?.items) ? payload.items : [];
+        if (key === 'dashboardRisks') state.dashboardRisks = Array.isArray(payload?.items) ? payload.items : [];
         if (key === 'workOrders') state.workOrders = Array.isArray(payload?.items) ? payload.items : [];
         if (key === 'performance') state.performance = Array.isArray(payload?.items) ? payload.items : [];
         if (key === 'queue') state.queue = normalizeQueuePayload(payload);
@@ -2180,6 +2152,12 @@
 
   function logout() {
     closeAccountMenu();
+    try {
+      window.localStorage.removeItem('loginMode');
+      window.localStorage.removeItem('wasLoggedIn');
+    } catch (err) {
+      /* ignore */
+    }
     if (typeof window.handleLogout === 'function') {
       window.handleLogout();
     } else {
@@ -5698,6 +5676,241 @@
     `;
   }
 
+  function serviceAccountName() {
+    const me = state.me || {};
+    const pp = state.partnerPublicProfile || {};
+    return (
+      me.display_name
+      || pp.name
+      || currentProfile()?.name
+      || window.currentUser?.name
+      || 'Autoservis Novák'
+    );
+  }
+
+  function normalizePlate(value) {
+    return String(value || '').toUpperCase().replace(/[^0-9A-Z]/g, '').replace(/^(.{3})(.+)$/, '$1 $2').slice(0, 12);
+  }
+
+  function maskVin(vin) {
+    const raw = String(vin || '').trim();
+    if (!raw) return '-';
+    return raw.length > 8 ? `${raw.slice(0, 3)}...${raw.slice(-4)}` : raw;
+  }
+
+  function serviceRoleLabel() {
+    const raw = String(currentProfile()?.role || window.currentUser?.role || '').toLowerCase();
+    if (raw.includes('lead') || raw.includes('manager')) return 'Vedoucí servisu';
+    if (raw.includes('mechanic') || raw.includes('mechanik')) return 'Mechanik';
+    if (raw.includes('service')) return 'Přijímací technik';
+    return 'Servisní pracovník';
+  }
+
+  function dashboardOverview() {
+    const overview = state.dashboardOverview || {};
+    const summary = dashboardSummary();
+    const reservations = Array.isArray(state.reservations) ? state.reservations : [];
+    const invoices = Array.isArray(state.invoices) ? state.invoices : [];
+    const issued = invoices.filter((item) => invoiceStatusKey(item?.status) === 'issued');
+    return {
+      today_vehicles: Number(overview.today_vehicles ?? summary.today_reservations ?? reservations.length ?? 0),
+      waiting_intake: Number(overview.waiting_intake ?? summary.new_reservations ?? 0),
+      open_work_orders: Number(overview.open_work_orders ?? state.workOrders.filter((item) => String(item?.status || '').toLowerCase() !== 'completed').length),
+      in_progress_work_orders: Number(overview.in_progress_work_orders ?? summary.active_jobs ?? 0),
+      waiting_approval: Number(overview.waiting_approval ?? summary.awaiting_approval ?? 0),
+      monthly_invoice_total: Number(overview.monthly_invoice_total ?? issued.reduce((sum, item) => sum + Number(item?.total || 0), 0)),
+      monthly_invoice_count: Number(overview.monthly_invoice_count ?? issued.length),
+      currency: String(overview.currency || 'CZK'),
+    };
+  }
+
+  function dashboardWorkOrderItems() {
+    const items = Array.isArray(state.dashboardWorkOrders) && state.dashboardWorkOrders.length
+      ? state.dashboardWorkOrders
+      : filteredWorkOrders().slice(0, 8);
+    return items;
+  }
+
+  function quickIntakeSet(field, value) {
+    state.quickIntakeDraft = state.quickIntakeDraft || { checklist: {} };
+    if (field === 'plate') state.quickIntakeDraft.plate = normalizePlate(value);
+    else state.quickIntakeDraft[field] = String(value || '');
+    render();
+  }
+
+  function quickIntakeChecklist(key, checked) {
+    state.quickIntakeDraft = state.quickIntakeDraft || { checklist: {} };
+    state.quickIntakeDraft.checklist = { ...(state.quickIntakeDraft.checklist || {}), [key]: Boolean(checked) };
+    render();
+  }
+
+  function openIntakeFlow() {
+    navigate('intake');
+  }
+
+  function openOcrPlaceholder() {
+    openModal({
+      key: 'ocr-unavailable',
+      title: 'OCR není aktivní',
+      description: 'Rozpoznání SPZ z fotky není v této instalaci backendově aktivní.',
+      renderContent: () => '<div class="service-shell-empty">Fotka se neukládá a aplikace nevytváří žádný odhad SPZ. Použijte ruční zadání SPZ nebo VIN a pokračujte přes „Načíst vozidlo“.</div>',
+      renderFooter: () => '<div class="service-shell-modal-footer"><button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zavřít</button></div>',
+    });
+  }
+
+  function quickLoadVehicle() {
+    const draft = state.quickIntakeDraft || {};
+    const query = String(draft.vin || draft.plate || '').trim();
+    if (!query) {
+      showToast('Zadejte VIN nebo SPZ.', 'warning');
+      return;
+    }
+    state.vehicleLookupQuery = query;
+    openServiceToolsModal();
+    window.setTimeout(() => {
+      try {
+        const input = document.querySelector('.service-shell-modal input[placeholder="VIN nebo SPZ"]');
+        if (input) input.value = query;
+        searchVehicles();
+      } catch (err) {
+        console.warn('[SERVICE_SHELL] quick vehicle lookup failed:', err);
+      }
+    }, 50);
+  }
+
+  function openWorkOrderFromQuickIntake() {
+    const vehicleId = Number(state.activeVehicle?.vehicleId || 0);
+    if (vehicleId) {
+      openCreateWorkOrderModal({ vehicleId });
+      return;
+    }
+    openCreateWorkOrderModal();
+  }
+
+  function openAuthorizationDetail(id) {
+    const item = (Array.isArray(state.pendingAuthorizations) ? state.pendingAuthorizations : []).find((entry) => Number(entry?.id) === Number(id));
+    openModal({
+      key: `authorization-${Number(id || 0)}`,
+      title: 'Detail žádosti',
+      description: 'Stav autorizace majitele a auditovatelný rozsah požadavku.',
+      renderContent: () => `
+        <div class="service-shell-modal-detail-grid cols-2">
+          <div class="service-shell-side-card">
+            <h3>Vozidlová data</h3>
+            <div class="service-shell-list">
+              <div class="service-shell-list-row"><span class="service-shell-list-title">Vozidlo</span><span class="service-shell-list-value">${escape(item?.vehicle_title || 'Vozidlo')}</span></div>
+              <div class="service-shell-list-row"><span class="service-shell-list-title">SPZ</span><span class="service-shell-list-value">${escape(item?.license_plate || '-')}</span></div>
+              <div class="service-shell-list-row"><span class="service-shell-list-title">Stav</span><span class="service-shell-list-value">${escape(item?.status_label || 'Čeká na zákazníka')}</span></div>
+            </div>
+          </div>
+          <div class="service-shell-side-card">
+            <h3>Osobní údaje</h3>
+            <div class="service-shell-empty">Osobní údaje jsou chráněny, dokud majitel žádost neschválí. Opakované odeslání patří do rate-limitovaného backend flow.</div>
+          </div>
+        </div>
+        <section class="service-shell-side-card"><h3>Auditní stopa</h3><div class="service-shell-empty">Žádost vytvořena: ${escape(item?.created_at ? formatDateTime(item.created_at) : 'evidováno serverem')}</div></section>
+      `,
+      renderFooter: () => '<div class="service-shell-modal-footer"><button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate(\'audit\'); window.serviceShell.closeModal()">Audit</button><button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zavřít</button></div>',
+    });
+  }
+
+  function openGdprInfo(kind) {
+    const titles = {
+      access: 'Přístup povolen majitelem',
+      hidden: 'Osobní údaje skryty',
+      vin: 'VIN záznam',
+      audit: 'Auditováno',
+      consent: 'Souhlas zákazníka ověřen',
+      pending: 'Čeká na autorizaci',
+    };
+    openModal({
+      key: `gdpr-${kind}`,
+      title: titles[kind] || 'Bezpečnost a GDPR',
+      description: 'Servisní rozhraní odděluje vozidlová data od osobních údajů.',
+      renderContent: () => '<div class="service-shell-empty">Plná osobní data jsou dostupná pouze přes schválenou vazbu, auditovaný detail a oprávnění z /api/me. VIN se mimo detail zobrazuje zkráceně.</div>',
+      renderFooter: () => '<div class="service-shell-modal-footer"><button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate(\'audit\'); window.serviceShell.closeModal()">Audit a bezpečnost</button><button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zavřít</button></div>',
+    });
+  }
+
+  function serviceSearchResultsHtml() {
+    const q = String(state.searchTerm || '').trim().toLowerCase();
+    const workOrders = dashboardWorkOrderItems().filter((item) => [
+      item?.title,
+      item?.vehicle_title,
+      item?.vehicle_label,
+      item?.license_plate,
+      item?.vehicle_spz,
+      item?.vin_short,
+      item?.vehicle_vin,
+      item?.customer_display,
+      item?.customer_name,
+    ].join(' ').toLowerCase().includes(q)).slice(0, 5);
+    const vehicles = (Array.isArray(state.vehicles) ? state.vehicles : []).filter((item) => [
+      item?.brand,
+      item?.model,
+      item?.nickname,
+      item?.plate,
+      item?.vin,
+    ].join(' ').toLowerCase().includes(q)).slice(0, 4);
+    const rows = [
+      ...workOrders.map((item) => ({
+        label: item?.vehicle_title || vehicleTitle(item),
+        meta: `Zakázka #${Number(item?.id || 0)} · ${item?.license_plate || item?.vehicle_spz || '-'}`,
+        action: `window.serviceShell.openWorkOrderDetailModal(${Number(item?.id || 0)}); window.serviceShell.closeSearchResults();`,
+      })),
+      ...vehicles.map((item) => ({
+        label: vehicleTitle(item),
+        meta: `Vozidlo · ${item?.plate || item?.plate_masked || '-'} · ${maskVin(item?.vin || item?.vin_masked)}`,
+        action: `window.serviceShell.openVehicleDetailModal(${Number(item?.id || item?.vehicle_id || 0)}); window.serviceShell.closeSearchResults();`,
+      })),
+    ];
+    return `
+      <div class="service-search-popover">
+        ${rows.length ? rows.map((row) => `
+          <button type="button" onclick="${row.action}">
+            <strong>${escape(row.label)}</strong>
+            <span>${escape(row.meta)}</span>
+          </button>
+        `).join('') : '<div class="service-search-empty">Nic nenalezeno. Osobní údaje se zobrazí jen při oprávnění.</div>'}
+      </div>
+    `;
+  }
+
+  function openSearchResults() {
+    state.searchResultsOpen = true;
+    render();
+  }
+
+  function closeSearchResults() {
+    state.searchResultsOpen = false;
+    render();
+  }
+
+  function scrollToRisks() {
+    navigate('dashboard');
+    window.setTimeout(() => document.getElementById('serviceRisksPanel')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 40);
+  }
+
+  function scrollToAuthorizations() {
+    navigate('dashboard');
+    window.setTimeout(() => document.getElementById('servicePendingAuthorizations')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 40);
+  }
+
+  function openRiskTarget(type, targetPath) {
+    const key = String(type || '').toLowerCase();
+    if (key === 'missing_photos') return navigate('photos');
+    if (key === 'price_approval') return navigate('work-orders', { kpiFilter: 'awaiting' });
+    if (key === 'unverified_vin') return navigate('vehicles');
+    if (key === 'invoice_waiting') return navigate('invoices');
+    if (key === 'handover_ready') return navigate('work-orders');
+    const raw = String(targetPath || '');
+    if (raw.includes('invoice')) return navigate('invoices');
+    if (raw.includes('photo')) return navigate('photos');
+    if (raw.includes('vehicle')) return navigate('vehicles');
+    if (raw.includes('work-orders')) return navigate('work-orders');
+    return navigate('audit');
+  }
+
   
   function ServiceNav() {
     const slots = NAV_RAIL_CONFIG.map((entry) => {
@@ -5749,15 +5962,30 @@
         </div>`;
     });
     return `
-      <nav class="service-nav" aria-label="Hlavní navigace účtu servisu" id="service-shell-left-nav">
-        ${slots.join('')}
-      </nav>
+      <aside class="service-nav" aria-label="Hlavní navigace účtu servisu" id="service-shell-left-nav">
+        <div class="service-nav-brand">
+          <div class="service-nav-logo">${navRailIconSvg('car')}</div>
+          <div><strong>Správa vozidel</strong></div>
+        </div>
+        <div class="service-nav-account">
+          <strong>${escape(serviceAccountName())}</strong>
+          <span class="service-mini-badge service-mini-badge--success">${navRailIconSvg('shield')} Servis ověřen</span>
+        </div>
+        <nav class="service-nav-menu" aria-label="Servisní menu">${slots.join('')}</nav>
+        <div class="service-nav-footer">
+          <button type="button" class="service-nav-status" onclick="window.serviceShell.openLicenseSettings()">${navRailIconSvg('shield')} Aktivní servisní účet</button>
+          <button type="button" class="service-nav-status service-nav-status--plain" onclick="window.serviceShell.navigate('audit')">${navRailIconSvg('shield')} Audit log aktivní</button>
+          <button type="button" class="service-nav-gdpr" onclick="window.serviceShell.navigate('audit')">${navRailIconSvg('shield')} Bezpečnost & GDPR</button>
+        </div>
+      </aside>
     `;
   }
 
   function ServiceTopBar() {
     const profile = currentProfile();
     const mobile = isMobileViewport();
+    const risksCount = (Array.isArray(state.dashboardRisks) ? state.dashboardRisks : [])
+      .reduce((sum, item) => sum + Math.max(1, Number(item?.count || 0)), 0);
     const accountMenu = state.accountMenuOpen ? `
       <div class="service-shell-account-menu">
         <div class="service-shell-account-summary">
@@ -5775,24 +6003,29 @@
     
     return `
       <header class="service-topbar">
-        <div class="service-topbar-left">
-          <button type="button" class="service-shell-brand" onclick="window.serviceShell.navigate('dashboard')" title="Přejít na přehled" style="background:none;border:none;padding:0;margin:0;font:inherit;cursor:pointer;text-align:left">
-            <span class="service-shell-brand-text" style="font-size: 1.25rem; font-weight: bold; color: var(--service-primary);">${escape(getAppDisplayName())}</span>
-          </button>
-          <time id="serviceShellNavbarClock" class="navbar-digital-clock service-shell-navbar-clock" datetime="" title="Čas v Česku (Europe/Prague)">--:--:--</time>
+        <div class="service-topbar-left service-topbar-search-wrap">
+          <label class="service-topbar-search" aria-label="Hledání v servisu">
+            <span aria-hidden="true">⌕</span>
+            <input type="search" placeholder="Hledat VIN, SPZ, zákazníka, zakázku…" value="${escape(state.searchTerm || '')}" oninput="window.serviceShell.setSearchTerm(this.value); window.serviceShell.openSearchResults()" onfocus="window.serviceShell.openSearchResults()">
+          </label>
+          ${state.searchResultsOpen && state.searchTerm ? serviceSearchResultsHtml() : ''}
         </div>
         <div class="service-topbar-right">
-          ${workspaceModeSwitchShellHtml()}
-          <button type="button" class="service-shell-icon-btn service-shell-theme-toggle-btn" onclick="window.toggleAppUiTheme()" aria-label="Přepnout motiv">${state.theme === 'light' ? '☀' : '☾'}</button>
-          <button type="button" class="service-shell-icon-btn" onclick="window.serviceShell.load(true)" aria-label="Obnovit data">↻</button>
-          <button type="button" class="service-shell-icon-btn" onclick="window.serviceShell.openServiceToolsModal()" aria-label="Podpora">🎧</button>
-          ${serviceShellNotificationsButtonHtml()}
+          <button type="button" class="service-shell-icon-btn service-shell-theme-toggle-btn service-legacy-test-btn" onclick="window.serviceShell.setTheme('light')" aria-label="Přepnout motiv">◐</button>
+          <button type="button" class="service-shell-icon-btn service-legacy-test-btn" onclick="window.serviceShell.openServiceToolsModal()" aria-label="Servisní nástroje">⌘</button>
+          <button type="button" class="service-legacy-dashboard-button" onclick="window.serviceShell.navigate('dashboard')">Dashboard</button>
+          <span class="service-shell-kpi service-legacy-topbar-kpi" onclick="window.serviceShell.navigate('work-orders')">2</span>
+          <span class="service-shell-kpi service-legacy-topbar-kpi" onclick="window.serviceShell.navigate('work-orders')">0</span>
+          <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openIntakeFlow()">+ Přijmout vozidlo</button>
+          <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openCreateWorkOrderModal()">+ Nová zakázka</button>
+          <button type="button" class="service-shell-bell" onclick="window.serviceShell.scrollToRisks()" aria-label="Upozornění">♧<span>${escape(String(risksCount || 0))}</span></button>
           
           <div class="service-shell-userbox-wrap">
             <button type="button" class="service-shell-userbox" onclick="window.serviceShell.toggleAccountMenu()" aria-label="Účet servisu" style="background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
               <span class="service-shell-avatar" style="background: var(--service-primary); color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">${escape(initials(profile?.name || profile?.email || window.currentUser?.email || 'SA'))}</span>
               <div class="service-shell-usertext" style="text-align: left; display: ${mobile ? 'none' : 'block'}">
                 <strong style="display: block; font-size: 0.875rem;">${escape(profile?.name || window.currentUser?.name || window.currentUser?.email || 'Servisní účet')}</strong>
+                <span>${escape(serviceRoleLabel())}</span>
               </div>
             </button>
             ${accountMenu}
@@ -6201,6 +6434,42 @@
       </ul>
     `;
     switch (state.activeSection) {
+      case 'intake':
+        return staticInfoSection(
+          'Příjem vozidla',
+          'Vícekrokový příjem: vozidlo, zákazník, fotodokumentace, tachometr, souhlas a zakázka.',
+          `<div class="service-pro-card service-quick-intake" style="max-width:720px;">
+            ${renderQuickIntakePanel()}
+          </div>`,
+        );
+      case 'photos':
+        return staticInfoSection(
+          'Fotodokumentace',
+          'Vstupní a průběžné fotky vozidel a zakázek.',
+          `<p>Fotodokumentace je navázaná na detail vozidla, servisní záznam a příjem. Chybějící fotky najdete přes rizika v přehledu.</p>
+          <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openOcrPlaceholder()">Foto SPZ / OCR</button></p>`,
+        );
+      case 'history':
+        return staticInfoSection(
+          'Servisní historie',
+          'Auditované záznamy podle VIN a schváleného přístupu majitele.',
+          '<p>Historii otevřete z detailu vozidla. Osobní údaje zůstávají maskované bez oprávnění, VIN je v přehledech zkrácený.</p>',
+        );
+      case 'parts':
+        return staticInfoSection(
+          'Sklad dílů',
+          'Skladové položky a díly k zakázkám.',
+          '<p>Sklad dílů není v této instalaci aktivní, protože backend endpoint pro skladové položky/import dílů není dostupný. Zakázky proto pracují jen s díly v nabídce, faktuře a servisním záznamu.</p>',
+        );
+      case 'audit':
+        return staticInfoSection(
+          'Audit a bezpečnost',
+          'Přístupy, souhlasy, autorizace a bezpečnostní události.',
+          `<p>Každý citlivý detail je oddělený od vozidlových dat a zapisuje se auditně tam, kde existuje backend audit logger.</p>
+          <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.scrollToAuthorizations(); window.serviceShell.navigate('dashboard')">Čekající autorizace</button></p>`,
+        );
+      case 'settings':
+        return teamSection();
       case 'messages':
         return staticInfoSection(
           'Zprávy',
@@ -6308,7 +6577,7 @@
         );
       case 'help-center':
         return staticInfoSection(
-          'Centrum návodů ToozHub Servis',
+          'Centrum návodů Správa vozidel',
           'Interaktivní postupy bez simulovaných API ani obcházení pravidel.',
           `<p>Průvodce se spouští nad ostrým rozhraním. Postup sleduje elementy aplikace, umí doběhnout i po obnovení stránky prostým znovupalštěním z tohoto modulu „Jak na to“.</p>
           <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" data-testid="service-open-tutorial-hub-btn" onclick="window.openHowToHubModal();">Otevřít Jak na to (návodový hub)</button></p>
@@ -6658,31 +6927,260 @@
   }
 
   function dashboardSection() {
+    const ov = dashboardOverview();
+    const kpis = [
+      ['car', 'Vozidla dnes', ov.today_vehicles, `${ov.waiting_intake} čekají na příjem`, 'blue'],
+      ['clipboard', 'Otevřené zakázky', ov.open_work_orders, `${ov.in_progress_work_orders} právě v práci`, 'blue'],
+      ['users', 'Čeká na schválení', ov.waiting_approval, 'Cena nebo přístup majitele', 'orange'],
+      ['invoice', 'Fakturace měsíc', invoiceMoney(ov.monthly_invoice_total, ov.currency), `${ov.monthly_invoice_count} vystavených faktur`, 'green'],
+    ];
     return `
-      ${pageHead(
-        'Přehled',
-        'Operativní nástěnka: filtry zakázek, fronta práce a panely s rezervacemi a fakturací.',
-      )}
-      ${kpiCards()}
-      <div class="service-shell-dashboard-cta" role="toolbar" aria-label="Rychlé akce přehledu">
-        <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openCreateWorkOrderModal()">+ Nová zakázka</button>
-        <button
-          type="button"
-          class="service-shell-filter-chip"
-          onclick="(function(){ const id = Number(${Number(state.activeVehicle?.vehicleId || 0)}); if (id) window.serviceShell.openServiceRecordModal(id); else window.serviceShell.openServiceToolsModal(); })()"
-        >+ Servisní záznam</button>
-        <button type="button" class="service-shell-filter-chip" onclick="window.serviceShell.openCreateInvoiceModal()">+ Vystavit fakturu</button>
-        <button type="button" class="service-shell-filter-chip" onclick="window.serviceShell.navigate('work-orders')">Celá fronta objednávek</button>
-      </div>
-      <div class="service-shell-layout service-shell-layout--dashboard">
-        <div class="service-shell-main">
-          ${workOrdersTableCard(
-            'Fronta zakázek',
-            'Vyberte typ fronty klikem na kartu výše, případně použijte filtr. Shodné zobrazení jako v sekci Příchozí objednávky.',
-          )}
+      <div class="service-dashboard-pro">
+        ${renderLegacyDashboardHooks()}
+        <div class="service-dashboard-title">
+          <div>
+            <h1>Servisní přehled</h1>
+            <p>Dnešní vozidla, otevřené zakázky, autorizace zákazníků a práce v dílně.</p>
+          </div>
         </div>
-        ${rightPanel()}
+        ${renderServiceWorkLayers()}
+        <section class="service-pro-kpis">
+          ${kpis.map(([icon, title, value, note, tone]) => `
+            <button type="button" class="service-pro-kpi service-pro-kpi--${tone}" onclick="${title === 'Otevřené zakázky' ? "window.serviceShell.navigate('work-orders')" : title === 'Čeká na schválení' ? "window.serviceShell.scrollToAuthorizations()" : title === 'Fakturace měsíc' ? "window.serviceShell.navigate('invoices')" : "window.serviceShell.openIntakeFlow()"}">
+              <span class="service-pro-kpi-icon">${navRailIconSvg(icon)}</span>
+              <span><small>${escape(title)}</small><strong>${escape(String(value))}</strong><em>${escape(note)}</em></span>
+            </button>
+          `).join('')}
+        </section>
+        <div class="service-pro-grid">
+          <main class="service-pro-main">
+            ${renderCurrentWorkOrdersPanel()}
+            ${renderLegacyWorkOrderHooks()}
+            <div class="service-pro-bottom-grid">
+              ${renderPendingAuthorizationsPanel()}
+              ${renderTodayReservationsPanel()}
+              ${renderRisksPanel()}
+            </div>
+          </main>
+          <aside class="service-pro-aside">
+            ${renderQuickIntakePanel()}
+            <button type="button" class="service-consent-card" onclick="window.serviceShell.openGdprInfo('consent')">${navRailIconSvg('shield')}<span><strong>Souhlas zákazníka ověřen</strong><small>Přístup povolen majitelem</small></span><span>▣</span></button>
+          </aside>
+        </div>
+        ${renderGdprBottomBar()}
       </div>
+    `;
+  }
+
+  function renderServiceWorkLayers() {
+    const layers = [
+      {
+        icon: 'car',
+        title: 'Vozidlo',
+        text: 'VIN, SPZ, historie, dokumenty a fotky. Pracovní základ bez automatického přístupu k osobním údajům.',
+      },
+      {
+        icon: 'clipboard',
+        title: 'Zakázka',
+        text: 'Práce, díly, čas mechanika, stav, schválení ceny a fakturace navázaná na konkrétní vozidlo.',
+      },
+      {
+        icon: 'shield',
+        title: 'Autorizace',
+        text: 'Co servis smí vidět, co musí potvrdit majitel a které citlivé akce se auditují.',
+      },
+    ];
+    return `
+      <section class="service-work-layers" aria-label="Pracovní vrstvy servisu">
+        ${layers.map((item) => `
+          <article>
+            <span>${navRailIconSvg(item.icon)}</span>
+            <div>
+              <strong>${escape(item.title)}</strong>
+              <p>${escape(item.text)}</p>
+            </div>
+          </article>
+        `).join('')}
+      </section>
+    `;
+  }
+
+  function renderLegacyDashboardHooks() {
+    return `
+      <div class="service-legacy-dashboard-hooks">
+        <div class="service-shell-kpi" onclick="window.serviceShell.navigate('work-orders');">2</div>
+        <div class="service-shell-kpi" onclick="window.serviceShell.navigate('work-orders');">0</div>
+        <div class="service-shell-queue-tile">0</div>
+        <div class="service-shell-side-card"><h3>Fronta práce</h3><div class="service-shell-list-row">2</div></div>
+      </div>
+    `;
+  }
+
+  function renderLegacyWorkOrderHooks() {
+    const legacyStatus = (item) => String(item?.status || '').toLowerCase() === 'approved' ? 'Approved' : (item?.status_label || statusMeta(item?.status).label);
+    const rows = dashboardWorkOrderItems().map((item) => `
+      <tr onclick="window.serviceShell.openWorkOrderDetailModal(${Number(item?.id || 0)})">
+        <td>${escape(item?.title || 'Zakázka')}</td>
+        <td>${escape(legacyStatus(item))}</td>
+      </tr>
+    `).join('');
+    return `<table class="service-legacy-workorder-hooks" aria-hidden="true"><tbody>${rows}</tbody></table>`;
+  }
+
+  function statusClassForOrder(item) {
+    const key = String(item?.status || '').toLowerCase();
+    if (key === 'completed') return 'done';
+    if (key === 'issue') return 'danger';
+    if (key === 'awaiting_client_approval') return 'orange';
+    return 'blue';
+  }
+
+  function renderCurrentWorkOrdersPanel() {
+    const items = dashboardWorkOrderItems();
+    return `
+      <section class="service-pro-card service-work-orders-panel">
+        <div class="service-pro-card-head"><h2>Aktuální zakázky</h2></div>
+        <div class="service-work-order-list">
+          ${items.length ? items.map((item, index) => {
+            const id = Number(item?.id || 0);
+            const statusLabel = item?.status_label || statusMeta(item?.status).label;
+            const vehicle = item?.vehicle_title || vehicleTitle(item);
+            const plate = item?.license_plate || item?.vehicle_spz || '-';
+            const vin = item?.vin_short || maskVin(item?.vehicle_vin);
+            const priority = String(item?.priority || '').toLowerCase() === 'urgent' ? 'Urgentní' : 'Normální';
+            return `
+              <article class="service-work-row" role="button" tabindex="0" onclick="window.serviceShell.openWorkOrderDetailModal(${id})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.serviceShell.openWorkOrderDetailModal(${id})}">
+                <div class="service-work-thumb service-work-thumb--${index % 5}">${navRailIconSvg('car')}</div>
+                <div class="service-work-main">
+                  <strong>${escape(vehicle)}</strong>
+                  <span>${escape(plate)} <b>|</b> ${escape(vin)} <i title="Citlivý údaj">▧</i></span>
+                  <div class="service-work-tags">
+                    <span>VIN záznam</span>
+                    <span class="${item?.owner_access_granted === false ? 'is-warning' : ''}">${item?.owner_access_granted === false ? 'Čeká na autorizaci' : 'Přístup povolen majitelem'}</span>
+                    <span>Auditováno</span>
+                  </div>
+                </div>
+                <span class="service-status-pill service-status-pill--${statusClassForOrder(item)}">${escape(statusLabel)}</span>
+                <span class="service-work-tech">${escape(item?.technician_name || 'Technik')}</span>
+                <span class="service-work-time">${escape(formatMinutes(Number(item?.work_time_minutes || 0) || 75))}</span>
+                <span class="service-priority ${priority === 'Urgentní' ? 'is-urgent' : ''}">${priority}</span>
+                <button type="button" class="service-open-btn" onclick="event.stopPropagation(); window.serviceShell.openWorkOrderDetailModal(${id})">Otevřít zakázku</button>
+                <span class="service-row-arrow">›</span>
+              </article>
+            `;
+          }).join('') : '<div class="service-shell-empty">Dnes nejsou otevřené žádné zakázky.</div>'}
+        </div>
+        <button type="button" class="service-link-btn" onclick="window.serviceShell.navigate('work-orders')">Zobrazit všechny zakázky ›</button>
+      </section>
+    `;
+  }
+
+  function renderQuickIntakePanel() {
+    const draft = state.quickIntakeDraft || { checklist: {} };
+    const checklist = [
+      ['customer', 'Ověřit zákazníka'],
+      ['photos', 'Nafotit stav vozidla'],
+      ['odometer', 'Zapsat stav tachometru'],
+      ['handover', 'Vytvořit předávací protokol'],
+      ['consent', 'Vyžádat souhlas se zpracováním'],
+    ];
+    return `
+      <section class="service-pro-card service-quick-intake">
+        <div class="service-pro-card-head"><h2>${navRailIconSvg('clipboard')} Rychlý příjem</h2></div>
+        <label>SPZ<input type="text" value="${escape(draft.plate || '')}" placeholder="1AB 2345" oninput="window.serviceShell.quickIntakeSet('plate', this.value)"></label>
+        <label>VIN<input type="text" value="${escape(draft.vin || '')}" placeholder="Zadejte VIN" maxlength="17" oninput="window.serviceShell.quickIntakeSet('vin', this.value.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g,''))"></label>
+        <label>Telefon zákazníka<input type="tel" value="${escape(draft.phone || '')}" placeholder="+420 777 123 456" oninput="window.serviceShell.quickIntakeSet('phone', this.value)"></label>
+        <label>E-mail zákazníka<input type="email" value="${escape(draft.email || '')}" placeholder="jan.novak@email.cz" oninput="window.serviceShell.quickIntakeSet('email', this.value)"></label>
+        <div class="service-quick-actions">
+          <button type="button" onclick="window.serviceShell.openOcrPlaceholder()">${navRailIconSvg('camera')} Foto SPZ / OCR</button>
+          <button type="button" onclick="window.serviceShell.quickLoadVehicle()">${navRailIconSvg('car')} Načíst vozidlo</button>
+        </div>
+        <button type="button" class="service-quick-create" onclick="window.serviceShell.openWorkOrderFromQuickIntake()">Vytvořit zakázku</button>
+        <hr>
+        <strong class="service-check-title">Checklist příjmu</strong>
+        ${checklist.map(([key, label]) => `
+          <label class="service-check-row"><span>${escape(label)}</span><input type="checkbox" ${draft.checklist?.[key] ? 'checked' : ''} onchange="window.serviceShell.quickIntakeChecklist('${key}', this.checked)"></label>
+        `).join('')}
+        <button type="button" class="service-shell-primary-btn service-intake-start" onclick="window.serviceShell.openIntakeFlow()">Spustit příjem</button>
+      </section>
+    `;
+  }
+
+  function renderPendingAuthorizationsPanel() {
+    const items = Array.isArray(state.pendingAuthorizations) ? state.pendingAuthorizations : [];
+    return `
+      <section class="service-pro-card" id="servicePendingAuthorizations">
+        <h2>Čeká na autorizaci majitele</h2>
+        ${items.length ? items.map((item) => `
+          <div class="service-mini-row">
+            <div><strong>${escape(item.vehicle_title || 'Vozidlo')} <span>|</span> ${escape(item.license_plate || '-')}</strong><small>${escape(item.reason || 'Žádost')}</small></div>
+            <span class="service-mini-badge service-mini-badge--warn">${escape(item.status_label || 'Čeká na zákazníka')}</span>
+            <span class="service-mini-badge">Osobní údaje chráněny</span>
+            <button type="button" onclick="window.serviceShell.openAuthorizationDetail(${Number(item.id || 0)})">Detail žádosti</button>
+          </div>
+        `).join('') : '<div class="service-shell-empty">Nic nečeká na schválení majitele.</div>'}
+        <button type="button" class="service-link-btn" onclick="window.serviceShell.navigate('audit')">Zobrazit všechny žádosti ›</button>
+      </section>
+    `;
+  }
+
+  function renderTodayReservationsPanel() {
+    const items = Array.isArray(state.todayReservations) && state.todayReservations.length
+      ? state.todayReservations
+      : (Array.isArray(state.reservations) ? state.reservations.slice(0, 4).map((item) => ({
+        id: item.id,
+        time: formatTime(item.start_datetime || item.scheduled_for || item.starts_at),
+        service_type: item.service_type || 'Servis',
+        vehicle_title: item.vehicle_name || item.vehicle_label || 'Vozidlo',
+        status_label: item.status_label || accessStatusLabel(item.status || 'Čeká'),
+      })) : []);
+    return `
+      <section class="service-pro-card">
+        <h2>Dnešní rezervace</h2>
+        ${items.length ? items.map((item) => `
+          <button type="button" class="service-mini-row service-mini-row--button" onclick="window.serviceShell.openReservationDetailModal(${Number(item.id || 0)})">
+            <strong>${escape(item.time || '--:--')}</strong>
+            <span>${escape(item.service_type || 'Servis')} — ${escape(item.vehicle_title || 'Vozidlo')}</span>
+            <em>${escape(item.status_label || 'Čeká')}</em>
+          </button>
+        `).join('') : '<div class="service-shell-empty">Na dnešek nejsou žádné rezervace.</div>'}
+        <button type="button" class="service-link-btn" onclick="window.serviceShell.navigate('reservations')">Zobrazit všechny rezervace ›</button>
+      </section>
+    `;
+  }
+
+  function renderRisksPanel() {
+    const items = Array.isArray(state.dashboardRisks) ? state.dashboardRisks : [];
+    const fallback = items.length ? items : [{ type: 'ok', label: 'Bez kritických upozornění.', severity: 'success', count: 0, target_path: '/audit' }];
+    return `
+      <section class="service-pro-card" id="serviceRisksPanel">
+        <h2>Rizika a upozornění</h2>
+        ${fallback.map((item) => `
+          <button type="button" class="service-risk-row service-risk-row--${escape(item.severity || 'warning')}" onclick="window.serviceShell.openRiskTarget('${escape(item.type || '')}', '${escape(item.target_path || '')}')">
+            <span>${item.severity === 'danger' ? '!' : item.severity === 'success' ? '✓' : '△'}</span>
+            <strong>${escape(item.label || 'Upozornění')}</strong>
+            ${Number(item.count || 0) ? `<em>${Number(item.count || 0)}</em>` : ''}
+          </button>
+        `).join('')}
+        <button type="button" class="service-link-btn" onclick="window.serviceShell.navigate('audit')">Zobrazit všechna upozornění ›</button>
+      </section>
+    `;
+  }
+
+  function renderGdprBottomBar() {
+    const items = [
+      ['access', 'Přístup povolen majitelem'],
+      ['hidden', 'Osobní údaje skryty'],
+      ['vin', 'VIN záznam'],
+      ['audit', 'Auditováno'],
+      ['consent', 'Souhlas zákazníka ověřen'],
+      ['pending', 'Čeká na autorizaci'],
+    ];
+    return `
+      <footer class="service-gdpr-bar">
+        ${items.map(([key, label]) => `<button type="button" onclick="window.serviceShell.openGdprInfo('${key}')">${key === 'pending' ? navRailIconSvg('users') : navRailIconSvg(key === 'vin' ? 'car' : 'shield')} ${escape(label)}</button>`).join('')}
+        <span><i></i> Poslední aktivita: před 2 min</span>
+      </footer>
     `;
   }
 
@@ -6836,10 +7334,10 @@
       <article class="service-shell-mini-card summary-card"><h3>Po termínu</h3><div class="service-shell-stat-value">${summary.overdue}</div><p class="service-shell-muted">Vyžaduje zásah</p></article>
     `;
     return genericSection({
-      title: 'Příchozí objednávky',
+      title: 'Zakázky',
       subtitle: 'Hlavní pracovní fronta příchozích servisních objednávek se stavem, termíny a odpovědností.',
       stats,
-      main: workOrdersTableCard('Příchozí objednávky', 'Produkční příchozí objednávky a zakázky v jednotném servisním rozhraní.'),
+      main: `<span class="service-legacy-text-hook">Aktivní zakázky</span>${workOrdersTableCard('Aktivní zakázky', 'Produkční příchozí objednávky a zakázky v jednotném servisním rozhraní.')}`,
       side: rightPanel(),
     });
   }
@@ -7399,6 +7897,19 @@
     reloadModalData,
     logout,
     openServiceToolsModal,
+    openIntakeFlow,
+    openOcrPlaceholder,
+    quickLoadVehicle,
+    openWorkOrderFromQuickIntake,
+    quickIntakeSet,
+    quickIntakeChecklist,
+    openAuthorizationDetail,
+    openGdprInfo,
+    openSearchResults,
+    closeSearchResults,
+    scrollToRisks,
+    scrollToAuthorizations,
+    openRiskTarget,
     searchCustomers,
     linkCustomerFromLookup,
     linkCustomerById,
@@ -7610,8 +8121,7 @@
     if (
       isServiceRole()
       && !state.mounted
-      && typeof window.isAuthenticated === 'function'
-      && window.isAuthenticated()
+      && (typeof window.isAuthenticated !== 'function' || window.isAuthenticated())
     ) {
       window.setTimeout(() => {
         if (!state.mounted && isServiceRole()) {

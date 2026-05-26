@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="/web/app.css" />
     <link rel="stylesheet" href="/web/inline-styles.css" />
     <link rel="stylesheet" href="/web/service-shell.css?v=2026050720" />
-    <link rel="stylesheet" href="/web/user-app-next.css?v=20260524docpreview2" />
+    <link rel="stylesheet" href="/web/user-app-next.css?v=20260524docpreview7" />
     <style>
         * {
             margin: 0;
@@ -22617,78 +22617,284 @@
             background: rgba(248, 250, 252, 0.04);
         }
 
+        .doc-preview-modal {
+            align-items: center !important;
+            justify-content: center !important;
+            padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+        }
+
+        .doc-preview-modal .vehicle-modal-overlay {
+            background: rgba(15, 23, 42, 0.58) !important;
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+        }
+
+        .doc-preview-modal .vehicle-modal-content,
+        .doc-preview-modal .doc-preview-shell {
+            width: min(920px, calc(100vw - 32px)) !important;
+            max-width: min(920px, calc(100vw - 32px)) !important;
+            max-height: min(92vh, 900px) !important;
+            height: auto !important;
+            margin: 0 auto !important;
+            border-radius: 16px !important;
+            box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28) !important;
+            animation: slideUp 0.25s ease !important;
+        }
+
+        @media (min-width: 1101px) {
+            .vehicle-modal.app-modal-drawer.doc-preview-modal,
+            .doc-preview-modal.vehicle-modal {
+                align-items: center !important;
+                justify-content: center !important;
+                padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(0px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+            }
+
+            .vehicle-modal.app-modal-drawer.doc-preview-modal .vehicle-modal-content,
+            .doc-preview-modal .vehicle-modal-content,
+            .doc-preview-modal .doc-preview-shell {
+                width: min(920px, calc(100vw - 48px)) !important;
+                max-width: min(920px, calc(100vw - 48px)) !important;
+                max-height: min(92vh, 900px) !important;
+                height: auto !important;
+                margin: 0 auto !important;
+                border-radius: 16px !important;
+                animation: slideUp 0.25s ease !important;
+            }
+        }
+
         .doc-preview-modal .vehicle-modal-content {
-            max-width: min(960px, 96vw);
-            width: min(960px, 96vw);
-            max-height: min(92vh, 900px);
+            max-width: min(920px, 96vw);
+            width: min(920px, 96vw);
+            max-height: min(94vh, 920px);
         }
 
         .doc-preview-shell {
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            background: #fff;
+            position: relative;
         }
 
-        .doc-preview-header {
+        .doc-preview-shell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+            border-radius: 16px 16px 0 0;
+            z-index: 2;
+        }
+
+        .doc-preview-top {
             flex-shrink: 0;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+        }
+
+        .doc-preview-head-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.15rem 1.25rem 0.85rem;
+        }
+
+        .doc-preview-head-copy {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .doc-preview-kicker {
+            margin: 0 0 0.35rem;
+            color: #2563eb;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
 
         .doc-preview-title {
             margin: 0;
-            font-size: 1.08rem;
+            font-size: clamp(1.05rem, 2vw, 1.35rem);
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.2;
+        }
+
+        .doc-preview-close {
+            flex-shrink: 0;
+        }
+
+        .doc-preview-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 0.65rem 1.25rem 0.85rem;
+            border-top: 1px solid #e2e8f0;
+            background: transparent;
+            flex-shrink: 0;
+        }
+
+        .doc-preview-toolbar-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .doc-preview-toolbar-actions {
+            margin-left: auto;
+        }
+
+        .doc-preview-tool-btn {
+            width: 34px;
+            height: 34px;
+            min-width: 34px;
+            padding: 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            color: #334155;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .doc-preview-tool-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .doc-preview-tool-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .doc-preview-tool-ico {
+            width: 18px;
+            height: 18px;
+            display: block;
+        }
+
+        .doc-preview-tool-label {
+            min-width: 52px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            user-select: none;
+        }
+
+        .doc-preview-header {
+            flex-shrink: 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .doc-preview-toolbar-btn {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            color: #334155;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .doc-preview-toolbar-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .doc-preview-toolbar-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .doc-preview-page-label,
+        .doc-preview-zoom-label {
+            min-width: 52px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            user-select: none;
         }
 
         .doc-preview-loading {
             flex: 1;
-            min-height: 240px;
+            min-height: 320px;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px;
-            color: #94a3b8;
+            color: #64748b;
             font-size: 15px;
         }
 
         .doc-preview-body {
             flex: 1 1 auto;
-            min-height: min(62vh, 560px);
-            margin: 0 16px 10px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
+            min-height: 0;
+            overflow: auto;
+            background: #525659;
+            -webkit-overflow-scrolling: touch;
         }
 
-        .doc-preview-frame {
-            flex: 1 1 auto;
-            width: 100%;
-            min-height: min(58vh, 520px);
-            height: min(62vh, 560px);
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            border-radius: 8px;
-            background: #525659;
+        .doc-preview-pdf-viewport {
+            display: flex;
+            justify-content: center;
+            padding: 18px 16px 24px;
+            box-sizing: border-box;
+        }
+
+        .doc-preview-canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            background: #fff;
+            box-shadow: 0 8px 32px rgba(15, 23, 42, 0.22);
+            border-radius: 4px;
+        }
+
+        .doc-preview-image-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 18px 16px 24px;
+            background: #f1f5f9;
+            min-height: 100%;
             box-sizing: border-box;
         }
 
         .doc-preview-image {
-            flex: 1 1 auto;
             max-width: 100%;
-            max-height: min(62vh, 560px);
-            margin: 0 auto;
+            height: auto;
             object-fit: contain;
             border-radius: 8px;
             border: 1px solid rgba(148, 163, 184, 0.35);
-            background: #f1f5f9;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
         }
 
         .doc-preview-actions {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
             justify-content: flex-end;
-            align-items: center;
-            padding: 14px 18px 18px;
-            border-top: 1px solid rgba(148, 163, 184, 0.2);
-            background: rgba(248, 250, 252, 0.04);
+            padding: 12px 16px 16px;
+            border-top: 1px solid #e2e8f0;
+            background: #fff;
             flex-shrink: 0;
         }
 
@@ -43793,16 +43999,39 @@
 
         function serviceShellSectionFromUrlSection(section) {
             const s = String(section || '').toLowerCase();
-            const allowed = new Set(['dashboard', 'clients', 'vehicles', 'work-orders', 'reservations', 'reminders', 'documents', 'settings', 'support']);
-            if (allowed.has(s)) {
-                return s === 'settings' ? 'team' : (s === 'support' ? 'dashboard' : s);
+            const aliases = {
+                'dashboard': 'dashboard',
+                'intake': 'intake',
+                'work-orders': 'work-orders',
+                'vehicles': 'vehicles',
+                'clients': 'clients',
+                'customers': 'clients',
+                'photos': 'photos',
+                'history': 'history',
+                'invoices': 'invoices',
+                'quotes': 'invoices',
+                'parts': 'parts',
+                'reservations': 'reservations',
+                'reminders': 'reminders',
+                'documents': 'documents',
+                'team': 'team',
+                'audit': 'audit',
+                'audit-security': 'audit',
+                'settings': 'settings',
+                'support': 'dashboard',
+            };
+            if (aliases[s]) {
+                return aliases[s];
             }
             return 'dashboard';
         }
 
         function serviceUrlSectionFromShellSection(section) {
             const s = String(section || '').toLowerCase();
-            if (s === 'team') return 'settings';
+            if (s === 'audit') return 'audit-security';
+            if (s === 'customers') return 'clients';
+            if (s === 'quotes') return 'invoices';
+            if (s === 'support') return 'dashboard';
             if (s === 'dashboard') return 'dashboard';
             return s;
         }
@@ -44090,6 +44319,42 @@
             return await apiCall(url, 'GET');
         }
 
+        function hydrateSessionFromApiMe(me) {
+            if (!me || me.authenticated !== true) return false;
+            const email = String(me.email || '').trim();
+            if (!email) return false;
+            currentUser = {
+                ...(currentUser && typeof currentUser === 'object' ? currentUser : {}),
+                id: me.account_id,
+                account_id: me.account_id,
+                tenant_id: me.tenant_id,
+                name: me.display_name || email,
+                display_name: me.display_name || email,
+                email,
+                role: me.role || me.account_type || 'user',
+                account_type: me.account_type || me.role || 'user',
+                account_slug: me.account_slug || '',
+                workspace_route_kind: me.workspace_route_kind || '',
+                workspace_entitlements: Array.isArray(me.workspace_entitlements) ? me.workspace_entitlements : [],
+                default_app_path: me.default_app_path || '',
+            };
+            if (me.workspace_route_kind === 'service' || me.workspace_route_kind === 'user') {
+                loginMode = me.workspace_route_kind;
+                try {
+                    localStorage.setItem(AUTH_STORAGE_KEYS.loginMode, loginMode);
+                } catch (e) {
+                    /* ignore */
+                }
+            }
+            persistCurrentUserToActiveStorage(currentUser);
+            try {
+                window.currentUser = currentUser;
+            } catch (e) {
+                /* ignore */
+            }
+            return true;
+        }
+
         async function bootstrapWorkspaceMeForSession() {
             lastWorkspaceMePayload = null;
             let parsed = parseAppWorkspaceRoute(window.location.pathname);
@@ -44134,6 +44399,7 @@
                 throw err;
             }
             lastWorkspaceMePayload = me;
+            hydrateSessionFromApiMe(me);
             updateWorkspaceContextBadge(me);
             syncAppDisplayNameFromMe(me);
             return me;
@@ -54116,26 +54382,86 @@
             }
         }
 
+        let __appPdfJsLoadPromise = null;
+
+        function ensureAppPdfJsLoaded() {
+            if (typeof window.pdfjsLib !== 'undefined' && window.pdfjsLib && typeof window.pdfjsLib.getDocument === 'function') {
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/web/assets/pdfjs/pdf.worker.min.js';
+                return Promise.resolve(window.pdfjsLib);
+            }
+            if (__appPdfJsLoadPromise) return __appPdfJsLoadPromise;
+            __appPdfJsLoadPromise = new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = '/web/assets/pdfjs/pdf.min.js';
+                s.async = true;
+                s.onload = () => {
+                    try {
+                        const lib = window.pdfjsLib;
+                        if (!lib || typeof lib.getDocument !== 'function') {
+                            reject(new Error('pdf.js'));
+                            return;
+                        }
+                        lib.GlobalWorkerOptions.workerSrc = '/web/assets/pdfjs/pdf.worker.min.js';
+                        resolve(lib);
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                s.onerror = () => reject(new Error('Nepodařilo se načíst pdf.js'));
+                document.head.appendChild(s);
+            });
+            return __appPdfJsLoadPromise;
+        }
+
         let activeDocumentPreviewState = {
             blobUrl: null,
             filename: '',
             relativeUrl: '',
-            isPdf: false,
             title: '',
+            mode: 'idle',
+            pdfDoc: null,
+            pdfData: null,
+            pageNum: 1,
+            pageCount: 1,
+            zoom: 1,
+            renderTask: null,
         };
 
         function resetActiveDocumentPreviewState() {
-            if (activeDocumentPreviewState.blobUrl) {
-                URL.revokeObjectURL(activeDocumentPreviewState.blobUrl);
+            const state = activeDocumentPreviewState || {};
+            if (state.renderTask && typeof state.renderTask.cancel === 'function') {
+                try { state.renderTask.cancel(); } catch (e) { /* ignore */ }
             }
-            activeDocumentPreviewState = { blobUrl: null, filename: '', relativeUrl: '', isPdf: false, title: '' };
+            if (state.pdfDoc && typeof state.pdfDoc.destroy === 'function') {
+                try { state.pdfDoc.destroy(); } catch (e) { /* ignore */ }
+            }
+            if (state.blobUrl) {
+                try { URL.revokeObjectURL(state.blobUrl); } catch (e) { /* ignore */ }
+            }
+            activeDocumentPreviewState = {
+                blobUrl: null,
+                filename: '',
+                relativeUrl: '',
+                title: '',
+                mode: 'idle',
+                pdfDoc: null,
+                pdfData: null,
+                pageNum: 1,
+                pageCount: 1,
+                zoom: 1,
+                renderTask: null,
+            };
         }
 
         function closeAttachmentPreviewModal() {
             const modal = document.getElementById('attachmentPreviewModal');
-            const frame = document.getElementById('attachmentPreviewFrame');
+            const canvas = document.getElementById('attachmentPreviewCanvas');
             const image = document.getElementById('attachmentPreviewImage');
-            if (frame) frame.removeAttribute('src');
+            if (canvas) {
+                canvas.width = 0;
+                canvas.height = 0;
+                canvas.style.display = 'none';
+            }
             if (image) {
                 image.removeAttribute('src');
                 image.style.display = 'none';
@@ -54143,11 +54469,13 @@
             if (modal) closeStaticOverlayModal(modal);
             resetActiveDocumentPreviewState();
             setDocumentPreviewLoading(true, 'Načítám dokument…');
+            const toolbar = document.getElementById('attachmentPreviewToolbar');
+            if (toolbar) toolbar.style.display = 'none';
         }
 
         function ensureAttachmentPreviewModal() {
             let modal = document.getElementById('attachmentPreviewModal');
-            if (modal && !document.getElementById('attachmentPreviewDownloadBtn')) {
+            if (modal && (!document.getElementById('docPreviewTop') || !modal.querySelector('.uapp-next-float-head') || modal.classList.contains('app-modal-drawer'))) {
                 closeAttachmentPreviewModal();
                 modal.remove();
                 modal = null;
@@ -54155,24 +54483,59 @@
             if (modal) return modal;
             modal = document.createElement('div');
             modal.id = 'attachmentPreviewModal';
-            modal.className = 'vehicle-modal app-modal-drawer doc-preview-modal';
+            modal.className = 'vehicle-modal doc-preview-modal';
             modal.style.display = 'none';
             modal.innerHTML = `
-                <div class="vehicle-modal-overlay" onclick="closeAttachmentPreviewModal()"></div>
-                <div class="vehicle-modal-content doc-preview-shell">
-                    <div class="vehicle-modal-header doc-preview-header">
-                        <h2 id="attachmentPreviewTitle" class="doc-preview-title">Náhled dokumentu</h2>
-                        <button type="button" class="vehicle-modal-close" onclick="closeAttachmentPreviewModal()" aria-label="Zavřít">&times;</button>
+                <div class="vehicle-modal-overlay uapp-next-float-backdrop" onclick="closeAttachmentPreviewModal()"></div>
+                <div class="vehicle-modal-content doc-preview-shell uapp-next-float-modal" role="dialog" aria-modal="true" aria-labelledby="attachmentPreviewTitle">
+                    <div id="docPreviewTop" class="doc-preview-top">
+                        <div class="uapp-next-float-head">
+                            <div class="uapp-next-float-copy">
+                                <p class="uapp-next-float-kicker">Dokument</p>
+                                <h2 id="attachmentPreviewTitle" class="uapp-next-float-title modal-title">Náhled dokumentu</h2>
+                            </div>
+                            <button type="button" class="doc-preview-close uapp-next-float-close reminder-modal-close" onclick="closeAttachmentPreviewModal()" aria-label="Zavřít">&times;</button>
+                        </div>
+                    <div id="attachmentPreviewToolbar" class="doc-preview-toolbar" style="display:none;">
+                        <div class="doc-preview-toolbar-group">
+                            <button type="button" class="doc-preview-tool-btn" id="attachmentPreviewPrevBtn" onclick="documentPreviewStepPage(-1)" aria-label="Předchozí strana">
+                                    <svg class="doc-preview-tool-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                                </button>
+                                <span id="attachmentPreviewPageLabel" class="doc-preview-tool-label">1 / 1</span>
+                                <button type="button" class="doc-preview-tool-btn" id="attachmentPreviewNextBtn" onclick="documentPreviewStepPage(1)" aria-label="Další strana">
+                                    <svg class="doc-preview-tool-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+                                </button>
+                        </div>
+                        <div class="doc-preview-toolbar-group">
+                            <button type="button" class="doc-preview-tool-btn" onclick="documentPreviewZoomStep(-0.1)" aria-label="Zmenšit">
+                                    <svg class="doc-preview-tool-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 13H5v-2h14v2z"/></svg>
+                                </button>
+                                <span id="attachmentPreviewZoomLabel" class="doc-preview-tool-label">100 %</span>
+                                <button type="button" class="doc-preview-tool-btn" onclick="documentPreviewZoomStep(0.1)" aria-label="Zvětšit">
+                                    <svg class="doc-preview-tool-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                                </button>
+                        </div>
+                        <div class="doc-preview-toolbar-group doc-preview-toolbar-actions">
+                            <button type="button" class="doc-preview-tool-btn" onclick="downloadActiveDocumentPreview()" title="Stáhnout" aria-label="Stáhnout">
+                                    <svg class="doc-preview-tool-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                                </button>
+                                <button type="button" class="doc-preview-tool-btn" onclick="printActiveDocumentPreview()" title="Tisk" aria-label="Tisk">
+                                    <svg class="doc-preview-tool-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+                                </button>
+                        </div>
+                    </div>
                     </div>
                     <div id="attachmentPreviewLoading" class="doc-preview-loading">Načítám dokument…</div>
                     <div id="attachmentPreviewBody" class="doc-preview-body" style="display:none;">
-                        <embed id="attachmentPreviewFrame" type="application/pdf" title="Náhled dokumentu" class="doc-preview-frame" />
-                        <img id="attachmentPreviewImage" alt="Náhled dokumentu" class="doc-preview-image" style="display:none;">
+                        <div id="attachmentPreviewPdfViewport" class="doc-preview-pdf-viewport" style="display:none;">
+                            <canvas id="attachmentPreviewCanvas" class="doc-preview-canvas" aria-label="Náhled stránky PDF"></canvas>
+                        </div>
+                        <div id="attachmentPreviewImageWrap" class="doc-preview-image-wrap" style="display:none;">
+                            <img id="attachmentPreviewImage" alt="Náhled dokumentu" class="doc-preview-image">
+                        </div>
                     </div>
                     <div class="doc-preview-actions">
-                        <button type="button" class="btn btn-secondary" id="attachmentPreviewDownloadBtn" onclick="downloadActiveDocumentPreview()">Stáhnout</button>
-                        <button type="button" class="btn btn-secondary" id="attachmentPreviewNewTabBtn" onclick="openActiveDocumentPreviewInNewTab()">Otevřít v novém panelu</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeAttachmentPreviewModal()">Zavřít</button>
+                        <button type="button" class="uapp-next-btn uapp-next-btn-secondary" onclick="closeAttachmentPreviewModal()">Zavřít</button>
                     </div>
                 </div>
             `;
@@ -54183,49 +54546,185 @@
         function setDocumentPreviewLoading(isLoading, message) {
             const loadingEl = document.getElementById('attachmentPreviewLoading');
             const bodyEl = document.getElementById('attachmentPreviewBody');
+            const toolbar = document.getElementById('attachmentPreviewToolbar');
             if (loadingEl) {
                 loadingEl.style.display = isLoading ? 'flex' : 'none';
                 if (message) loadingEl.textContent = message;
             }
             if (bodyEl) bodyEl.style.display = isLoading ? 'none' : 'block';
+            if (toolbar) toolbar.style.display = isLoading ? 'none' : (activeDocumentPreviewState.mode === 'pdf' ? 'flex' : 'none');
         }
 
-        function openDocumentPreviewModal(blobUrl, titleText, meta) {
+        function updateDocumentPreviewToolbarUi() {
+            const state = activeDocumentPreviewState || {};
+            const pageLabel = document.getElementById('attachmentPreviewPageLabel');
+            const zoomLabel = document.getElementById('attachmentPreviewZoomLabel');
+            const prevBtn = document.getElementById('attachmentPreviewPrevBtn');
+            const nextBtn = document.getElementById('attachmentPreviewNextBtn');
+            if (pageLabel) pageLabel.textContent = `${state.pageNum || 1} / ${state.pageCount || 1}`;
+            if (zoomLabel) zoomLabel.textContent = `${Math.round((state.zoom || 1) * 100)} %`;
+            if (prevBtn) prevBtn.disabled = (state.pageNum || 1) <= 1;
+            if (nextBtn) nextBtn.disabled = (state.pageNum || 1) >= (state.pageCount || 1);
+        }
+
+        async function renderDocumentPreviewPdfPage() {
+            const state = activeDocumentPreviewState || {};
+            const canvas = document.getElementById('attachmentPreviewCanvas');
+            const pdfViewport = document.getElementById('attachmentPreviewPdfViewport');
+            if (!canvas || !state.pdfDoc) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas není dostupný.');
+            if (state.renderTask && typeof state.renderTask.cancel === 'function') {
+                try { state.renderTask.cancel(); } catch (e) { /* ignore */ }
+            }
+            const page = await state.pdfDoc.getPage(state.pageNum || 1);
+            const baseViewport = page.getViewport({ scale: 1 });
+            const bodyEl = document.getElementById('attachmentPreviewBody');
+            const maxWidth = bodyEl ? Math.max(280, bodyEl.clientWidth - 48) : 760;
+            const fitScale = maxWidth / baseViewport.width;
+            const scale = Math.max(0.35, Math.min(3, fitScale * (state.zoom || 1)));
+            const viewport = page.getViewport({ scale });
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            canvas.style.width = `${Math.floor(viewport.width)}px`;
+            canvas.style.height = `${Math.floor(viewport.height)}px`;
+            canvas.style.display = 'block';
+            if (pdfViewport) pdfViewport.style.display = 'flex';
+            const renderTask = page.render({ canvasContext: ctx, viewport });
+            activeDocumentPreviewState.renderTask = renderTask;
+            await renderTask.promise;
+            updateDocumentPreviewToolbarUi();
+        }
+
+        async function openDocumentPreviewWithPdfData(pdfArrayBuffer, titleText, meta) {
             const modal = ensureAttachmentPreviewModal();
             const title = document.getElementById('attachmentPreviewTitle');
-            const frame = document.getElementById('attachmentPreviewFrame');
+            const imageWrap = document.getElementById('attachmentPreviewImageWrap');
             const image = document.getElementById('attachmentPreviewImage');
-            const newTabBtn = document.getElementById('attachmentPreviewNewTabBtn');
             const info = meta || {};
-            const isPdf = info.isPdf !== false;
             if (title) title.textContent = titleText || 'Náhled dokumentu';
-            if (frame) {
-                frame.style.display = isPdf ? 'block' : 'none';
-                frame.src = isPdf ? blobUrl : '';
-            }
+            if (imageWrap) imageWrap.style.display = 'none';
             if (image) {
-                if (!isPdf) {
-                    image.src = blobUrl;
-                    image.style.display = 'block';
-                } else {
-                    image.removeAttribute('src');
-                    image.style.display = 'none';
-                }
+                image.removeAttribute('src');
+                image.style.display = 'none';
             }
-            if (newTabBtn) newTabBtn.style.display = isPdf ? '' : 'none';
+            const pdfjsLib = await ensureAppPdfJsLoaded();
+            const copy = pdfArrayBuffer.slice(0);
+            const pdfDoc = await pdfjsLib.getDocument({ data: copy }).promise;
+            const blob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
+            const blobUrl = URL.createObjectURL(blob);
+            activeDocumentPreviewState = {
+                blobUrl,
+                filename: info.filename || 'dokument.pdf',
+                relativeUrl: info.relativeUrl || '',
+                title: titleText || 'Náhled dokumentu',
+                mode: 'pdf',
+                pdfDoc,
+                pdfData: pdfArrayBuffer,
+                pageNum: 1,
+                pageCount: pdfDoc.numPages || 1,
+                zoom: 1,
+                renderTask: null,
+            };
+            setDocumentPreviewLoading(false);
+            openStaticOverlayModal(modal, { focusSelector: '.uapp-next-float-close' });
+            await renderDocumentPreviewPdfPage();
+        }
+
+        function openDocumentPreviewWithImage(blobUrl, titleText, meta) {
+            const modal = ensureAttachmentPreviewModal();
+            const title = document.getElementById('attachmentPreviewTitle');
+            const pdfViewport = document.getElementById('attachmentPreviewPdfViewport');
+            const imageWrap = document.getElementById('attachmentPreviewImageWrap');
+            const image = document.getElementById('attachmentPreviewImage');
+            const toolbar = document.getElementById('attachmentPreviewToolbar');
+            const info = meta || {};
+            if (title) title.textContent = titleText || 'Náhled dokumentu';
+            if (pdfViewport) pdfViewport.style.display = 'none';
+            if (toolbar) toolbar.style.display = 'none';
+            if (imageWrap) imageWrap.style.display = 'flex';
+            if (image) {
+                image.src = blobUrl;
+                image.style.display = 'block';
+            }
             activeDocumentPreviewState = {
                 blobUrl,
                 filename: info.filename || 'dokument',
                 relativeUrl: info.relativeUrl || '',
-                isPdf,
                 title: titleText || 'Náhled dokumentu',
+                mode: 'image',
+                pdfDoc: null,
+                pdfData: null,
+                pageNum: 1,
+                pageCount: 1,
+                zoom: 1,
+                renderTask: null,
             };
             setDocumentPreviewLoading(false);
-            openStaticOverlayModal(modal, { focusSelector: '.vehicle-modal-close' });
+            openStaticOverlayModal(modal, { focusSelector: '.uapp-next-float-close' });
+        }
+
+        function openDocumentPreviewModal(blobUrl, titleText, meta) {
+            const info = meta || {};
+            if (info.pdfArrayBuffer) {
+                return openDocumentPreviewWithPdfData(info.pdfArrayBuffer, titleText, info);
+            }
+            if (info.isPdf === false) {
+                return openDocumentPreviewWithImage(blobUrl, titleText, info);
+            }
+            return openDocumentPreviewWithImage(blobUrl, titleText, info);
         }
 
         function openAttachmentPreviewModal(blobUrl, titleText = 'Náhled dokladu', meta) {
             openDocumentPreviewModal(blobUrl, titleText || 'Náhled dokladu', meta || { isPdf: true, filename: 'doklad' });
+        }
+
+        async function documentPreviewStepPage(delta) {
+            const state = activeDocumentPreviewState || {};
+            if (state.mode !== 'pdf' || !state.pdfDoc) return;
+            const next = Math.min(state.pageCount, Math.max(1, (state.pageNum || 1) + Number(delta || 0)));
+            if (next === state.pageNum) return;
+            activeDocumentPreviewState.pageNum = next;
+            try {
+                await renderDocumentPreviewPdfPage();
+            } catch (error) {
+                console.error('[DOCUMENT_PREVIEW] page step error:', error);
+                showAlert('Nepodařilo se vykreslit stránku PDF.', 'error');
+            }
+        }
+
+        async function documentPreviewZoomStep(delta) {
+            const state = activeDocumentPreviewState || {};
+            if (state.mode !== 'pdf' || !state.pdfDoc) return;
+            const next = Math.max(0.5, Math.min(2.5, (state.zoom || 1) + Number(delta || 0)));
+            activeDocumentPreviewState.zoom = next;
+            try {
+                await renderDocumentPreviewPdfPage();
+            } catch (error) {
+                console.error('[DOCUMENT_PREVIEW] zoom error:', error);
+            }
+        }
+
+        function printActiveDocumentPreview() {
+            const state = activeDocumentPreviewState || {};
+            if (!state.blobUrl) {
+                showAlert('Náhled není připraven.', 'warning');
+                return;
+            }
+            const w = window.open('', '_blank');
+            if (!w) {
+                showAlert('Prohlížeč zablokoval tisk.', 'warning');
+                return;
+            }
+            try { w.opener = null; } catch (e) { /* ignore */ }
+            if (state.mode === 'image') {
+                w.document.write(`<!DOCTYPE html><html><head><title>${String(state.title || 'Dokument')}</title></head><body style="margin:0;text-align:center;"><img src="${state.blobUrl}" style="max-width:100%;height:auto;" onload="window.print()"></body></html>`);
+                w.document.close();
+                return;
+            }
+            w.document.write(`<!DOCTYPE html><html><head><title>${String(state.title || 'PDF')}</title></head><body style="margin:0;"><embed src="${state.blobUrl}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0;" /></body></html>`);
+            w.document.close();
+            setTimeout(() => { try { w.print(); } catch (e) { /* ignore */ } }, 600);
         }
 
         function decodePreviewHint(value) {
@@ -54263,18 +54762,21 @@
             ensureAttachmentPreviewModal();
             resetActiveDocumentPreviewState();
             setDocumentPreviewLoading(true, 'Načítám dokument…');
-            openStaticOverlayModal(document.getElementById('attachmentPreviewModal'), { focusSelector: '.vehicle-modal-close' });
+            openStaticOverlayModal(document.getElementById('attachmentPreviewModal'), { focusSelector: '.uapp-next-float-close' });
             try {
                 const { blob, response } = await fetchAuthenticatedBinary(url, 'application/pdf,application/octet-stream,image/*,*/*');
                 const filename = resolveDownloadFilename(response, fallbackFilename);
                 const blobType = String(blob.type || '').toLowerCase();
                 const isPdf = blobType.includes('pdf') || looksLikePdfByHint(filename, url) || await hasPdfMagicHeader(blob);
                 const isImage = !isPdf && blobType.startsWith('image/');
-                const previewBlob = isPdf && !blobType.includes('pdf')
-                    ? new Blob([await blob.arrayBuffer()], { type: 'application/pdf' })
-                    : blob;
+                const pdfArrayBuffer = await blob.arrayBuffer();
+                if (isPdf) {
+                    await openDocumentPreviewWithPdfData(pdfArrayBuffer, title, { filename, relativeUrl: url });
+                    return;
+                }
+                const previewBlob = blob;
                 const blobUrl = URL.createObjectURL(previewBlob);
-                openDocumentPreviewModal(blobUrl, title, { filename, relativeUrl: url, isPdf: isPdf || !isImage });
+                openDocumentPreviewWithImage(blobUrl, title, { filename, relativeUrl: url, isPdf: false });
             } catch (error) {
                 console.error('[DOCUMENT_PREVIEW]', error);
                 closeAttachmentPreviewModal();
@@ -54339,6 +54841,9 @@
         window.openAuthenticatedDocumentPreview = openAuthenticatedDocumentPreview;
         window.previewVehicleReportFromHub = previewVehicleReportFromHub;
         window.previewVehicleVerifiedReportFromHub = previewVehicleVerifiedReportFromHub;
+        window.documentPreviewStepPage = documentPreviewStepPage;
+        window.documentPreviewZoomStep = documentPreviewZoomStep;
+        window.printActiveDocumentPreview = printActiveDocumentPreview;
 
         async function openServiceRecordAttachmentPreview(encodedDownloadUrl, encodedFileName = '') {
             const relativeUrl = decodePreviewHint(encodedDownloadUrl).trim();
@@ -54350,20 +54855,25 @@
             ensureAttachmentPreviewModal();
             resetActiveDocumentPreviewState();
             setDocumentPreviewLoading(true, 'Načítám dokument…');
-            openStaticOverlayModal(document.getElementById('attachmentPreviewModal'), { focusSelector: '.vehicle-modal-close' });
+            openStaticOverlayModal(document.getElementById('attachmentPreviewModal'), { focusSelector: '.uapp-next-float-close' });
             try {
                 const blob = await fetchServiceRecordAttachmentBlob(relativeUrl);
                 const blobType = String(blob?.type || '').toLowerCase();
                 const isPdf = looksLikePdfByHint(fileName, relativeUrl) || blobType.includes('pdf') || await hasPdfMagicHeader(blob);
                 const isImage = !isPdf && blobType.startsWith('image/');
-                const previewBlob = isPdf && !blobType.includes('pdf')
-                    ? new Blob([await blob.arrayBuffer()], { type: 'application/pdf' })
-                    : blob;
-                const blobUrl = URL.createObjectURL(previewBlob);
-                openDocumentPreviewModal(blobUrl, `Náhled: ${fileName}`, {
+                const pdfArrayBuffer = await blob.arrayBuffer();
+                if (isPdf) {
+                    await openDocumentPreviewWithPdfData(pdfArrayBuffer, `Náhled: ${fileName}`, {
+                        filename: fileName,
+                        relativeUrl,
+                    });
+                    return;
+                }
+                const blobUrl = URL.createObjectURL(blob);
+                openDocumentPreviewWithImage(blobUrl, `Náhled: ${fileName}`, {
                     filename: fileName,
                     relativeUrl,
-                    isPdf: isPdf || !isImage,
+                    isPdf: false,
                 });
             } catch (error) {
                 console.error('Error opening service attachment preview:', error);
@@ -58029,6 +58539,11 @@
             if (savedUser) {
                 try {
                     currentUser = JSON.parse(savedUser);
+                    try {
+                        window.currentUser = currentUser;
+                    } catch (eWindowUser) {
+                        /* ignore */
+                    }
                     console.log('[AUTH] Načten uživatel:', currentUser.email);
                 } catch (e) {
                     console.error('[AUTH] Chyba při parsování uživatele:', e);
@@ -58063,9 +58578,11 @@
                     }
                 }
 
-                if (isAuthenticated()) {
-                    console.log('[APP] Uživatel je přihlášen - workspace bootstrap + dashboard');
-                    const hadAppPath = !!parseAppWorkspaceRoute(window.location.pathname);
+                const bootWorkspaceRoute = parseAppWorkspaceRoute(window.location.pathname);
+                const hasStoredTokenForBootstrap = !!getEffectiveAccessToken();
+                if (isAuthenticated() || hasStoredTokenForBootstrap || bootWorkspaceRoute) {
+                    console.log('[APP] Ověřuji relaci přes /api/me před vykreslením shellu');
+                    const hadAppPath = !!bootWorkspaceRoute;
                     try {
                         await bootstrapWorkspaceMeForSession();
                         const p2 = normalizePublicPathname(window.location.pathname);
@@ -58078,8 +58595,11 @@
                         console.warn('[APP] Workspace bootstrap selhal:', e?.message || e);
                         if (e && e.workspaceRequiresLogin) {
                             showLogin({ skipHistoryUpdate: true });
-                        } else {
+                        } else if (isAuthenticated()) {
                             showDashboard();
+                        } else {
+                            preparePublicOrAuthView();
+                            renderPublicRoute(getCurrentPublicRoute(), { updateHistory: false, replaceHistory: true });
                         }
                     }
                 } else {
@@ -65322,74 +65842,11 @@
                 showAlert('Pro náhled dokumentu se přihlaste.', 'error');
                 return;
             }
-            const modal = document.getElementById('vehicleLargeTpPreviewModal');
-            const frame = document.getElementById('vehicleLargeTpPreviewFrame');
-            const viewport = document.getElementById('vehicleLargeTpPreviewViewport');
-            const loadingEl = document.getElementById('vehicleLargeTpPreviewLoading');
-            const canvas = document.getElementById('vehicleLargeTpPreviewCanvas');
-            if (!modal || !frame || !loadingEl || !viewport) {
-                showAlert('Náhled nelze zobrazit (chyba rozhraní).', 'error');
-                return;
-            }
-
             window.__vehicleLargeTpPreviewVehicleId = vid;
-            viewport.style.display = 'none';
-            resetVehicleLargeTpPreviewSurface();
-            loadingEl.style.display = 'flex';
-            loadingEl.textContent = 'Načítám PDF…';
-
-            if (vehicleLargeTpPreviewBlobUrl) {
-                URL.revokeObjectURL(vehicleLargeTpPreviewBlobUrl);
-                vehicleLargeTpPreviewBlobUrl = null;
-            }
-
-            openStaticOverlayModal(modal, { focusSelector: '.vehicle-modal-close' });
-
-            try {
-                const relativeUrl = `/api/v1/vehicles/${vid}/documents/large-technical-certificate.pdf`;
-                const { blob } = await fetchAuthenticatedBinary(relativeUrl, 'application/pdf,*/*');
-                const rawType = String(blob.type || '').toLowerCase();
-                let pdfBlob = blob;
-                if (!rawType.includes('pdf')) {
-                    pdfBlob = new Blob([await blob.arrayBuffer()], { type: 'application/pdf' });
-                }
-                const head = new Uint8Array(await pdfBlob.slice(0, 5).arrayBuffer());
-                const sig = String.fromCharCode(head[0], head[1], head[2], head[3], head[4]);
-                if (sig !== '%PDF-') {
-                    throw new Error('Server nevrátil platný soubor PDF (zkontrolujte přihlášení a tarif dokumentů).');
-                }
-                const pdfArrayBuffer = await pdfBlob.arrayBuffer();
-                vehicleLargeTpPreviewBlobUrl = URL.createObjectURL(pdfBlob);
-
-                let canvasOk = false;
-                if (canvas) {
-                    try {
-                        await renderVehicleLargeTpPreviewCanvas(pdfArrayBuffer);
-                        canvasOk = true;
-                    } catch (pdfJsErr) {
-                        console.warn('[VEHICLE_DOCS] large TP pdf.js preview fallback:', pdfJsErr);
-                        canvasOk = false;
-                    }
-                }
-
-                if (!canvasOk) {
-                    frame.src = vehicleLargeTpPreviewBlobUrl;
-                    frame.style.display = 'block';
-                    const hint = document.getElementById('vehicleLargeTpPreviewHint');
-                    if (hint) {
-                        hint.style.display = 'block';
-                        hint.textContent =
-                            'Vestavěný náhled PDF — pokud je okno prázdné, použijte „Otevřít v novém panelu“ nebo „Stáhnout PDF“.';
-                    }
-                }
-
-                loadingEl.style.display = 'none';
-                viewport.style.display = 'flex';
-            } catch (error) {
-                console.error('[VEHICLE_DOCS] large TP preview error:', error);
-                closeVehicleLargeTechnicalCertificatePreview();
-                showAlert(`Náhled PDF se nepodařilo načíst: ${error?.message || 'Neznámá chyba'}`, 'error');
-            }
+            await openAuthenticatedDocumentPreview(`/api/v1/vehicles/${vid}/documents/large-technical-certificate.pdf`, {
+                title: 'Velký technický průkaz — náhled',
+                filename: `velky-technicny-prukaz-${vid}.pdf`,
+            });
         }
 
         window.openVehicleLargeTechnicalCertificatePreview = openVehicleLargeTechnicalCertificatePreview;
@@ -69516,7 +69973,7 @@
     <!-- AI Features JavaScript -->
     <script src="/web/ai-features.js"></script>
     <script src="/web/tutorial-hub.js"></script>
-    <script src="/web/user-app-next.js?v=20260524docpreview2"></script>
+    <script src="/web/user-app-next.js?v=2026052407"></script>
     <script src="/web/user-settings.js?v=20260524settingsfull"></script>
     <script src="/web/service-shell.js?v=2026050720"></script>
 </body>
