@@ -3287,11 +3287,26 @@
   }
 
   async function populateCreateVehicleOptions(customerId, preferredVehicleId = null) {
-    const customerIdNum = Number(customerId || 0);
+    const customerRaw = String(customerId || '').trim();
+    const isUnowned = customerRaw === '__unowned__';
+    const customerIdNum = isUnowned ? 0 : Number(customerRaw || 0);
     const select = document.getElementById('serviceShellWorkOrderVehicle');
     if (!select) return;
-    if (!customerIdNum) {
-      select.innerHTML = '<option value="">Nejprve vyberte klienta</option>';
+    if (!customerRaw) {
+      select.innerHTML = '<option value="">Nejprve vyberte klienta nebo nepřiřazené vozidlo</option>';
+      return;
+    }
+    if (isUnowned) {
+      const response = await window.apiCall('/api/service/work-orders/unowned-vehicles', 'GET');
+      const vehicles = Array.isArray(response?.items) ? response.items : [];
+      const preferred = Number(preferredVehicleId || 0);
+      select.innerHTML = vehicles.length
+        ? vehicles.map((item) => {
+            const vid = Number(item?.vehicle_id || 0);
+            const selected = preferred > 0 && vid === preferred ? 'selected' : '';
+            return `<option value="${vid}" ${selected}>${escape(item.label || `Vozidlo #${vid}`)}</option>`;
+          }).join('')
+        : '<option value="">Žádné nepřiřazené vozidlo k dispozici</option>';
       return;
     }
     window.serviceWorkspaceState = window.serviceWorkspaceState || { customerVehicles: {} };
@@ -3465,10 +3480,15 @@
     const technicians = Array.isArray(state.technicians) && state.technicians.length
       ? state.technicians
       : [{ technician_id: Number(window.currentUser?.id || 0), name: window.currentUser?.name || window.currentUser?.email || 'Hlavní technik' }];
-    const preferredOwnerId = Number(prefill.ownerId || customers[0]?.customer_id || 0);
-    const ownerOptions = customers.length
-      ? customers.map((item) => `<option value="${Number(item.customer_id)}" ${Number(item.customer_id) === preferredOwnerId ? 'selected' : ''}>${escape(item.name || item.email || `Zákazník #${Number(item.customer_id)}`)}</option>`).join('')
-      : '<option value="">Nejsou dostupní propojení zákazníci</option>';
+    const preferredOwnerId = Number(prefill.ownerId || 0);
+    const preferredUnowned = prefill.unownedOnly === true
+      || (Number(prefill.ownerId || 0) <= 0 && Number(prefill.vehicleId || 0) > 0);
+    const ownerOptions = [
+      '<option value="__unowned__">Nepřiřazené vozidlo (bez majitele)</option>',
+      ...(customers.length
+        ? customers.map((item) => `<option value="${Number(item.customer_id)}" ${Number(item.customer_id) === preferredOwnerId ? 'selected' : ''}>${escape(item.name || item.email || `Zákazník #${Number(item.customer_id)}`)}</option>`)
+        : ['<option value="" disabled>Nejsou dostupní propojení zákazníci</option>']),
+    ].join('');
     openModal({
       key: 'work-order-create',
       entityType: 'work_order',
@@ -3477,19 +3497,20 @@
       description: 'Zakázku lze založit jen nad existujícím propojeným klientem a schváleným vozidlem.',
       actions: {
         save: async () => {
-          const ownerId = Number(document.getElementById('serviceShellWorkOrderOwner')?.value || 0);
+          const ownerRaw = String(document.getElementById('serviceShellWorkOrderOwner')?.value || '').trim();
+          const isUnowned = ownerRaw === '__unowned__';
+          const ownerId = isUnowned ? 0 : Number(ownerRaw || 0);
           const vehicleId = Number(document.getElementById('serviceShellWorkOrderVehicle')?.value || 0);
           const technicianId = Number(document.getElementById('serviceShellWorkOrderTechnician')?.value || 0) || null;
           const title = String(document.getElementById('serviceShellWorkOrderTitle')?.value || '').trim();
           const dueDate = String(document.getElementById('serviceShellWorkOrderDueDate')?.value || '').trim() || null;
           const status = String(document.getElementById('serviceShellWorkOrderStatus')?.value || 'awaiting_client_approval').trim();
           const description = String(document.getElementById('serviceShellWorkOrderDescription')?.value || '').trim() || null;
-          if (!ownerId || !vehicleId || !title) {
-            throw new Error('Vyberte klienta, vozidlo a vyplňte název zakázky.');
+          if ((!ownerId && !isUnowned) || !vehicleId || !title) {
+            throw new Error('Vyberte klienta nebo nepřiřazené vozidlo, vozidlo a vyplňte název zakázky.');
           }
           try {
-            await window.apiCall('/api/service/work-orders', 'POST', {
-              owner_id: ownerId,
+            const body = {
               vehicle_id: vehicleId,
               technician_id: technicianId,
               title,
@@ -3497,7 +3518,9 @@
               due_date: dueDate,
               status,
               source_type: 'manual',
-            });
+            };
+            if (!isUnowned) body.owner_id = ownerId;
+            await window.apiCall('/api/service/work-orders', 'POST', body);
           } catch (error) {
             const detail = error?.payload?.detail;
             if (error?.status === 409 && detail?.code === 'duplicate_work_order') {
@@ -3581,7 +3604,12 @@
         </div>
       `,
     });
-    await populateCreateVehicleOptions(preferredOwnerId, Number(prefill.vehicleId || 0));
+    const ownerSelectValue = preferredUnowned
+      ? '__unowned__'
+      : (preferredOwnerId > 0 ? String(preferredOwnerId) : String(customers[0]?.customer_id || '__unowned__'));
+    const ownerSelect = document.getElementById('serviceShellWorkOrderOwner');
+    if (ownerSelect) ownerSelect.value = ownerSelectValue;
+    await populateCreateVehicleOptions(ownerSelectValue, Number(prefill.vehicleId || 0));
   }
 
   async function submitCreateWorkOrderModal() {
@@ -6370,8 +6398,15 @@
     const legacy = state.intakeLookupLegacyCandidate || {};
     const vehicleId = Number(lookup?.vehicle_preview?.vehicle_id || legacy?.vehicle_id || 0);
     const ownerId = Number(legacy?.owner_customer_id || 0);
-    if (!vehicleId || !ownerId) {
-      state.intakeLimitedNotice = 'Převod příjmu na zakázku bude doplněn v další fázi. Zakázku lze nyní vytvořit v sekci Zakázky.';
+    const lookupStatus = String(lookup?.status || '').toLowerCase();
+    const isUnownedIntake = lookupStatus === 'found_service_unowned' || Boolean(lookup?.can_create_work_order && !ownerId);
+    if (!vehicleId) {
+      state.intakeLimitedNotice = 'Nejprve načtěte nebo založte vozidlo pro vytvoření zakázky.';
+      render();
+      return;
+    }
+    if (!ownerId && !isUnownedIntake) {
+      state.intakeLimitedNotice = 'Zakázku lze vytvořit po schváleném přístupu k vozidlu s majitelem, nebo u nepřiřazeného vozidla založeného tímto servisem.';
       render();
       return;
     }
@@ -6379,15 +6414,16 @@
     state.intakeLookupError = '';
     render();
     try {
-      const response = await window.apiCall('/api/service/work-orders', 'POST', {
-        owner_id: ownerId,
+      const payload = {
         vehicle_id: vehicleId,
         title: 'Příjem vozidla',
         description: String(state.intakeDraft?.technicianNote || '').trim() || null,
         status: 'awaiting_client_approval',
         source_type: 'intake',
         source_intake_id: Number(state.intakeStartResult?.id || 0) || null,
-      });
+      };
+      if (ownerId > 0) payload.owner_id = ownerId;
+      const response = await window.apiCall('/api/service/work-orders', 'POST', payload);
       state.intakeLimitedNotice = 'Zakázka byla vytvořena z příjmu. Přechod do sekce Zakázky proběhl automaticky.';
       navigate('work-orders');
       if (response?.id) {

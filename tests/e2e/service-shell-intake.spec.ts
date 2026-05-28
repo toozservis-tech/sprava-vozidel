@@ -210,6 +210,30 @@ test.describe('Service shell intake route', () => {
   test('service_intake_crosslink_to_work_orders_or_disabled_notice', async ({ page }) => {
     await openIntake(page);
     await page.locator('[data-testid="service-intake-create-work-order-button"]').click();
-    await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(/Převod příjmu na zakázku bude doplněn/i);
+    await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(
+      /Převod příjmu na zakázku bude doplněn|Nejprve načtěte|Zakázka byla vytvořena/i,
+    );
+  });
+
+  test('service_intake_create_work_order_for_unowned_vehicle', async ({ page }) => {
+    test.skip(process.env.E2E_ALLOW_MUTATIONS !== '1', 'Mutační test vyžaduje E2E_ALLOW_MUTATIONS=1');
+    const uniqueVin = `TMBINT${Date.now().toString().slice(-10)}WO`;
+    await openIntake(page);
+    await page.locator('[data-testid="service-intake-vin-input"]').fill(uniqueVin);
+    await page.locator('[data-testid="service-intake-lookup-button"]').click();
+    await page.locator('[data-testid="service-intake-section"]').getByLabel('Značka').fill('Skoda');
+    await page.locator('[data-testid="service-intake-section"]').getByLabel('Model').fill('Fabia');
+    await page.locator('[data-testid="service-intake-create-unowned-button"]').click();
+    await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(/bez vlastnické vazby/i, {
+      timeout: 30_000,
+    });
+    await page.locator('[data-testid="service-intake-create-work-order-button"]').click();
+    await expect(page).toHaveURL(/\/work-orders/, { timeout: 30_000 });
+    await waitForServiceShellReady(page);
+    await expect(page.locator('[data-testid="service-work-orders-section"]')).toBeVisible();
+    const detail = page.locator('[data-testid="service-work-order-detail"]');
+    if (await detail.isVisible().catch(() => false)) {
+      await expect(detail).toContainText(/Nepřiřazené/i);
+    }
   });
 });

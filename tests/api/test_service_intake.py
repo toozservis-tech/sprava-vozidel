@@ -157,6 +157,36 @@ def test_service_intake_create_unowned_vehicle(db):
     assert created["status"] == "service_provisioned_unowned"
 
 
+def test_service_intake_unowned_lookup_can_create_work_order(db):
+    tenant = _tenant(db, "unowned-wo-lookup")
+    service = _customer(db, tenant, "service-unowned-wo@example.test", role="service")
+    created = service_workspace.provision_unowned_service_vehicle(
+        service_workspace.ServiceProvisionUnownedVehicleRequestV1(
+            vin="TMBJH7NP9N7088882",
+            brand="Skoda",
+            model="Fabia",
+            source="service_intake",
+            context="intake_route",
+        ),
+        request=None,
+        current_user=service,
+        db=db,
+    )
+    body = service_workspace.central_service_vehicle_lookup(
+        service_workspace.CentralVehicleLookupRequestV1(
+            vin="TMBJH7NP9N7088882",
+            source="service_intake",
+            context="intake_route",
+        ),
+        request=None,
+        current_user=service,
+        db=db,
+    )
+    assert body["status"] == "found_service_unowned"
+    assert body.get("can_create_work_order") is True
+    assert int(created["vehicle_id"]) == body["vehicle_preview"]["vehicle_id"]
+
+
 def test_service_intake_create_unowned_no_ownership_created(db):
     tenant = _tenant(db, "create-unowned-no-ownership")
     service = _customer(db, tenant, "service-create-unowned-no-own@example.test", role="service")

@@ -123,8 +123,22 @@ logger = logging.getLogger(__name__)
 
 
 class CentralVehicleLookupRequestV1(BaseModel):
-    query: str = Field(..., min_length=2, max_length=128)
+    query: Optional[str] = Field(default=None, min_length=2, max_length=128)
+    vin: Optional[str] = Field(default=None, max_length=32)
+    plate: Optional[str] = Field(default=None, max_length=32)
     query_type: Optional[str] = Field(default="auto", pattern="^(vin|plate|auto)$")
+    source: Optional[str] = Field(default=None, max_length=64)
+    context: Optional[str] = Field(default=None, max_length=64)
+
+    @model_validator(mode="after")
+    def _require_lookup_identifier(self) -> "CentralVehicleLookupRequestV1":
+        if str(self.query or "").strip():
+            return self
+        if str(self.vin or "").strip():
+            return self
+        if str(self.plate or "").strip():
+            return self
+        raise ValueError("Zadejte VIN nebo SPZ vozidla.")
 
 
 class ServiceProvisionUnownedVehicleRequestV1(BaseModel):
@@ -135,6 +149,8 @@ class ServiceProvisionUnownedVehicleRequestV1(BaseModel):
     year: Optional[int] = Field(default=None, ge=1886, le=2100)
     mileage: Optional[int] = Field(default=None, ge=0)
     intake_note: Optional[str] = Field(default=None, max_length=2000)
+    source: Optional[str] = Field(default=None, max_length=64)
+    context: Optional[str] = Field(default=None, max_length=64)
 
 
 def _service_access_email_notification_message(email_result: dict[str, Any]) -> str:
@@ -2677,6 +2693,11 @@ def get_service_customer_detail(
 
 def _central_lookup_identifier(payload: CentralVehicleLookupRequestV1) -> tuple[str, str, str]:
     query = str(payload.query or "").strip()
+    if not query:
+        if str(payload.vin or "").strip():
+            query = str(payload.vin or "").strip()
+        elif str(payload.plate or "").strip():
+            query = str(payload.plate or "").strip()
     qtype = str(payload.query_type or "auto").lower()
     vin_norm = normalize_vin(query)
     plate_norm = normalize_plate(query)
@@ -2783,10 +2804,50 @@ def central_service_vehicle_lookup(
     _ensure_service_workspace_schema(db)
 
     raw_query, normalized_query, identifier_type = _central_lookup_identifier(payload)
+    vin_input = normalize_vin(payload.vin) if str(payload.vin or "").strip() else None
+    plate_input = normalize_plate(payload.plate) if str(payload.plate or "").strip() else None
+    if vin_input and plate_input:
+        vehicle_by_vin, matched_by_vin = find_vehicle_by_identifiers(db, vin=vin_input)
+        vehicle_by_plate, matched_by_plate = find_vehicle_by_identifiers(db, plate=plate_input)
+        if (
+            vehicle_by_vin
+            and vehicle_by_plate
+            and int(vehicle_by_vin.id) != int(vehicle_by_plate.id)
+        ):
+            _audit_central_lookup(
+                db,
+                current_user=current_user,
+                raw_query=f"{vin_input} {plate_input}",
+                normalized_query=vin_input,
+                identifier_type="vin_plate",
+                vehicle=None,
+                owner_id=None,
+                result_status="conflict",
+            )
+            db.commit()
+            return {
+                "found": True,
+                "status": "conflict",
+                "message": "SPZ může patřit jinému vozidlu. Bez potvrzení VIN nelze bezpečně sloučit záznamy.",
+                "vehicle_preview": None,
+                "access": {"status": "requires_manual_review", "can_request_access": False},
+                "owner_data": None,
+                "service_history": None,
+                "documents": None,
+                "photos": None,
+                "prices": None,
+                "invoices": None,
+                "conflict": {
+                    "vin_candidate_vehicle_id": int(vehicle_by_vin.id),
+                    "plate_candidate_vehicle_id": int(vehicle_by_plate.id),
+                    "matched_by_vin": matched_by_vin,
+                    "matched_by_plate": matched_by_plate,
+                },
+            }
     vehicle, matched_by = find_vehicle_by_identifiers(
         db,
-        vin=normalized_query if identifier_type == "vin" else None,
-        plate=normalized_query if identifier_type == "plate" else None,
+        vin=vin_input or (normalized_query if identifier_type == "vin" else None),
+        plate=plate_input or (normalized_query if identifier_type == "plate" else None),
     )
     if not vehicle:
         _audit_central_lookup(
@@ -2810,7 +2871,10 @@ def central_service_vehicle_lookup(
     owner_assignment = active_owner_assignment(db, int(vehicle.id))
     owner_id = int(owner_assignment.customer_id) if owner_assignment else None
     access_status, can_request_access = _service_access_status_for_vehicle(db, current_user=current_user, vehicle=vehicle)
-    if access_status == "approved":
+    if access_status == "approved" and owner_id is None:
+        status = "found_service_unowned"
+        result_status = "service_unowned"
+    elif access_status == "approved":
         status = "found_access_approved"
         result_status = "already_approved"
     elif access_status == "pending":
@@ -2852,6 +2916,9 @@ def central_service_vehicle_lookup(
     if access_status == "approved":
         body["access"]["scope"] = ["vehicle_history_read", "create_service_record"]
         body["can_open_detail"] = True
+        if owner_id is None:
+            body["can_create_work_order"] = True
+            body["access"]["scope"] = list(body["access"]["scope"]) + ["create_work_order"]
     return body
 
 

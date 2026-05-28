@@ -69,6 +69,38 @@ test.describe('Service shell work orders route', () => {
     await expect(addLabor).toHaveAttribute('title', /doplněna v další fázi/i);
   });
 
+  test('service_work_order_create_for_unowned_vehicle', async ({ page }) => {
+    test.skip(process.env.E2E_ALLOW_MUTATIONS !== '1', 'Mutační test vyžaduje E2E_ALLOW_MUTATIONS=1');
+    const uniqueVin = `TMBE2E${Date.now().toString().slice(-10)}UN`;
+    await openWorkOrders(page);
+    await page.locator('[data-testid="service-work-orders-new-button"]').click();
+    await page.locator('#serviceShellWorkOrderOwner').selectOption('__unowned__');
+    const vehicleSelect = page.locator('#serviceShellWorkOrderVehicle');
+    if ((await vehicleSelect.locator('option').count()) <= 1) {
+      await page.goto(page.url().replace('/work-orders', '/intake'), { waitUntil: 'domcontentloaded' });
+      await waitForServiceShellReady(page);
+      await page.locator('[data-testid="service-intake-vin-input"]').fill(uniqueVin);
+      await page.locator('[data-testid="service-intake-lookup-button"]').click();
+      await page.locator('[data-testid="service-intake-section"]').getByLabel('Značka').fill('Skoda');
+      await page.locator('[data-testid="service-intake-section"]').getByLabel('Model').fill('Fabia');
+      await page.locator('[data-testid="service-intake-create-unowned-button"]').click();
+      await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(/bez vlastnické vazby/i, {
+        timeout: 30_000,
+      });
+      await openWorkOrders(page);
+      await page.locator('[data-testid="service-work-orders-new-button"]').click();
+      await page.locator('#serviceShellWorkOrderOwner').selectOption('__unowned__');
+    }
+    await page.locator('#serviceShellWorkOrderTitle').fill(`E2E unowned ${Date.now()}`);
+    const vehicleOptions = page.locator('#serviceShellWorkOrderVehicle option');
+    await expect(vehicleOptions).not.toHaveCount(0);
+    await page.locator('#serviceShellWorkOrderVehicle').selectOption({ index: 0 });
+    await page.locator('.service-shell-modal-footer .btn-primary').click();
+    await expect(page.locator('[data-testid="service-work-orders-section"]')).toContainText(/Zakázka byla vytvořena|Nepřiřazené/i, {
+      timeout: 30_000,
+    });
+  });
+
   test('service_work_order_create_quote_or_limited', async ({ page }) => {
     await openWorkOrders(page);
     if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {

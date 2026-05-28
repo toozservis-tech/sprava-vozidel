@@ -7,10 +7,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import case, func, or_
+from sqlalchemy import and_, case, exists, func, or_
 from sqlalchemy.orm import Session, aliased
 
 from ..audit_log import write_global_audit_log
+from ..central_vehicle_identity import active_owner_assignment, vehicle_state
 from ..database import get_db
 from ..mileage_reports import collect_vehicle_mileage_timeline_points, summarize_mileage_timeline
 from ..models import (
@@ -73,7 +74,7 @@ QUOTE_STATUS_SORT_RANK = case(
 
 
 class ServiceWorkOrderCreateRequest(BaseModel):
-    owner_id: int = Field(gt=0)
+    owner_id: Optional[int] = Field(default=None, gt=0)
     vehicle_id: int = Field(gt=0)
     technician_id: Optional[int] = Field(default=None, gt=0)
     title: str = Field(..., min_length=3, max_length=255)
@@ -362,6 +363,47 @@ def _resolve_authorized_quote_context(
     return owner, vehicle, cust_link, v_link
 
 
+def _is_service_provisioned_unowned_for_service(
+    db: Session,
+    *,
+    current_user: Customer,
+    vehicle: VehicleModel,
+) -> bool:
+    if active_owner_assignment(db, int(vehicle.id)) is not None:
+        return False
+    if vehicle_state(db, vehicle) != "service_provisioned_unowned":
+        return False
+    if int(getattr(vehicle, "provisioned_by_service_customer_id", 0) or 0) != int(current_user.id):
+        return False
+    provisioned_tenant = int(getattr(vehicle, "provisioned_by_service_tenant_id", 0) or 0)
+    user_tenant = int(getattr(current_user, "tenant_id", 0) or 0)
+    if provisioned_tenant and user_tenant and provisioned_tenant != user_tenant:
+        return False
+    vehicle_tenant = int(getattr(vehicle, "tenant_id", 0) or 0)
+    if user_tenant and vehicle_tenant and vehicle_tenant != user_tenant:
+        return False
+    return True
+
+
+def _resolve_unowned_work_order_vehicle(
+    db: Session,
+    *,
+    current_user: Customer,
+    vehicle_id: int,
+) -> VehicleModel:
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo zakázky nebylo nalezeno.")
+    if not _is_service_provisioned_unowned_for_service(db, current_user=current_user, vehicle=vehicle):
+        if active_owner_assignment(db, int(vehicle.id)) is not None:
+            raise HTTPException(
+                status_code=422,
+                detail="Pro vozidlo s majitelem je nutné zadat owner_id a schválený přístup.",
+            )
+        raise HTTPException(status_code=403, detail="Servis nemá oprávnění k tomuto nepřiřazenému vozidlu.")
+    return vehicle
+
+
 def _resolve_owner_and_vehicle(
     db: Session,
     *,
@@ -423,7 +465,7 @@ def _resolve_technician_id(db: Session, *, current_user: Customer, technician_id
 def _serialize_work_order(
     order: ServiceWorkOrder,
     *,
-    owner: Customer,
+    owner: Optional[Customer],
     vehicle: VehicleModel,
     technician: Optional[Customer],
 ) -> dict[str, object]:
@@ -433,6 +475,7 @@ def _serialize_work_order(
     technical_specs = " ".join(
         [part for part in [getattr(vehicle, "brand", None), getattr(vehicle, "model", None)] if part]
     ).strip()
+    is_unowned = order.owner_customer_id is None
     return {
         "entity_type": "work_order",
         "entity_id": int(order.id),
@@ -446,9 +489,11 @@ def _serialize_work_order(
         "can_create_work_order": False,
         "blocking_reason": None,
         "disclosure": "full",
-        "owner_id": int(owner.id),
-        "customer_name": owner.name or owner.email,
-        "customer_contact": owner.email or owner.phone,
+        "is_unowned_vehicle": is_unowned,
+        "owner_id": int(owner.id) if owner else None,
+        "customer_id": int(owner.id) if owner else None,
+        "customer_name": "Nepřiřazené vozidlo" if is_unowned else (owner.name or owner.email),
+        "customer_contact": None if is_unowned else (owner.email or owner.phone),
         "vehicle_id": int(vehicle.id),
         "vehicle_vin": vehicle.vin,
         "vehicle_spz": vehicle.plate,
@@ -473,7 +518,7 @@ def _serialize_work_order(
         "source_reservation_id": order.source_reservation_id,
         "source_document_id": order.source_document_id,
         "source_intake_id": order.source_intake_id,
-        "customer_linked": True,
+        "customer_linked": not is_unowned,
         "vehicle_access_approved": True,
     }
 
@@ -1037,25 +1082,42 @@ def list_service_work_orders(
     owner_alias = aliased(Customer)
     tech_alias = aliased(Customer)
 
+    owned_customer_link = exists().where(
+        and_(
+            ServiceCustomerLink.service_customer_id == ServiceWorkOrder.service_customer_id,
+            ServiceCustomerLink.customer_id == ServiceWorkOrder.owner_customer_id,
+            ServiceCustomerLink.status == "active",
+        )
+    )
+    owned_vehicle_link = exists().where(
+        and_(
+            VehicleServiceLink.service_customer_id == ServiceWorkOrder.service_customer_id,
+            VehicleServiceLink.owner_customer_id == ServiceWorkOrder.owner_customer_id,
+            VehicleServiceLink.vehicle_id == ServiceWorkOrder.vehicle_id,
+            VehicleServiceLink.status == "approved",
+        )
+    )
+
     query = (
         db.query(ServiceWorkOrder, owner_alias, VehicleModel, tech_alias)
-        .join(owner_alias, owner_alias.id == ServiceWorkOrder.owner_customer_id)
         .join(VehicleModel, VehicleModel.id == ServiceWorkOrder.vehicle_id)
+        .outerjoin(owner_alias, owner_alias.id == ServiceWorkOrder.owner_customer_id)
         .outerjoin(tech_alias, tech_alias.id == ServiceWorkOrder.technician_id)
-        .join(
-            ServiceCustomerLink,
-            (ServiceCustomerLink.service_customer_id == ServiceWorkOrder.service_customer_id)
-            & (ServiceCustomerLink.customer_id == ServiceWorkOrder.owner_customer_id)
-            & (ServiceCustomerLink.status == "active"),
-        )
-        .join(
-            VehicleServiceLink,
-            (VehicleServiceLink.service_customer_id == ServiceWorkOrder.service_customer_id)
-            & (VehicleServiceLink.owner_customer_id == ServiceWorkOrder.owner_customer_id)
-            & (VehicleServiceLink.vehicle_id == ServiceWorkOrder.vehicle_id)
-            & (VehicleServiceLink.status == "approved"),
-        )
         .filter(ServiceWorkOrder.service_customer_id == current_user.id)
+        .filter(
+            or_(
+                and_(
+                    ServiceWorkOrder.owner_customer_id.isnot(None),
+                    owned_customer_link,
+                    owned_vehicle_link,
+                ),
+                and_(
+                    ServiceWorkOrder.owner_customer_id.is_(None),
+                    VehicleModel.provisioned_by_service_customer_id == int(current_user.id),
+                    VehicleModel.global_vehicle_status == "service_provisioned_unowned",
+                ),
+            )
+        )
     )
 
     normalized_status_raw = _query_value(status)
@@ -1105,11 +1167,21 @@ def get_service_work_order_detail(
     _ensure_service_dashboard_schema(db)
 
     order = _get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
-    owner = db.query(Customer).filter(Customer.id == order.owner_customer_id).first()
+    owner = (
+        db.query(Customer).filter(Customer.id == order.owner_customer_id).first()
+        if order.owner_customer_id is not None
+        else None
+    )
     vehicle = db.query(VehicleModel).filter(VehicleModel.id == order.vehicle_id).first()
     technician = db.query(Customer).filter(Customer.id == order.technician_id).first()
-    if not owner or not vehicle:
+    if not vehicle:
         raise HTTPException(status_code=404, detail="Detail zakázky není kompletní.")
+    if order.owner_customer_id is not None and not owner:
+        raise HTTPException(status_code=404, detail="Detail zakázky není kompletní.")
+    if order.owner_customer_id is None and not _is_service_provisioned_unowned_for_service(
+        db, current_user=current_user, vehicle=vehicle
+    ):
+        raise HTTPException(status_code=403, detail="Servis nemá oprávnění k detailu této zakázky.")
 
     audit_rows = (
         db.query(ServiceWorkOrderAuditLog)
@@ -1237,6 +1309,43 @@ def list_vehicle_quotes(
     return {"items": items}
 
 
+@router.get("/work-orders/unowned-vehicles")
+def list_unowned_vehicles_for_work_orders(
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Nepřiřazená vozidla založená tímto servisem — pouze pro zakázky bez owner_id."""
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    rows = (
+        db.query(VehicleModel)
+        .filter(
+            VehicleModel.provisioned_by_service_customer_id == int(current_user.id),
+            VehicleModel.global_vehicle_status == "service_provisioned_unowned",
+            VehicleModel.status != "archived",
+        )
+        .order_by(VehicleModel.updated_at.desc(), VehicleModel.id.desc())
+        .limit(100)
+        .all()
+    )
+    items = []
+    for vehicle in rows:
+        if active_owner_assignment(db, int(vehicle.id)) is not None:
+            continue
+        label = " / ".join(
+            part
+            for part in [
+                getattr(vehicle, "brand", None),
+                getattr(vehicle, "model", None),
+                getattr(vehicle, "plate", None) or getattr(vehicle, "vin", None),
+            ]
+            if part
+        ) or f"Vozidlo #{int(vehicle.id)}"
+        items.append({"vehicle_id": int(vehicle.id), "label": label})
+    return {"items": items}
+
+
 @router.post("/work-orders")
 def create_service_work_order(
     payload: ServiceWorkOrderCreateRequest,
@@ -1246,12 +1355,21 @@ def create_service_work_order(
     _require_service_workspace_role(current_user)
     _ensure_service_dashboard_schema(db)
 
-    owner, vehicle = _resolve_owner_and_vehicle(
-        db,
-        current_user=current_user,
-        owner_id=int(payload.owner_id),
-        vehicle_id=int(payload.vehicle_id),
-    )
+    owner: Optional[Customer] = None
+    if payload.owner_id is not None:
+        owner, vehicle = _resolve_owner_and_vehicle(
+            db,
+            current_user=current_user,
+            owner_id=int(payload.owner_id),
+            vehicle_id=int(payload.vehicle_id),
+        )
+    else:
+        vehicle = _resolve_unowned_work_order_vehicle(
+            db,
+            current_user=current_user,
+            vehicle_id=int(payload.vehicle_id),
+        )
+
     technician_id = _resolve_technician_id(db, current_user=current_user, technician_id=payload.technician_id)
     status = _normalize_status(payload.status)
     source_type = str(payload.source_type or "manual").strip().lower()
@@ -1259,9 +1377,9 @@ def create_service_work_order(
         raise HTTPException(status_code=422, detail="Neplatný zdroj zakázky.")
 
     order = ServiceWorkOrder(
-        tenant_id=getattr(current_user, "tenant_id", None) or getattr(owner, "tenant_id", None) or 1,
+        tenant_id=getattr(current_user, "tenant_id", None) or getattr(vehicle, "tenant_id", None) or 1,
         service_customer_id=current_user.id,
-        owner_customer_id=owner.id,
+        owner_customer_id=int(owner.id) if owner else None,
         vehicle_id=vehicle.id,
         technician_id=technician_id,
         source_type=source_type,
@@ -1273,14 +1391,19 @@ def create_service_work_order(
         status=status,
         due_date=payload.due_date,
     )
+    duplicate_filters = [
+        ServiceWorkOrder.service_customer_id == current_user.id,
+        ServiceWorkOrder.vehicle_id == vehicle.id,
+        ServiceWorkOrder.status != "completed",
+    ]
+    if owner is not None:
+        duplicate_filters.append(ServiceWorkOrder.owner_customer_id == owner.id)
+    else:
+        duplicate_filters.append(ServiceWorkOrder.owner_customer_id.is_(None))
+
     duplicate_open_order = (
         db.query(ServiceWorkOrder.id, ServiceWorkOrder.title, ServiceWorkOrder.status)
-        .filter(
-            ServiceWorkOrder.service_customer_id == current_user.id,
-            ServiceWorkOrder.owner_customer_id == owner.id,
-            ServiceWorkOrder.vehicle_id == vehicle.id,
-            ServiceWorkOrder.status != "completed",
-        )
+        .filter(*duplicate_filters)
         .order_by(ServiceWorkOrder.created_at.desc(), ServiceWorkOrder.id.desc())
         .first()
     )
@@ -1294,9 +1417,10 @@ def create_service_work_order(
             actor_role=getattr(current_user, "role", None),
             tenant_id=getattr(current_user, "tenant_id", None),
             metadata={
-                "owner_customer_id": int(owner.id),
+                "owner_customer_id": int(owner.id) if owner else None,
                 "vehicle_id": int(vehicle.id),
                 "title": str(payload.title or "").strip(),
+                "unowned_vehicle": owner is None,
             },
         )
         raise HTTPException(
@@ -1322,10 +1446,11 @@ def create_service_work_order(
     db.flush()
 
     snapshot = _work_order_snapshot(order)
+    audit_action = "create_unowned" if owner is None else "create"
     _write_work_order_audit(
         db,
         work_order=order,
-        action="create",
+        action=audit_action,
         actor=current_user,
         previous_snapshot={},
         new_snapshot=snapshot,

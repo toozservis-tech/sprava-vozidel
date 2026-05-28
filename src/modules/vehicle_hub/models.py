@@ -908,7 +908,7 @@ class ServiceWorkOrder(Base):
 
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     service_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
-    owner_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    owner_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
     vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False, index=True)
     technician_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
 
