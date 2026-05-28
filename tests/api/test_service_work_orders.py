@@ -10,9 +10,11 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from src.modules.vehicle_hub.database import Base
+from src.modules.vehicle_hub.central_vehicle_identity import build_owner_safe_service_history
 from src.modules.vehicle_hub.models import (
     Customer,
     ServiceCustomerLink,
+    ServiceRecord,
     ServiceWorkOrder,
     Tenant,
     Vehicle,
@@ -20,6 +22,17 @@ from src.modules.vehicle_hub.models import (
     VehicleServiceLink,
 )
 from src.modules.vehicle_hub.routers_v1 import service_dashboard as dashboard_router
+from src.modules.vehicle_hub.routers_v1.work_order_items_api import (
+    ServiceWorkOrderCreateRecordRequest,
+    ServiceWorkOrderLaborCreateRequest,
+    ServiceWorkOrderPartCreateRequest,
+    ServiceWorkOrderTimeCreateRequest,
+    add_work_order_labor,
+    add_work_order_part,
+    add_work_order_time,
+    complete_work_order,
+    create_service_record_from_work_order,
+)
 
 
 def _service_user(service: Customer) -> SimpleNamespace:
@@ -433,16 +446,26 @@ def test_service_workspace_lookup_accepts_vin_plate_payload() -> None:
     assert str(payload.plate or "").strip()
 
 
-def test_service_work_order_add_labor_part_time_or_limited(tmp_path: Path) -> None:
-    engine, db, owner, service, _foreign_service, vehicle = _seed_ctx(tmp_path)
+def _create_basic_work_order(db, owner, service, vehicle):
+    return dashboard_router.create_service_work_order(
+        payload=dashboard_router.ServiceWorkOrderCreateRequest(
+            owner_id=owner.id,
+            vehicle_id=vehicle.id,
+            technician_id=service.id,
+            title="Položky zakázky",
+        ),
+        current_user=_service_user(service),
+        db=db,
+    )
+
+
+def test_service_work_order_add_labor(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
     try:
-        created = dashboard_router.create_service_work_order(
-            payload=dashboard_router.ServiceWorkOrderCreateRequest(
-                owner_id=owner.id,
-                vehicle_id=vehicle.id,
-                technician_id=service.id,
-                title="Limited operations",
-            ),
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        add_work_order_labor(
+            int(created["id"]),
+            ServiceWorkOrderLaborCreateRequest(name="Výměna oleje", hours=1.5, unit_price_without_vat=900),
             current_user=_service_user(service),
             db=db,
         )
@@ -451,9 +474,222 @@ def test_service_work_order_add_labor_part_time_or_limited(tmp_path: Path) -> No
             current_user=_service_user(service),
             db=db,
         )
-        # Backend currently provides canonical detail, while labor/parts/time endpoints are intentionally not exposed yet.
-        assert detail["id"] == int(created["id"])
-        assert "audit_log" in detail
+        assert len(detail["items"]["labor"]) == 1
+        assert detail["items"]["labor"][0]["name"] == "Výměna oleje"
+        assert detail["capabilities"]["labor"] is True
+        assert detail["capabilities"]["photos"] is False
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_add_part(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        add_work_order_part(
+            int(created["id"]),
+            ServiceWorkOrderPartCreateRequest(name="Filtr oleje", quantity=1, unit="ks"),
+            current_user=_service_user(service),
+            db=db,
+        )
+        detail = dashboard_router.get_service_work_order_detail(
+            work_order_id=int(created["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert len(detail["items"]["parts"]) == 1
+        assert detail["items"]["parts"][0]["unit"] == "ks"
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_add_time(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        add_work_order_time(
+            int(created["id"]),
+            ServiceWorkOrderTimeCreateRequest(minutes=90, note="Diagnostika"),
+            current_user=_service_user(service),
+            db=db,
+        )
+        detail = dashboard_router.get_service_work_order_detail(
+            work_order_id=int(created["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert len(detail["items"]["time"]) == 1
+        assert detail["items"]["time"][0]["quantity"] == 90
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_upload_or_limited(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        detail = dashboard_router.get_service_work_order_detail(
+            work_order_id=int(created["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert detail["capabilities"]["photos"] is False
+        assert "Fotodokumentace" in detail["limited_notices"]["photos"]
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_complete(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        completed = complete_work_order(
+            int(created["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert completed["status"] == "completed"
+        assert completed["completed_at"] is not None
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_create_service_record(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Brzdy", hours=2),
+            current_user=_service_user(service),
+            db=db,
+        )
+        add_work_order_part(
+            wid,
+            ServiceWorkOrderPartCreateRequest(name="Destičky", quantity=2, unit="ks"),
+            current_user=_service_user(service),
+            db=db,
+        )
+        complete_work_order(wid, current_user=_service_user(service), db=db)
+        result = create_service_record_from_work_order(
+            wid,
+            ServiceWorkOrderCreateRecordRequest(mileage=125000),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert result["service_record_id"] > 0
+        record = db.query(ServiceRecord).filter(ServiceRecord.id == int(result["service_record_id"])).first()
+        assert record is not None
+        assert int(record.work_order_id or 0) == wid
+        assert record.visibility_scope == "owner_visible_no_prices"
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_service_record_safe_history_no_prices(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_part(
+            wid,
+            ServiceWorkOrderPartCreateRequest(name="Olej 5W30", quantity=5, unit="l", unit_price_without_vat=100),
+            current_user=_service_user(service),
+            db=db,
+        )
+        complete_work_order(wid, current_user=_service_user(service), db=db)
+        create_service_record_from_work_order(
+            wid,
+            ServiceWorkOrderCreateRecordRequest(),
+            current_user=_service_user(service),
+            db=db,
+        )
+        history = build_owner_safe_service_history(db, vehicle_id=int(vehicle.id), owner_customer_id=int(owner.id))
+        assert history
+        entry = history[0]
+        assert "price" not in entry
+        assert "total_price" not in entry
+        assert "invoice_id" not in entry
+        assert entry["parts"]
+        assert entry["parts"][0]["name"] == "Olej 5W30"
+        assert "unit_price" not in entry["parts"][0]
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_service_record_safe_history_no_invoice(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        complete_work_order(wid, current_user=_service_user(service), db=db)
+        create_service_record_from_work_order(
+            wid,
+            ServiceWorkOrderCreateRecordRequest(),
+            current_user=_service_user(service),
+            db=db,
+        )
+        history = build_owner_safe_service_history(db, vehicle_id=int(vehicle.id), owner_customer_id=int(owner.id))
+        blob = str(history[0])
+        assert "invoice" not in blob.lower()
+        assert "faktura" not in blob.lower()
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_forbidden_cross_service_items(tmp_path: Path) -> None:
+    engine, db, owner, service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        with pytest.raises(HTTPException) as exc:
+            add_work_order_labor(
+                int(created["id"]),
+                ServiceWorkOrderLaborCreateRequest(name="Cizí servis", hours=1),
+                current_user=_service_user(foreign_service),
+                db=db,
+            )
+        assert exc.value.status_code in {403, 404}
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_unowned_flow_still_works(tmp_path: Path) -> None:
+    engine, db, _owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        vehicle = _seed_unowned_vehicle(db, service, vin="TMBUNOWN123456789")
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=service.id,
+                title="Unowned items",
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Kontrola", hours=1),
+            current_user=_service_user(service),
+            db=db,
+        )
+        detail = dashboard_router.get_service_work_order_detail(
+            work_order_id=wid,
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert detail["is_unowned_vehicle"] is True
+        assert len(detail["items"]["labor"]) == 1
     finally:
         db.close()
         engine.dispose()

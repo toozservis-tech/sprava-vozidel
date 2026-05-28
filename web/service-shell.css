@@ -379,6 +379,19 @@ body.service-shell-app.service-shell-theme-light {
   margin: 6px 0 10px;
 }
 
+.service-work-order-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.service-work-order-add-row input {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
 .service-work-row {
   display: grid;
   grid-template-columns: 86px minmax(230px, 1fr) 132px 82px 70px 88px 128px 18px;

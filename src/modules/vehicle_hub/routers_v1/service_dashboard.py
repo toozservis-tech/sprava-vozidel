@@ -745,6 +745,27 @@ def _sync_work_order_status_from_quote(
     )
 
 
+def _assert_work_order_vehicle_access(
+    db: Session,
+    *,
+    current_user: Customer,
+    order: ServiceWorkOrder,
+) -> VehicleModel:
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(order.vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo zakázky nebylo nalezeno.")
+    if order.owner_customer_id is not None:
+        _resolve_owner_and_vehicle(
+            db,
+            current_user=current_user,
+            owner_id=int(order.owner_customer_id),
+            vehicle_id=int(order.vehicle_id),
+        )
+    elif not _is_service_provisioned_unowned_for_service(db, current_user=current_user, vehicle=vehicle):
+        raise HTTPException(status_code=403, detail="Servis nemá oprávnění k této zakázce.")
+    return vehicle
+
+
 def _get_work_order_or_404(db: Session, *, current_user: Customer, work_order_id: int) -> ServiceWorkOrder:
     order = (
         db.query(ServiceWorkOrder)
@@ -756,13 +777,24 @@ def _get_work_order_or_404(db: Session, *, current_user: Customer, work_order_id
     )
     if not order:
         raise HTTPException(status_code=404, detail="Zakázka nebyla nalezena.")
-    _resolve_owner_and_vehicle(
-        db,
-        current_user=current_user,
-        owner_id=int(order.owner_customer_id),
-        vehicle_id=int(order.vehicle_id),
-    )
+    _assert_work_order_vehicle_access(db, current_user=current_user, order=order)
     return order
+
+
+def _load_work_order_parties(
+    db: Session,
+    order: ServiceWorkOrder,
+) -> tuple[Optional[Customer], VehicleModel, Optional[Customer]]:
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(order.vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo zakázky nebylo nalezeno.")
+    owner: Optional[Customer] = None
+    if order.owner_customer_id is not None:
+        owner = db.query(Customer).filter(Customer.id == int(order.owner_customer_id)).first()
+        if not owner:
+            raise HTTPException(status_code=404, detail="Majitel zakázky nebyl nalezen.")
+    technician = db.query(Customer).filter(Customer.id == int(order.technician_id)).first()
+    return owner, vehicle, technician
 
 
 @router.get("/dashboard/summary")
@@ -1218,6 +1250,26 @@ def get_service_work_order_detail(
         }
         for row in audit_rows
     ]
+    from .work_order_items_api import (
+        list_work_order_items_grouped,
+        work_order_capabilities,
+        work_order_limited_notices,
+    )
+
+    detail["items"] = list_work_order_items_grouped(db, work_order_id=int(order.id))
+    detail["capabilities"] = work_order_capabilities(order=order)
+    detail["limited_notices"] = work_order_limited_notices()
+    linked_record = (
+        db.query(ServiceRecordModel.id)
+        .filter(
+            ServiceRecordModel.work_order_id == int(order.id),
+            ServiceRecordModel.is_deleted.is_(False),
+            ServiceRecordModel.service_id == int(current_user.id),
+        )
+        .order_by(ServiceRecordModel.id.desc())
+        .first()
+    )
+    detail["service_record_id"] = int(linked_record[0]) if linked_record else None
     return detail
 
 
@@ -1509,12 +1561,13 @@ def update_service_work_order(
     db.commit()
     db.refresh(order)
 
-    owner = db.query(Customer).filter(Customer.id == order.owner_customer_id).first()
-    vehicle = db.query(VehicleModel).filter(VehicleModel.id == order.vehicle_id).first()
-    technician = db.query(Customer).filter(Customer.id == order.technician_id).first()
-    if not owner or not vehicle:
-        raise HTTPException(status_code=404, detail="Zakázku se po uložení nepodařilo načíst.")
+    owner, vehicle, technician = _load_work_order_parties(db, order)
     return _serialize_work_order(order, owner=owner, vehicle=vehicle, technician=technician)
+
+
+from .work_order_items_api import register_work_order_item_routes
+
+register_work_order_item_routes(router)
 
 
 @router.post("/quotes/from-record/{record_id}")

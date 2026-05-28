@@ -3618,6 +3618,185 @@
     }
   }
 
+  function renderWorkOrderLineList(items, emptyText) {
+    if (!Array.isArray(items) || !items.length) {
+      return `<li class="service-shell-list-note">${escape(emptyText)}</li>`;
+    }
+    return items.map((item) => {
+      const qty = item.quantity != null ? `${Number(item.quantity)} ${escape(item.unit || '')}`.trim() : '';
+      const priceHint = Number(item.line_total_without_vat || 0) > 0
+        ? ` <span class="service-shell-list-note">(interní cena ${Number(item.line_total_without_vat).toLocaleString('cs-CZ')} Kč)</span>`
+        : '';
+      const dateHint = item.worked_date ? ` <span class="service-shell-list-note">${escape(item.worked_date)}</span>` : '';
+      const note = item.note ? ` — ${escape(item.note)}` : '';
+      return `<li><strong>${escape(item.name || '-')}</strong>${qty ? ` (${escape(qty)})` : ''}${dateHint}${note}${priceHint}</li>`;
+    }).join('');
+  }
+
+  function renderWorkOrderItemsPanel(detail, workOrderId) {
+    const items = detail?.items || {};
+    const caps = detail?.capabilities || {};
+    const notices = detail?.limited_notices || {};
+    const labor = items.labor || [];
+    const parts = items.parts || [];
+    const times = items.time || [];
+    const limitedPhoto = notices.photos || 'Fotodokumentace zakázky bude doplněna v další fázi. Aktuálně se fotky evidují v příjmu nebo u vozidla.';
+    const recordId = Number(detail?.service_record_id || 0);
+    const canAddLabor = caps.labor !== false;
+    const canAddPart = caps.parts !== false;
+    const canAddTime = caps.time !== false;
+    const canCreateRecord = Boolean(caps.create_service_record) && recordId <= 0;
+    const limitedNotice = state.workOrderLimitedNotice
+      ? `<p class="service-shell-list-note" data-testid="service-work-order-limited-notice">${escape(state.workOrderLimitedNotice)}</p>`
+      : '';
+    return `
+      ${limitedNotice}
+      <section class="service-shell-side-card" aria-label="Práce na zakázce">
+        <h3>Práce</h3>
+        <ul class="service-shell-list" data-testid="service-work-order-labor-list">${renderWorkOrderLineList(labor, 'Zatím bez evidované práce.')}</ul>
+        <div class="service-work-order-add-row">
+          <input type="text" id="serviceWoLaborName" placeholder="Název práce" ${canAddLabor ? '' : 'disabled'}>
+          <input type="number" id="serviceWoLaborHours" min="0.1" step="0.1" placeholder="Hodiny" value="1" ${canAddLabor ? '' : 'disabled'}>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-labor-button" ${canAddLabor ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderLabor(${workOrderId})">Přidat práci</button>
+        </div>
+      </section>
+      <section class="service-shell-side-card" aria-label="Díly na zakázce">
+        <h3>Díly</h3>
+        <ul class="service-shell-list" data-testid="service-work-order-part-list">${renderWorkOrderLineList(parts, 'Zatím bez evidovaných dílů.')}</ul>
+        <div class="service-work-order-add-row">
+          <input type="text" id="serviceWoPartName" placeholder="Název dílu" ${canAddPart ? '' : 'disabled'}>
+          <input type="number" id="serviceWoPartQty" min="0.01" step="0.01" placeholder="Množství" value="1" ${canAddPart ? '' : 'disabled'}>
+          <input type="text" id="serviceWoPartUnit" placeholder="Jednotka" value="ks" ${canAddPart ? '' : 'disabled'}>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-part-button" ${canAddPart ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderPart(${workOrderId})">Přidat díl</button>
+        </div>
+      </section>
+      <section class="service-shell-side-card" aria-label="Čas práce">
+        <h3>Čas</h3>
+        <ul class="service-shell-list" data-testid="service-work-order-time-list">${renderWorkOrderLineList(times, 'Zatím bez evidovaného času.')}</ul>
+        <div class="service-work-order-add-row">
+          <input type="number" id="serviceWoTimeMinutes" min="1" step="1" placeholder="Minuty" value="60" ${canAddTime ? '' : 'disabled'}>
+          <input type="date" id="serviceWoTimeDate" ${canAddTime ? '' : 'disabled'}>
+          <input type="text" id="serviceWoTimeNote" placeholder="Poznámka" ${canAddTime ? '' : 'disabled'}>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-time-button" ${canAddTime ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderTime(${workOrderId})">Přidat čas</button>
+        </div>
+      </section>
+      <section class="service-shell-side-card" aria-label="Fotodokumentace zakázky">
+        <h3>Fotky</h3>
+        <p class="service-shell-list-note" data-testid="service-work-order-limited-notice">${escape(limitedPhoto)}</p>
+        <ul class="service-shell-list" data-testid="service-work-order-photo-list"><li class="service-shell-list-note">Bez fotek u zakázky.</li></ul>
+        <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-photo-button" disabled title="${escape(limitedPhoto)}">Přidat foto</button>
+      </section>
+      <section class="service-shell-side-card" aria-label="Servisní záznam ze zakázky">
+        <h3>Servisní záznam</h3>
+        ${recordId > 0
+          ? `<p class="service-shell-list-note">Zakázka má servisní záznam #${recordId}.</p>`
+          : `<p class="service-shell-list-note">${canCreateRecord ? 'Po dokončení zakázky vytvořte servisní záznam pro bezpečnou historii majitele.' : 'Servisní záznam lze vytvořit až po dokončení zakázky.'}</p>
+             <div class="service-work-order-add-row">
+               <input type="number" id="serviceWoRecordMileage" min="0" step="1" placeholder="km (volitelné)" ${canCreateRecord ? '' : 'disabled'}>
+               <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-record-button" ${canCreateRecord ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderServiceRecord(${workOrderId})">Vytvořit servisní záznam</button>
+             </div>`}
+      </section>
+    `;
+  }
+
+  async function reloadWorkOrderDetailModal(workOrderId) {
+    const id = Number(workOrderId || 0);
+    if (!id) return;
+    state.workOrderLimitedNotice = '';
+    await openWorkOrderDetailModal(id);
+  }
+
+  async function submitWorkOrderLabor(workOrderId) {
+    const id = Number(workOrderId || 0);
+    const name = String(document.getElementById('serviceWoLaborName')?.value || '').trim();
+    const hours = Number(document.getElementById('serviceWoLaborHours')?.value || 0);
+    if (!name || !(hours > 0)) {
+      setWorkOrderLimitedNotice('Vyplňte název práce a kladný počet hodin.');
+      await reloadWorkOrderDetailModal(id);
+      return;
+    }
+    try {
+      await window.apiCall(`/api/service/work-orders/${id}/labor`, 'POST', { name, hours });
+      if (typeof window.showAlert === 'function') window.showAlert('Práce byla přidána.', 'success');
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Práci se nepodařilo uložit.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  async function submitWorkOrderPart(workOrderId) {
+    const id = Number(workOrderId || 0);
+    const name = String(document.getElementById('serviceWoPartName')?.value || '').trim();
+    const quantity = Number(document.getElementById('serviceWoPartQty')?.value || 0);
+    const unit = String(document.getElementById('serviceWoPartUnit')?.value || 'ks').trim() || 'ks';
+    if (!name || !(quantity > 0)) {
+      setWorkOrderLimitedNotice('Vyplňte název dílu a kladné množství.');
+      await reloadWorkOrderDetailModal(id);
+      return;
+    }
+    try {
+      await window.apiCall(`/api/service/work-orders/${id}/parts`, 'POST', { name, quantity, unit });
+      if (typeof window.showAlert === 'function') window.showAlert('Díl byl přidán.', 'success');
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Díl se nepodařilo uložit.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  async function submitWorkOrderTime(workOrderId) {
+    const id = Number(workOrderId || 0);
+    const minutes = Number(document.getElementById('serviceWoTimeMinutes')?.value || 0);
+    const workedDate = String(document.getElementById('serviceWoTimeDate')?.value || '').trim() || null;
+    const note = String(document.getElementById('serviceWoTimeNote')?.value || '').trim() || null;
+    if (!(minutes > 0)) {
+      setWorkOrderLimitedNotice('Zadejte kladný počet minut.');
+      await reloadWorkOrderDetailModal(id);
+      return;
+    }
+    try {
+      await window.apiCall(`/api/service/work-orders/${id}/time`, 'POST', {
+        minutes: Math.round(minutes),
+        worked_date: workedDate,
+        note,
+      });
+      if (typeof window.showAlert === 'function') window.showAlert('Čas byl přidán.', 'success');
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Čas se nepodařilo uložit.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  async function submitWorkOrderComplete(workOrderId) {
+    const id = Number(workOrderId || 0);
+    try {
+      await window.apiCall(`/api/service/work-orders/${id}/complete`, 'POST', {});
+      if (typeof window.showAlert === 'function') window.showAlert('Zakázka byla dokončena.', 'success');
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Zakázku se nepodařilo dokončit.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  async function submitWorkOrderServiceRecord(workOrderId) {
+    const id = Number(workOrderId || 0);
+    const mileageRaw = document.getElementById('serviceWoRecordMileage')?.value;
+    const mileage = mileageRaw === '' || mileageRaw == null ? null : Number(mileageRaw);
+    try {
+      const payload = {};
+      if (mileage != null && !Number.isNaN(mileage) && mileage >= 0) payload.mileage = Math.round(mileage);
+      await window.apiCall(`/api/service/work-orders/${id}/service-record`, 'POST', payload);
+      if (typeof window.showAlert === 'function') window.showAlert('Servisní záznam byl vytvořen.', 'success');
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Servisní záznam se nepodařilo vytvořit.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
   async function openWorkOrderDetailModal(workOrderId) {
     const id = Number(workOrderId || 0);
     if (!id || !hasFloatingModalSupport()) return;
@@ -3718,6 +3897,7 @@
                 </div>
               </section>
             ` : ''}
+            ${renderWorkOrderItemsPanel(detail, id)}
             <div class="form-group">
               <label>Audit</label>
               <div class="service-dashboard-empty service-shell-modal-audit">
@@ -3727,14 +3907,9 @@
               </div>
             </div>
             <div class="service-shell-modal-actions">
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-labor-button" disabled title="Evidence práce bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Evidence práce na zakázce bude doplněna v další fázi.')">Přidat práci</button>
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-part-button" disabled title="Evidence dílů bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Evidence dílů na zakázce bude doplněna v další fázi.')">Přidat díl</button>
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-time-button" disabled title="Evidence času mechanika bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Evidence času mechanika bude doplněna v další fázi.')">Přidat čas</button>
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-photo-button" disabled title="Fotodokumentace zakázky bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Fotodokumentace zakázky bude doplněna v další fázi.')">Přidat foto</button>
               <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-quote-button" ${Number(detail?.vehicle_id || 0) <= 0 ? 'disabled' : ''} onclick="window.serviceShell.openCreateQuoteModal(${Number(detail?.vehicle_id || 0)}, ${Number(detail?.owner_id || 0)}, ${id})">Vytvořit nabídku</button>
               <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-invoice-button" ${Number(detail?.vehicle_id || 0) <= 0 ? 'disabled' : ''} onclick="window.serviceShell.navigate('billing')">Vytvořit fakturu</button>
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-button" onclick="document.getElementById('serviceShellDetailStatus').value='completed'; window.serviceShell.submitWorkOrderDetailUpdate(${id})">Dokončit zakázku</button>
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-record-button" disabled title="Servisní záznam ze zakázky bude doplněn v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Servisní záznam ze zakázky bude doplněn v další fázi.')">Vytvořit servisní záznam</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-button" ${detail?.status === 'completed' ? 'disabled' : ''} onclick="window.serviceShell.submitWorkOrderComplete(${id})">Dokončit zakázku</button>
             </div>
           </form>
         `;
@@ -8706,6 +8881,12 @@
     submitCreateWorkOrderModal,
     openWorkOrderDetailModal,
     submitWorkOrderDetailUpdate,
+    submitWorkOrderLabor,
+    submitWorkOrderPart,
+    submitWorkOrderTime,
+    submitWorkOrderComplete,
+    submitWorkOrderServiceRecord,
+    reloadWorkOrderDetailModal,
     setWorkOrderLimitedNotice,
     openWorkOrderVehicleContext,
     openAddVehicleModal,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from datetime import datetime
 from typing import Any, Optional
@@ -140,6 +141,35 @@ def mark_vehicle_claimed(
     return ownership
 
 
+def _owner_safe_parts_from_record_attachments(raw: Optional[str]) -> list[dict[str, Any]]:
+    if not raw:
+        return []
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, dict):
+        return []
+    parts = payload.get("owner_safe_parts")
+    if not isinstance(parts, list):
+        return []
+    safe: list[dict[str, Any]] = []
+    for entry in parts:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()
+        if not name:
+            continue
+        safe.append(
+            {
+                "name": name,
+                "quantity": entry.get("quantity"),
+                "unit": str(entry.get("unit") or "").strip() or None,
+            }
+        )
+    return safe
+
+
 def build_owner_safe_service_history(db: Session, *, vehicle_id: int, owner_customer_id: int) -> list[dict[str, Any]]:
     rows = (
         db.query(ServiceRecord)
@@ -156,6 +186,7 @@ def build_owner_safe_service_history(db: Session, *, vehicle_id: int, owner_cust
         scope = str(getattr(row, "visibility_scope", "") or "full_current_owner")
         if scope not in safe_scopes:
             continue
+        parts = _owner_safe_parts_from_record_attachments(getattr(row, "attachments", None))
         items.append(
             {
                 "id": int(row.id),
@@ -165,7 +196,7 @@ def build_owner_safe_service_history(db: Session, *, vehicle_id: int, owner_cust
                 "service_type": row.service_type,
                 "description": row.notes_customer_visible or row.description,
                 "work_summary": row.description,
-                "parts": [],
+                "parts": parts,
                 "recommended_next_service_text": row.recommended_next_service_text,
                 "recommended_next_service_date": row.recommended_next_service_date.isoformat() if row.recommended_next_service_date else None,
                 "source_label": "Servisní záznam",

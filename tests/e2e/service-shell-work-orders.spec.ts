@@ -64,9 +64,83 @@ test.describe('Service shell work orders route', () => {
       test.skip(true, 'Žádná dostupná zakázka pro limited-state test v tomto prostředí.');
     }
     await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-labor-list"]')).toBeVisible();
     const addLabor = page.locator('[data-testid="service-work-order-add-labor-button"]');
-    await expect(addLabor).toBeDisabled();
-    await expect(addLabor).toHaveAttribute('title', /doplněna v další fázi/i);
+    await expect(addLabor).toBeEnabled();
+    const addPhoto = page.locator('[data-testid="service-work-order-add-photo-button"]');
+    await expect(addPhoto).toBeDisabled();
+    await expect(page.locator('[data-testid="service-work-order-limited-notice"]').first()).toContainText(
+      /Fotodokumentace zakázky bude doplněna/i,
+    );
+  });
+
+  test('service_work_order_add_part_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-add-part-button"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="service-work-order-part-list"]')).toBeVisible();
+  });
+
+  test('service_work_order_add_time_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-add-time-button"]')).toBeEnabled();
+  });
+
+  test('service_work_order_photo_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-photo-list"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-add-photo-button"]')).toBeDisabled();
+  });
+
+  test('service_work_order_complete_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    const completeBtn = page.locator('[data-testid="service-work-order-complete-button"]');
+    const status = page.locator('[data-testid="service-work-order-status"]');
+    const statusValue = await status.inputValue();
+    if (statusValue === 'completed') {
+      await expect(completeBtn).toBeDisabled();
+    } else {
+      await expect(completeBtn).toBeEnabled();
+    }
+  });
+
+  test('service_work_order_create_record_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    const createRecord = page.locator('[data-testid="service-work-order-create-record-button"]');
+    const statusValue = await page.locator('[data-testid="service-work-order-status"]').inputValue();
+    if (statusValue === 'completed') {
+      await expect(createRecord).toBeEnabled();
+    } else {
+      await expect(createRecord).toBeDisabled();
+    }
+  });
+
+  test('service_work_order_no_fake_success', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-add-photo-button"]')).toBeDisabled();
   });
 
   test('service_work_order_create_for_unowned_vehicle', async ({ page }) => {
