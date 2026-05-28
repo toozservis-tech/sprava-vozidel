@@ -417,28 +417,25 @@ def _register_middlewares(app: FastAPI) -> None:
             or path.startswith("/web/")
         )
 
-        if is_frontend_asset:
-            original_headers = request.scope.get("headers", [])
-            filtered_headers = [
-                (k, v)
-                for (k, v) in original_headers
-                if k.lower() not in (b"if-none-match", b"if-modified-since")
-            ]
-            if len(filtered_headers) != len(original_headers):
-                scope = dict(request.scope)
-                scope["headers"] = filtered_headers
-                request = Request(scope, request.receive)
-
         response = await call_next(request)
 
         if is_frontend_asset:
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
-            response.headers["Surrogate-Control"] = "no-store"
-            for header in ("etag", "last-modified"):
-                if header in response.headers:
-                    del response.headers[header]
+            suffix = Path(path).suffix
+            is_html_shell = (
+                suffix in {"", ".html"}
+                or path in {"/web", "/web/"}
+                or response.headers.get("content-type", "").lower().startswith("text/html")
+            )
+            if is_html_shell:
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+                response.headers["Surrogate-Control"] = "no-store"
+            else:
+                response.headers["Cache-Control"] = "public, max-age=604800, stale-while-revalidate=86400"
+                for header_name in ("Pragma", "Expires", "Surrogate-Control"):
+                    if header_name in response.headers:
+                        del response.headers[header_name]
         return response
 
 
