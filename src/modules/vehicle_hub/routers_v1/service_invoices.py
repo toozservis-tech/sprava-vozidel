@@ -1207,7 +1207,7 @@ def create_invoice_from_quote(
             status_code=422,
             detail={
                 "code": "unowned_requires_billing_customer",
-                "message": "Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt.",
+                "message": "Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt zákazníka.",
             },
         )
 

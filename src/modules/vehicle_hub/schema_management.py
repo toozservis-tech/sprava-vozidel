@@ -255,6 +255,7 @@ MODULE_REQUIREMENTS: Dict[str, Dict[str, object]] = {
         "tables": {
             "service_work_orders",
             "service_work_order_audit_logs",
+            "service_work_order_billing_contacts",
             "service_quotes",
             "service_quote_audit_logs",
             "service_quote_access_tokens",

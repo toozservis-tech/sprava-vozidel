@@ -932,6 +932,37 @@ class ServiceWorkOrder(Base):
     completed_at = Column(DateTime, nullable=True)
 
 
+class ServiceWorkOrderBillingContact(Base):
+    """Fakturační kontakt servisu k nepřiřazené zakázce — není majitel vozidla."""
+    __tablename__ = "service_work_order_billing_contacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    service_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    work_order_id = Column(Integer, ForeignKey("service_work_orders.id"), nullable=False, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False, index=True)
+
+    name = Column(String(255), nullable=False)
+    email = Column(String(320), nullable=True)
+    phone = Column(String(64), nullable=True)
+    company_name = Column(String(255), nullable=True)
+    street = Column(String(255), nullable=True)
+    street_number = Column(String(32), nullable=True)
+    city = Column(String(128), nullable=True)
+    zip = Column(String(16), nullable=True)
+    ico = Column(String(32), nullable=True)
+    dic = Column(String(32), nullable=True)
+
+    billing_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("work_order_id", name="uq_service_work_order_billing_contact_work_order"),
+    )
+
+
 class ServiceWorkOrderAuditLog(Base):
     """Append-only audit trail servisních zakázek."""
     __tablename__ = "service_work_order_audit_logs"

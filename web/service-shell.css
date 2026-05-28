@@ -3824,3 +3824,27 @@ body.service-shell-app .service-nav {
 .service-intake-photo-state {
   margin-top: 8px;
 }
+
+.service-billing-contact-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.service-billing-contact-form .service-shell-field {
+  display: grid;
+  gap: 4px;
+}
+
+.service-billing-contact-form .service-shell-field span {
+  font-size: 0.85rem;
+  color: var(--service-muted, #64748b);
+}
+
+.service-billing-contact-success {
+  color: var(--service-success, #15803d);
+}
+
+.service-billing-contact-form .service-work-order-billing-error:not(.hidden) {
+  color: var(--service-danger, #b91c1c);
+}

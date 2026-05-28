@@ -566,7 +566,7 @@ def _serialize_quote(
     return {
         "id": int(quote.id),
         "vehicle_id": int(quote.vehicle_id),
-        "customer_id": int(owner.id) if owner else None,
+        "customer_id": int(owner.id) if owner else (int(quote.customer_id) if quote.customer_id else None),
         "service_id": int(quote.service_id),
         "work_order_id": int(quote.work_order_id) if quote.work_order_id else None,
         "service_record_id": int(quote.service_record_id) if quote.service_record_id else None,
@@ -1248,6 +1248,15 @@ def get_service_work_order_detail(
     )
     if linked_invoice:
         detail["invoice_summary"] = _serialize_invoice_summary(linked_invoice)
+    if order.owner_customer_id is None:
+        from .work_order_billing_api import _get_billing_contact_row, _serialize_billing_contact
+
+        billing_row = _get_billing_contact_row(
+            db,
+            work_order_id=int(order.id),
+            service_customer_id=int(current_user.id),
+        )
+        detail["billing_contact"] = _serialize_billing_contact(billing_row) if billing_row else None
     detail["audit_log"] = [
         {
             "id": int(row.id),

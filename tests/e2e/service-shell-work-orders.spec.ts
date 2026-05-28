@@ -441,4 +441,130 @@ test.describe('Service shell work orders route', () => {
       expect(lower).not.toContain(token);
     }
   });
+
+  test('service_billing_contact_section_loads', async ({ page }) => {
+    await openWorkOrders(page);
+    const rows = page.locator('[data-testid="service-work-order-row"]');
+    if ((await rows.count()) === 0) {
+      test.skip(true, 'Žádná zakázka pro billing contact test.');
+    }
+    await rows.first().click();
+    const section = page.locator('[data-testid="service-billing-contact-section"]');
+    if ((await section.count()) === 0) {
+      test.skip(true, 'Sekce fakturačního kontaktu je jen u nepřiřazených vozidel.');
+    }
+    await expect(section).toBeVisible();
+    await expect(page.locator('[data-testid="service-billing-contact-form"]')).toBeVisible();
+  });
+
+  test('service_create_billing_contact_or_limited', async ({ page }) => {
+    test.skip(process.env.E2E_ALLOW_MUTATIONS !== '1', 'Mutace fakturačního kontaktu vyžaduje E2E_ALLOW_MUTATIONS=1.');
+    await openWorkOrders(page);
+    const rows = page.locator('[data-testid="service-work-order-row"]');
+    if ((await rows.count()) === 0) {
+      test.skip(true, 'Žádná unowned zakázka pro vytvoření kontaktu.');
+    }
+    await rows.first().click();
+    const section = page.locator('[data-testid="service-billing-contact-section"]');
+    if ((await section.count()) === 0) {
+      test.skip(true, 'Sekce fakturačního kontaktu není dostupná.');
+    }
+    await page.locator('[data-testid="service-billing-contact-name"]').fill('E2E Fakturační kontakt');
+    await page.locator('[data-testid="service-billing-contact-email"]').fill('e2e.billing.contact@example.test');
+    await page.locator('[data-testid="service-billing-contact-save-button"]').click();
+    await expect(page.locator('[data-testid="service-billing-contact-success"]')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('service_invoice_requires_billing_contact', async ({ page }) => {
+    await openWorkOrders(page);
+    const rows = page.locator('[data-testid="service-work-order-row"]');
+    if ((await rows.count()) === 0) {
+      test.skip(true, 'Žádná zakázka pro invoice billing contact test.');
+    }
+    await rows.first().click();
+    const createBtn = page.locator('[data-testid="service-work-order-create-invoice-button"]');
+    if (!(await createBtn.isVisible())) {
+      return;
+    }
+    const section = page.locator('[data-testid="service-billing-contact-section"]');
+    if ((await section.count()) === 0) {
+      return;
+    }
+    await expect(createBtn).toBeDisabled();
+  });
+
+  test('service_invoice_with_billing_contact_or_limited', async ({ page }) => {
+    test.skip(process.env.E2E_ALLOW_MUTATIONS !== '1', 'Mutace faktury vyžaduje E2E_ALLOW_MUTATIONS=1.');
+    await openWorkOrders(page);
+    const rows = page.locator('[data-testid="service-work-order-row"]');
+    if ((await rows.count()) === 0) {
+      test.skip(true, 'Žádná zakázka pro invoice s billing contact.');
+    }
+    await rows.first().click();
+    if ((await page.locator('[data-testid="service-billing-contact-section"]').count()) === 0) {
+      test.skip(true, 'Nepřiřazené vozidlo není v seznamu.');
+    }
+    const success = page.locator('[data-testid="service-billing-contact-success"]');
+    if ((await success.count()) === 0 || !(await success.isVisible())) {
+      await page.locator('[data-testid="service-billing-contact-name"]').fill('E2E Invoice Contact');
+      await page.locator('[data-testid="service-billing-contact-save-button"]').click();
+      await expect(success).toBeVisible({ timeout: 15_000 });
+    }
+    const createBtn = page.locator('[data-testid="service-work-order-create-invoice-button"]');
+    if (await createBtn.isDisabled()) {
+      test.skip(true, 'Faktura není povolena — chybí položky nebo kontakt.');
+    }
+    await createBtn.click();
+    await expect(
+      page.locator('[data-testid="service-work-order-invoice-status"], [data-testid="service-work-order-limited-notice"]'),
+    ).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('service_billing_contact_validation', async ({ page }) => {
+    await openWorkOrders(page);
+    const rows = page.locator('[data-testid="service-work-order-row"]');
+    if ((await rows.count()) === 0) {
+      test.skip(true, 'Žádná zakázka pro validaci kontaktu.');
+    }
+    await rows.first().click();
+    if ((await page.locator('[data-testid="service-billing-contact-section"]').count()) === 0) {
+      test.skip(true, 'Sekce fakturačního kontaktu není dostupná.');
+    }
+    await page.locator('[data-testid="service-billing-contact-name"]').fill('');
+    await page.locator('[data-testid="service-billing-contact-save-button"]').click();
+    await expect(page.locator('[data-testid="service-billing-contact-error"]')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('service_billing_contact_f5_keeps_session', async ({ page }) => {
+    await openWorkOrders(page);
+    const rows = page.locator('[data-testid="service-work-order-row"]');
+    if ((await rows.count()) === 0) {
+      test.skip(true, 'Žádná zakázka pro F5 billing contact test.');
+    }
+    await rows.first().click();
+    if ((await page.locator('[data-testid="service-billing-contact-section"]').count()) === 0) {
+      test.skip(true, 'Sekce fakturačního kontaktu není dostupná.');
+    }
+    const before = page.url();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    await expect(page.locator('[data-testid="login-form"]')).not.toBeVisible();
+    await openWorkOrders(page);
+    await rows.first().click();
+    await expect(page.locator('[data-testid="service-billing-contact-section"]')).toBeVisible();
+  });
+
+  test('owner_safe_history_no_invoice_data', async ({ page }) => {
+    await openWorkOrders(page);
+    const historyNav = page.locator('[data-testid="service-nav-history"], a:has-text("Historie")').first();
+    if ((await historyNav.count()) === 0) {
+      test.skip(true, 'Historie vozidla není v navigaci.');
+    }
+    await historyNav.click();
+    await waitForServiceShellReady(page);
+    const lower = (await page.locator('body').innerText()).toLowerCase();
+    for (const token of ['billing_contact', 'ičo', 'dič', 'fakturační']) {
+      expect(lower).not.toContain(token);
+    }
+  });
 });

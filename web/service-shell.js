@@ -241,6 +241,7 @@
     intakeStartResult: null,
     intakeLimitedNotice: '',
     workOrderLimitedNotice: '',
+    workOrderDetailCache: {},
     searchResultsOpen: false,
     profile: {},
     partnerPublicProfile: {},
@@ -3664,6 +3665,112 @@
     `).join('');
   }
 
+  function renderWorkOrderBillingContactSection(detail, workOrderId) {
+    const isUnowned = Boolean(detail?.is_unowned_vehicle) || Number(detail?.owner_id || detail?.customer_id || 0) <= 0;
+    if (!isUnowned) return '';
+    const contact = detail?.billing_contact || null;
+    const woId = Number(workOrderId || 0);
+    const hasContact = Boolean(contact?.billing_contact_id);
+    const limitedNotice = hasContact
+      ? ''
+      : '<p class="service-shell-list-note" data-testid="service-billing-contact-limited-notice">Bez fakturačního kontaktu nelze vystavit fakturu k nepřiřazenému vozidlu.</p>';
+    return `
+      <section class="service-shell-side-card" data-testid="service-billing-contact-section" aria-label="Fakturační kontakt">
+        <h3>Fakturační kontakt</h3>
+        ${limitedNotice}
+        <form class="service-billing-contact-form" data-testid="service-billing-contact-form" onsubmit="event.preventDefault(); window.serviceShell.saveWorkOrderBillingContact(${woId});">
+          <label class="service-shell-field">
+            <span>Jméno / název</span>
+            <input type="text" id="serviceBillingContactName" data-testid="service-billing-contact-name" required minlength="2" maxlength="255" value="${escape(contact?.name || '')}" placeholder="Jan Novák nebo Firma s.r.o.">
+          </label>
+          <label class="service-shell-field">
+            <span>E-mail</span>
+            <input type="email" id="serviceBillingContactEmail" data-testid="service-billing-contact-email" maxlength="320" value="${escape(contact?.email || '')}" placeholder="volitelné">
+          </label>
+          <label class="service-shell-field">
+            <span>Telefon</span>
+            <input type="tel" id="serviceBillingContactPhone" data-testid="service-billing-contact-phone" maxlength="64" value="${escape(contact?.phone || '')}" placeholder="volitelné">
+          </label>
+          <label class="service-shell-field">
+            <span>Firma</span>
+            <input type="text" id="serviceBillingContactCompany" data-testid="service-billing-contact-company" maxlength="255" value="${escape(contact?.company_name || '')}" placeholder="volitelné">
+          </label>
+          <label class="service-shell-field">
+            <span>Ulice</span>
+            <input type="text" id="serviceBillingContactStreet" data-testid="service-billing-contact-address" maxlength="255" value="${escape(contact?.street || '')}" placeholder="volitelné">
+          </label>
+          <div class="service-work-order-add-row">
+            <input type="text" id="serviceBillingContactCity" maxlength="128" value="${escape(contact?.city || '')}" placeholder="Město">
+            <input type="text" id="serviceBillingContactZip" maxlength="16" value="${escape(contact?.zip || '')}" placeholder="PSČ">
+          </div>
+          <div class="service-work-order-add-row">
+            <input type="text" id="serviceBillingContactIco" maxlength="32" value="${escape(contact?.ico || '')}" placeholder="IČO">
+            <input type="text" id="serviceBillingContactDic" maxlength="32" value="${escape(contact?.dic || '')}" placeholder="DIČ">
+          </div>
+          <p class="service-shell-list-note service-work-order-billing-error hidden" id="serviceBillingContactError" data-testid="service-billing-contact-error"></p>
+          <p class="service-shell-list-note service-billing-contact-success hidden" id="serviceBillingContactSuccess" data-testid="service-billing-contact-success"></p>
+          <button type="submit" class="btn btn-primary" data-testid="service-billing-contact-save-button">${hasContact ? 'Uložit kontakt' : 'Uložit fakturační kontakt'}</button>
+        </form>
+      </section>
+    `;
+  }
+
+  function collectWorkOrderBillingContactPayload() {
+    return {
+      name: String(document.getElementById('serviceBillingContactName')?.value || '').trim(),
+      email: String(document.getElementById('serviceBillingContactEmail')?.value || '').trim() || null,
+      phone: String(document.getElementById('serviceBillingContactPhone')?.value || '').trim() || null,
+      company_name: String(document.getElementById('serviceBillingContactCompany')?.value || '').trim() || null,
+      street: String(document.getElementById('serviceBillingContactStreet')?.value || '').trim() || null,
+      city: String(document.getElementById('serviceBillingContactCity')?.value || '').trim() || null,
+      zip: String(document.getElementById('serviceBillingContactZip')?.value || '').trim() || null,
+      ico: String(document.getElementById('serviceBillingContactIco')?.value || '').trim() || null,
+      dic: String(document.getElementById('serviceBillingContactDic')?.value || '').trim() || null,
+    };
+  }
+
+  function setBillingContactFormFeedback({ error = '', success = '' } = {}) {
+    const errEl = document.getElementById('serviceBillingContactError');
+    const okEl = document.getElementById('serviceBillingContactSuccess');
+    if (errEl) {
+      errEl.textContent = error || '';
+      errEl.classList.toggle('hidden', !error);
+    }
+    if (okEl) {
+      okEl.textContent = success || '';
+      okEl.classList.toggle('hidden', !success);
+    }
+  }
+
+  async function saveWorkOrderBillingContact(workOrderId) {
+    const id = Number(workOrderId || 0);
+    if (!id) return;
+    setBillingContactFormFeedback({ error: '', success: '' });
+    const payload = collectWorkOrderBillingContactPayload();
+    if (!payload.name || payload.name.length < 2) {
+      setBillingContactFormFeedback({ error: 'Jméno nebo název fakturačního kontaktu musí mít alespoň 2 znaky.' });
+      return;
+    }
+    const detail = state.workOrderDetailCache?.[id] || null;
+    const hasContact = Boolean(detail?.billing_contact?.billing_contact_id);
+    const method = hasContact ? 'PUT' : 'POST';
+    try {
+      const result = await window.apiCall(`/api/service/work-orders/${id}/billing-contact`, method, payload);
+      if (state.workOrderDetailCache?.[id]) {
+        state.workOrderDetailCache[id].billing_contact = result?.billing_contact || null;
+      }
+      setBillingContactFormFeedback({ success: 'Fakturační kontakt byl uložen.' });
+      if (typeof window.showAlert === 'function') {
+        window.showAlert('Fakturační kontakt byl uložen.', 'success');
+      }
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      const msg = err?.detail?.message || err?.message || 'Fakturační kontakt se nepodařilo uložit.';
+      setBillingContactFormFeedback({ error: msg });
+      setWorkOrderLimitedNotice(msg);
+    }
+  }
+
   function renderWorkOrderBillingPanel(detail, workOrderId) {
     const caps = detail?.capabilities || {};
     const notices = detail?.limited_notices || {};
@@ -3676,7 +3783,10 @@
     const woId = Number(workOrderId || 0);
     const ownerId = Number(detail?.owner_id || detail?.customer_id || 0);
     const isUnowned = Boolean(detail?.is_unowned_vehicle) || ownerId <= 0;
+    const billingContactReady = Boolean(detail?.billing_contact?.ready_for_invoice);
+    const canCreateUnownedInvoice = canInvoice && isUnowned && billingContactReady;
     return `
+      ${renderWorkOrderBillingContactSection(detail, workOrderId)}
       <p class="service-shell-list-note" data-testid="service-work-order-billing-limited-notice">${escape(billingNotice)}</p>
       <section class="service-shell-side-card" data-testid="service-work-order-quote-panel" aria-label="Nabídka ze zakázky">
         <h3>Nabídka</h3>
@@ -3708,9 +3818,8 @@
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Otevřít v Nabídky a faktury</button>
           </div>
         ` : `
-          <p class="service-shell-list-note">${isUnowned ? 'Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt v Nabídky a faktury.' : 'K zakázce zatím není faktura.'}</p>
-          <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-invoice-button" ${canInvoice && !isUnowned ? '' : 'disabled'} onclick="window.serviceShell.createWorkOrderInvoice(${woId})">Vytvořit fakturu</button>
-          ${isUnowned ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Nabídky a faktury</button>` : ''}
+          <p class="service-shell-list-note">${isUnowned && !billingContactReady ? 'Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt zákazníka.' : 'K zakázce zatím není faktura.'}</p>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-invoice-button" ${(canInvoice && !isUnowned) || canCreateUnownedInvoice ? '' : 'disabled'} onclick="window.serviceShell.createWorkOrderInvoice(${woId})">Vytvořit fakturu</button>
         `}
       </section>
     `;
@@ -3846,7 +3955,7 @@
         openServiceInvoiceDetailModal(existingId);
         return;
       }
-      setWorkOrderLimitedNotice(err?.message || 'Fakturu se nepodařilo vytvořit.');
+      setWorkOrderLimitedNotice(err?.detail?.message || err?.message || 'Fakturu se nepodařilo vytvořit.');
       await reloadWorkOrderDetailModal(id);
     }
   }
@@ -4086,6 +4195,7 @@
       },
       renderContent: (modal) => {
         const detail = modal.data || {};
+        state.workOrderDetailCache[id] = detail;
         const quote = detail?.quote_summary || null;
         return `
           <div class="service-shell-modal-summary" data-testid="service-work-order-detail">
@@ -9199,6 +9309,7 @@
     reloadWorkOrderDetailModal,
     createWorkOrderQuote,
     createWorkOrderInvoice,
+    saveWorkOrderBillingContact,
     setWorkOrderLimitedNotice,
     openWorkOrderVehicleContext,
     openAddVehicleModal,
