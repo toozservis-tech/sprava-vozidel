@@ -14,7 +14,7 @@ const SERVICE_SECTION_ROUTES = [
   { path: 'vehicles', navTestId: 'service-nav-vehicles', body: /Vozidla zákazníků/i },
   { path: 'customers', navTestId: 'service-nav-clients', body: /Zákaznické centrum|Zákazníci/i },
   { path: 'photos', navTestId: 'service-nav-photos', body: /Fotodokumentace/i, limited: true },
-  { path: 'history', navTestId: 'service-nav-history', body: /Servisní historie/i, limited: true },
+  { path: 'history', navTestId: 'service-nav-history', body: /Servisní historie/i },
   { path: 'billing', navTestId: 'service-nav-invoices', body: /Faktury|Nabídky/i },
   { path: 'parts-stock', navTestId: 'service-nav-parts', body: /Sklad dílů/i, limited: true },
   { path: 'reservations', navTestId: 'service-nav-reservations', body: /Rezervace/i },
