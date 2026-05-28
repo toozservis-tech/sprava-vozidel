@@ -488,9 +488,47 @@
       </section>`;
   }
 
+  function stripAsideWrapper(html) {
+    const raw = String(html || '');
+    const match = raw.match(/^\s*<aside[^>]*class="[^"]*service-shell-side[^"]*"[^>]*>([\s\S]*)<\/aside>\s*$/i);
+    return match ? match[1] : raw;
+  }
+
+  function ServiceProPageShell(title, subtitle, mainHtml, options = {}) {
+    const {
+      asideHtml = '',
+      statsHtml = '',
+      limited = false,
+      showFooter = true,
+      headerActions = '',
+      testId = 'service-section-page',
+    } = options;
+    const badge = limited
+      ? '<span class="service-status-badge service-status-badge--pending" data-testid="service-section-limited-badge">Připravuje se</span>'
+      : '';
+    const actions = headerActions || badge;
+    const kpiBlock = statsHtml
+      ? `<section class="service-pro-kpis service-pro-kpis--section">${statsHtml}</section>`
+      : '';
+    const gridClass = asideHtml ? 'service-pro-grid' : 'service-pro-grid service-pro-grid--single';
+    const asideBlock = asideHtml
+      ? `<aside class="service-pro-aside service-pro-aside--section">${asideHtml}</aside>`
+      : '';
+    return `
+      <div class="service-dashboard-pro service-section-page" data-testid="${escape(testId)}">
+        ${ServicePageHeader(title, subtitle, actions)}
+        ${kpiBlock}
+        <div class="${gridClass}">
+          <main class="service-pro-main service-pro-main--section">${mainHtml}</main>
+          ${asideBlock}
+        </div>
+        ${showFooter ? renderGdprBottomBar() : ''}
+      </div>`;
+  }
+
   function ServiceEmptyState(title, message) {
     return `
-      <div class="service-state-card service-state-card--empty" data-testid="service-empty-state" role="status">
+      <div class="service-pro-card service-state-card--empty" data-testid="service-empty-state" role="status">
         <strong>${escape(title)}</strong>
         <p>${escape(message)}</p>
       </div>`;
@@ -501,7 +539,7 @@
       ? `<button type="button" class="service-shell-primary-btn" onclick="${retryAction}">Zkusit znovu</button>`
       : '';
     return `
-      <div class="service-state-card service-state-card--error" data-testid="service-error-state" role="alert">
+      <div class="service-pro-card service-state-card--error" data-testid="service-error-state" role="alert">
         <strong>Nepodařilo se načíst data</strong>
         <p>${escape(message)}</p>
         ${retryBtn}
@@ -510,7 +548,7 @@
 
   function ServicePermissionDeniedState(message) {
     return `
-      <div class="service-state-card service-state-card--denied" data-testid="service-permission-denied" role="alert">
+      <div class="service-pro-card service-state-card--denied" data-testid="service-permission-denied" role="alert">
         <strong>Přístup není povolen</strong>
         <p>${escape(message || 'K této části nemáte oprávnění bez schválení majitele vozidla.')}</p>
       </div>`;
@@ -584,11 +622,11 @@
   }
 
   function renderLimitedWorkspaceSection(title, subtitle, extraHtml = '') {
-    return ServiceSectionShell(
+    return ServiceProPageShell(
       title,
       subtitle,
       `
-        <article class="service-state-card service-state-card--limited" data-testid="service-limited-placeholder">
+        <article class="service-pro-card service-pro-card--limited" data-testid="service-limited-placeholder">
           <p>${escape(ServiceLimitedPlaceholderCopy())}</p>
           ${extraHtml || ''}
         </article>
@@ -1559,7 +1597,7 @@
     }, autoRefreshMs);
   }
 
-  const LIMITED_WORKSPACE_SECTIONS = new Set(['photos', 'history', 'parts', 'audit', 'settings']);
+  const LIMITED_WORKSPACE_SECTIONS = new Set(['photos', 'parts', 'audit', 'settings']);
 
   function mapSection(tab) {
     const key = String(tab || '').trim().toLowerCase();
@@ -3784,9 +3822,9 @@
                 </section>
               `).join('');
     return `
-      <section class="service-shell-side-card vehicle-timeline-section" data-testid="vehicle-timeline-section">
-        <h2>${embedded ? 'Timeline vozidla' : 'Timeline vozidla'}</h2>
-        <p class="service-shell-subtitle">Chronologická servisní osa — bezpečně filtrovaná podle role a viditelnosti.</p>
+      <section class="service-pro-card vehicle-timeline-section" data-testid="vehicle-timeline-section">
+        <div class="service-pro-card-head"><h2>${embedded ? 'Timeline vozidla' : 'Timeline vozidla'}</h2></div>
+        <p class="service-page-header-sub">Chronologická servisní osa — bezpečně filtrovaná podle role a viditelnosti.</p>
         ${selector}
         ${body}
       </section>
@@ -6764,7 +6802,7 @@
 
   function dashboardQuickActions() {
     return `
-      <section class="service-shell-side-card service-shell-dashboard-actions">
+      <section class="service-pro-card service-shell-dashboard-actions">
         <div class="service-shell-card-head">
           <div>
             <h3>Rychlé akce</h3>
@@ -7174,19 +7212,13 @@
       ['interior', 'Kontrola interiéru'],
       ['customer_notified', 'Zákazník upozorněn na viditelné poškození'],
     ];
-    return ServiceSectionShell(
+    return ServiceProPageShell(
       'Příjem vozidla',
       'Pracovní tok příjmu vozidla: bezpečný lookup, autorizace přístupu, založení příjmu a navazující zakázka.',
       `
-        <section class="service-state-card" data-testid="service-intake-section">
-          <div class="service-page-header">
-            <div>
-              <h1>Příjem vozidla</h1>
-              <p class="service-page-header-sub">Zadejte VIN nebo SPZ. Backend rozhoduje o výsledku lookupu a rozsahu dostupných dat.</p>
-            </div>
-          </div>
-          <div class="service-shell-tools-grid">
-            <article class="service-state-card">
+        <div data-testid="service-intake-section" class="service-intake-layout">
+          <div class="service-pro-bottom-grid service-intake-grid">
+            <article class="service-pro-card">
               <h3>Vyhledat vozidlo</h3>
               <label>VIN
                 <input data-testid="service-intake-vin-input" class="service-shell-search" value="${escape(draft.vin || '')}" oninput="window.serviceShell.setIntakeDraftField('vin', this.value)" placeholder="např. TMBJH7NP9N7041234">
@@ -7200,7 +7232,7 @@
               </div>
               ${state.intakeLookupError ? `<div class="service-shell-inline-error" data-testid="service-intake-error">${escape(state.intakeLookupError)}</div>` : ''}
             </article>
-            <article class="service-state-card" data-testid="service-intake-result">
+            <article class="service-pro-card" data-testid="service-intake-result">
               <h3>Výsledek lookupu</h3>
               ${!hasLookup ? '<p data-testid="service-intake-empty">Zatím není načtený žádný výsledek.</p>' : ''}
               ${response?.status === 'not_found' ? `<p>Vozidlo není v systému. Zadané VIN/SPZ: <strong>${escape(draft.vin || draft.plate || '-')}</strong>.</p>` : ''}
@@ -7208,18 +7240,16 @@
               ${lookupStatus === 'conflict' ? '<p>SPZ může patřit k existujícímu vozidlu, ale bez VIN nelze bezpečně sloučit. Doplňte VIN a opakujte lookup.</p>' : ''}
               ${canCreateUnowned ? '<p>Vozidlo bude evidováno bez majitele. Majitel jej může později ověřit a převzít.</p>' : ''}
             </article>
-          </div>
-          <div class="service-shell-tools-grid">
-            <article class="service-state-card" data-testid="service-intake-access-state">
+            <article class="service-pro-card" data-testid="service-intake-access-state">
               <h3>Stav přístupu</h3>
               <p>${ServiceStatusBadge(badgeLabel, badgeTone)}</p>
               ${accessStatus === 'approved' ? '<p>Pracovní detail je dostupný v rozsahu schváleného přístupu.</p>' : ''}
               ${accessStatus === 'pending' ? '<p>Servis zatím nemůže otevřít detail vozidla. Vyčkejte na vyjádření majitele.</p>' : ''}
               ${['rejected', 'revoked'].includes(accessStatus) ? '<p>Přístup byl zamítnut nebo odebrán. Detail vozidla zůstává uzamčený.</p>' : ''}
-              ${canRequestAccess ? `<button type="button" class="btn btn-primary" data-testid="service-intake-request-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.requestVehicleAccessFromIntake()">${state.intakeMutationLoading ? 'Odesílám…' : 'Vyžádat autorizaci majitele'}</button>` : ''}
-              ${canCreateUnowned ? `<div class="service-dashboard-modal-grid cols-2"><label>Značka<input class="service-shell-search" value="${escape(draft.brand || '')}" oninput="window.serviceShell.setIntakeDraftField('brand', this.value)"></label><label>Model<input class="service-shell-search" value="${escape(draft.model || '')}" oninput="window.serviceShell.setIntakeDraftField('model', this.value)"></label></div><button type="button" class="btn btn-primary" data-testid="service-intake-create-unowned-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createUnownedVehicleFromIntake()">${state.intakeMutationLoading ? 'Zakládám…' : 'Založit nepřiřazené vozidlo'}</button>` : ''}
+              ${canRequestAccess ? `<button type="button" class="service-shell-primary-btn" data-testid="service-intake-request-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.requestVehicleAccessFromIntake()">${state.intakeMutationLoading ? 'Odesílám…' : 'Vyžádat autorizaci majitele'}</button>` : ''}
+              ${canCreateUnowned ? `<div class="service-dashboard-modal-grid cols-2"><label>Značka<input class="service-shell-search" value="${escape(draft.brand || '')}" oninput="window.serviceShell.setIntakeDraftField('brand', this.value)"></label><label>Model<input class="service-shell-search" value="${escape(draft.model || '')}" oninput="window.serviceShell.setIntakeDraftField('model', this.value)"></label></div><button type="button" class="service-shell-primary-btn" data-testid="service-intake-create-unowned-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createUnownedVehicleFromIntake()">${state.intakeMutationLoading ? 'Zakládám…' : 'Založit nepřiřazené vozidlo'}</button>` : ''}
             </article>
-            <article class="service-state-card">
+            <article class="service-pro-card">
               <h3>Příjem vozidla</h3>
               <label>Stav tachometru (km)
                 <input class="service-shell-search" value="${escape(draft.odometer || '')}" oninput="window.serviceShell.setIntakeDraftField('odometer', this.value)" placeholder="např. 185000">
@@ -7229,7 +7259,7 @@
               </label>
               <strong>Checklist příjmu</strong>
               ${checklistRows.map(([key, label]) => `<label class="service-check-row"><span>${escape(label)}</span><input type="checkbox" ${draft?.checklist?.[key] ? 'checked' : ''} onchange="window.serviceShell.setIntakeChecklistItem('${key}', this.checked)"></label>`).join('')}
-              <article class="service-state-card service-state-card--empty" data-testid="service-intake-limited-photo-state"><p>Fotodokumentace je v této fázi vedená jako omezený stav. OCR SPZ není aktuálně aktivní.</p></article>
+              <article class="service-pro-card service-pro-card--muted" data-testid="service-intake-limited-photo-state"><p>Fotodokumentace je v této fázi vedená jako omezený stav. OCR SPZ není aktuálně aktivní.</p></article>
               <div class="service-action-bar">
                 <button type="button" class="service-shell-primary-btn" data-testid="service-intake-start-button" ${!canStart || state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.startServiceIntake()">${state.intakeMutationLoading ? 'Ukládám…' : 'Zahájit příjem'}</button>
                 <button type="button" class="btn btn-secondary" data-testid="service-intake-create-work-order-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createWorkOrderFromIntake()">Vytvořit zakázku</button>
@@ -7237,11 +7267,11 @@
               <p class="service-shell-muted">Pokud backend nepodporuje kompletní převod příjmu na zakázku, tlačítko zobrazí omezený stav bez fake úspěchu.</p>
             </article>
           </div>
-          ${state.intakeLimitedNotice ? `<article class="service-state-card service-state-card--empty"><p>${escape(state.intakeLimitedNotice)}</p></article>` : ''}
-          <article class="service-state-card service-state-card--empty"><p>Audit: osobní údaje majitele, ceny, faktury, fotky a dokumenty zůstávají skryté, dokud backend nevrátí schválený rozsah přístupu.</p></article>
-        </section>
+          ${state.intakeLimitedNotice ? `<article class="service-pro-card service-pro-card--muted"><p>${escape(state.intakeLimitedNotice)}</p></article>` : ''}
+          <article class="service-pro-card service-pro-card--muted"><p>Audit: osobní údaje majitele, ceny, faktury, fotky a dokumenty zůstávají skryté, dokud backend nevrátí schválený rozsah přístupu.</p></article>
+        </div>
       `,
-      { limited: false },
+      { asideHtml: renderQuickIntakePanel(), testId: 'service-intake-page' },
     );
   }
 
@@ -7576,27 +7606,15 @@
   }
 
   function pageHead(title, subtitle) {
-    return `
-      <div class="service-shell-page-head">
-        <div>
-          <h1>${escape(title)}</h1>
-          <p class="service-shell-subtitle">${escape(subtitle)}</p>
-        </div>
-      </div>
-    `;
+    return ServicePageHeader(title, subtitle);
   }
 
   function staticInfoSection(title, subtitle, bodyHtml) {
-    return `
-      ${pageHead(title, subtitle)}
-      <div class="service-shell-layout">
-        <div class="service-shell-main">
-          <article class="service-shell-side-card service-shell-static-info">
-            <div class="service-shell-static-body">${bodyHtml}</div>
-          </article>
-        </div>
-      </div>
-    `;
+    return ServiceProPageShell(
+      title,
+      subtitle,
+      `<section class="service-pro-card service-shell-static-info"><div class="service-shell-static-body">${bodyHtml}</div></section>`,
+    );
   }
 
   function payrollToolbarHtml() {
@@ -7902,12 +7920,12 @@
           <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" disabled title="OCR SPZ není v této instalaci aktivní">Foto SPZ / OCR</button></p>`,
         );
       case 'history':
-        return `
-          <section data-testid="service-history-section">
-            <span class="service-legacy-text-hook">Timeline vozidla</span>
-            ${renderVehicleTimelineSection()}
-          </section>
-        `;
+        return ServiceProPageShell(
+          'Servisní historie',
+          'Chronologická servisní osa vozidel — bezpečně filtrovaná podle role a viditelnosti.',
+          `<div data-testid="service-history-section">${renderVehicleTimelineSection({ embedded: true })}</div>`,
+          { testId: 'service-history-page' },
+        );
       case 'parts':
         return renderLimitedWorkspaceSection(
           'Sklad dílů',
@@ -8132,12 +8150,12 @@
 
   function renderCardList({ head = '', cards = '', empty = 'Bez dat.' } = {}) {
     return `
-      <div class="service-shell-card detail-card">
+      <section class="service-pro-card service-shell-card detail-card">
         ${head || ''}
         <div class="service-shell-card-list">
           ${cards || `<div class="service-shell-empty">${escape(empty)}</div>`}
         </div>
-      </div>
+      </section>
     `;
   }
 
@@ -8171,7 +8189,7 @@
       const meta = statusMeta(item?.status);
       const action = `window.serviceShell.openWorkOrderDetailModal(${Number(item?.id || 0)})`;
       return `
-        <article class="service-state-card service-work-order-card" data-testid="service-work-order-row" role="button" tabindex="0" onclick="${action}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); ${action}; }">
+        <article class="service-pro-card service-work-order-card" data-testid="service-work-order-row" role="button" tabindex="0" onclick="${action}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); ${action}; }">
           <div class="service-shell-list-row">
             <span class="service-shell-list-title">${escape(vehiclePlate(item))}</span>
             <span class="service-shell-badge ${escape(meta.cls)}" data-testid="service-work-order-status">${escape(meta.label)}</span>
@@ -8197,7 +8215,7 @@
     return `
       <aside class="service-shell-side">
         ${dashboardQuickActions()}
-        <section class="service-shell-side-card list-card">
+        <section class="service-pro-card service-shell-side-card list-card">
           <div class="service-shell-card-head">
             <h3>Výkon techniků</h3>
             <button type="button" class="service-shell-icon-btn" onclick="window.serviceShell.load(true)" aria-label="Obnovit panel">↻</button>
@@ -8218,7 +8236,7 @@
             `).join('') : '<div class="service-shell-empty">Bez výkonových dat techniků.</div>'}
           </div>
         </section>
-        <section class="service-shell-side-card list-card">
+        <section class="service-pro-card service-shell-side-card list-card">
           <h3>Fronta práce</h3>
           <p class="service-shell-action-note">Otevřít detail zakázek a filtrů</p>
           <div class="service-shell-list">
@@ -8230,7 +8248,7 @@
             <div class="service-shell-list-row service-shell-clickable-row" tabindex="0" role="button" onclick="window.serviceShell.openServiceToolsModal()" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.serviceShell.openServiceToolsModal() }"><span class="service-shell-list-title">Konfliktní data</span><span class="service-shell-list-value">${escape(String(queue?.conflicting_data || 0))}</span></div>
           </div>
         </section>
-        <section class="service-shell-side-card list-card">
+        <section class="service-pro-card service-shell-side-card list-card">
           <h3>Rezervace a nabídky</h3>
           <div class="service-shell-list">
             <div class="service-shell-list-row"><span class="service-shell-list-title">Čekající nabídky</span><span class="service-shell-list-value">${escape(String(queue?.pending_quotes || summary.pending_quotes || 0))}</span></div>
@@ -8245,7 +8263,7 @@
             `).join('') || '<div class="service-shell-empty">Bez nových rezervací.</div>'}
           </div>
         </section>
-        <section class="service-shell-side-card list-card">
+        <section class="service-pro-card service-shell-side-card list-card">
           <h3>Fakturace a follow-up</h3>
           <div class="service-shell-list">
             <div class="service-shell-list-row"><span class="service-shell-list-title">Celkem faktur</span><span class="service-shell-list-value">${escape(String(summary.invoices_total || 0))}</span></div>
@@ -8261,7 +8279,7 @@
             `).join('') || '<div class="service-shell-empty">Bez follow-upů.</div>'}
           </div>
         </section>
-        <section class="service-shell-queue-card">
+        <section class="service-pro-card service-shell-queue-card">
           <div class="service-shell-card-head">
             <h3>Upozornění</h3>
             <span class="service-shell-kpi-arrow">↗</span>
@@ -8365,14 +8383,14 @@
 
     const items = filteredWorkOrders();
     const cards = workOrderCards(items);
-    const emptyCard = '<article class="service-state-card" data-testid="service-work-orders-empty">Žádné zakázky neodpovídají aktuálním filtrům.</article>';
+    const emptyCard = '<article class="service-pro-card" data-testid="service-work-orders-empty">Žádné zakázky neodpovídají aktuálním filtrům.</article>';
     return `
       ${renderFilterSheet()}
-      <section class="service-state-card">
-        <div class="service-shell-card-head service-shell-list-head">
+      <section class="service-pro-card">
+        <div class="service-pro-card-head service-shell-list-head">
           <div>
-            <h3 class="service-shell-card-title">${escape(title)}</h3>
-            <p class="service-shell-subtitle">${escape(subtitle)}</p>
+            <h2 class="service-shell-card-title">${escape(title)}</h2>
+            <p class="service-page-header-sub">${escape(subtitle)}</p>
           </div>
           <div class="service-shell-card-head-actions">
             <button type="button" class="service-shell-primary-btn" data-testid="service-work-orders-new-button" onclick="window.serviceShell.openCreateWorkOrderModal()">Nová zakázka</button>
@@ -8653,14 +8671,15 @@
   }
 
   function genericSection(config) {
-    return `
-      ${pageHead(config.title, config.subtitle)}
-      <div class="service-shell-stat-grid">${config.stats}</div>
-      <div class="service-shell-layout">
-        <div class="service-shell-main">${config.main}</div>
-        ${config.side || rightPanel()}
-      </div>
-    `;
+    return ServiceProPageShell(
+      config.title,
+      config.subtitle,
+      config.main,
+      {
+        statsHtml: config.stats || '',
+        asideHtml: config.side ? stripAsideWrapper(config.side) : '',
+      },
+    );
   }
 
   function clientsSection() {
@@ -8711,7 +8730,7 @@
       });
     const side = `
       <aside class="service-shell-side">
-        <section class="service-shell-side-card list-card">
+        <section class="service-pro-card service-shell-side-card list-card">
           <h3>Nedávná aktivita</h3>
           <div class="service-shell-list">
             ${customers.slice(0, 5).map((item) => `
@@ -8725,7 +8744,7 @@
             `).join('') || '<div class="service-shell-empty">Bez záznamů.</div>'}
           </div>
         </section>
-        <section class="service-shell-side-card list-card">
+        <section class="service-pro-card service-shell-side-card list-card">
           <h3>Zkratky</h3>
           <div class="service-shell-list">
             <div class="service-shell-list-row"><span class="service-shell-list-title">Detail zákazníka</span><span class="service-shell-list-value">Klik na kartu</span></div>
@@ -8736,7 +8755,7 @@
       </aside>
     `;
     return genericSection({
-      title: 'Zákazníci',
+      title: 'Zákaznické centrum',
       subtitle: 'Propojení na uživatelské účty ve Správě vozidel, sdílená vozidla a servisní vazby.',
       stats,
       main,
@@ -8776,7 +8795,7 @@
       });
     const side = `
       <aside class="service-shell-side">
-        <section class="service-shell-side-card list-card">
+        <section class="service-pro-card service-shell-side-card list-card">
           <h3>Vozidla s přístupem</h3>
           <div class="service-shell-list">
             <div class="service-shell-list-row"><span class="service-shell-list-title">Schválené vazby</span><span class="service-shell-list-value">${vehicles.length}</span></div>
@@ -8806,7 +8825,7 @@
       title: 'Zakázky',
       subtitle: 'Hlavní pracovní fronta příchozích servisních objednávek se stavem, termíny a odpovědností.',
       stats,
-      main: `<section data-testid="service-work-orders-section"><span class="service-legacy-text-hook">Aktivní zakázky</span>${firstError ? `<article class="service-state-card service-state-danger" data-testid="service-work-orders-error">${escape(firstError)}</article>` : ''}${workOrdersTableCard('Aktivní zakázky', 'Produkční příchozí objednávky a zakázky v jednotném servisním rozhraní.')}${state.workOrderLimitedNotice ? `<article class="service-state-card service-state-note">${escape(state.workOrderLimitedNotice)}</article>` : ''}</section>`,
+      main: `<section data-testid="service-work-orders-section"><span class="service-legacy-text-hook">Aktivní zakázky</span>${firstError ? `<article class="service-pro-card service-state-card--error" data-testid="service-work-orders-error">${escape(firstError)}</article>` : ''}${workOrdersTableCard('Aktivní zakázky', 'Produkční příchozí objednávky a zakázky v jednotném servisním rozhraní.')}${state.workOrderLimitedNotice ? `<article class="service-pro-card service-state-note">${escape(state.workOrderLimitedNotice)}</article>` : ''}</section>`,
       side: rightPanel(),
     });
   }
@@ -8921,11 +8940,11 @@
       <article class="service-shell-mini-card summary-card"><h3>Objem</h3><div class="service-shell-stat-value">${escape(invoiceMoney(totalIssued, 'CZK'))}</div><p class="service-shell-muted">Součet vystavených faktur</p></article>
     `;
     const main = `
-      <section data-testid="service-billing-section">
-        <div class="service-shell-card-head">
-          <div><h3 class="service-shell-card-title">Nabídky a faktury</h3><p class="service-shell-subtitle">Obchodní doklady servisu vázané na zakázky — nejsou součástí historie majitele.</p></div>
+      <section class="service-pro-card" data-testid="service-billing-section">
+        <div class="service-pro-card-head">
+          <div><h2 class="service-shell-card-title">Nabídky a faktury</h2><p class="service-page-header-sub">Obchodní doklady servisu vázané na zakázky — nejsou součástí historie majitele.</p></div>
           <div class="service-shell-card-head-actions">
-            <button type="button" class="btn btn-primary" onclick="window.serviceShell.openCreateInvoiceModal()">Nová faktura</button>
+            <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openCreateInvoiceModal()">Nová faktura</button>
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.load(true)">Obnovit</button>
           </div>
         </div>

@@ -3929,3 +3929,153 @@ body.service-shell-app .service-nav {
 .vehicle-timeline-error {
   color: var(--service-danger, #b91c1c);
 }
+
+/* UI lock: unified section pages aligned with service dashboard reference */
+.service-section-page {
+  padding: 8px 4px 24px;
+}
+
+.service-section-page .service-page-header,
+.service-dashboard-pro .service-dashboard-title {
+  margin-bottom: 4px;
+}
+
+.service-pro-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.service-pro-main--section {
+  display: grid;
+  gap: 18px;
+}
+
+.service-pro-aside--section {
+  display: grid;
+  gap: 18px;
+  position: sticky;
+  top: 22px;
+  align-self: start;
+}
+
+.service-pro-kpis--section {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.service-pro-kpis--section .service-shell-mini-card.summary-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.06);
+  padding: 20px;
+  min-height: 112px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  background: #ffffff;
+}
+
+.service-pro-kpis--section .service-shell-mini-card h3 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.service-pro-kpis--section .service-shell-stat-value {
+  font-size: 1.65rem;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.service-intake-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.service-intake-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.service-pro-card--limited {
+  border-left: 4px solid var(--service-primary, #2563eb);
+}
+
+.service-pro-card--muted {
+  border-style: dashed;
+  background: #f8fafc;
+}
+
+body.service-shell-app .service-shell-side-card,
+body.service-shell-app .service-state-card,
+body.service-shell-app .service-shell-card.detail-card,
+body.service-shell-app .service-shell-queue-card,
+body.service-shell-app .service-shell-mini-card.summary-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.06);
+}
+
+body.service-shell-app .service-shell-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 4px 4px 0;
+}
+
+body.service-shell-app .service-shell-page-head h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+body.service-shell-app .service-shell-layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 26px;
+}
+
+body.service-shell-app .service-section-page .btn.btn-primary,
+body.service-shell-app .service-dashboard-pro .btn.btn-primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+body.service-shell-app .service-section-page .service-shell-badge,
+body.service-shell-app .service-dashboard-pro .service-shell-badge {
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+}
+
+@media (max-width: 1100px) {
+  .service-pro-grid,
+  .service-pro-grid--single,
+  body.service-shell-app .service-shell-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .service-pro-aside--section {
+    position: static;
+  }
+
+  .service-intake-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .service-pro-kpis,
+  .service-pro-kpis--section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .service-pro-kpis,
+  .service-pro-kpis--section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
