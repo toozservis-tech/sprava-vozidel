@@ -51,6 +51,16 @@ def build_main_storage_key(*, tenant_id: int, vehicle_id: int, filename: str) ->
     return f"tenants/{int(tenant_id)}/vehicles/{int(vehicle_id)}/{filename}"
 
 
+def build_work_order_storage_key(
+    *,
+    tenant_id: int,
+    vehicle_id: int,
+    work_order_id: int,
+    filename: str,
+) -> str:
+    return f"tenants/{int(tenant_id)}/vehicles/{int(vehicle_id)}/work_orders/{int(work_order_id)}/{filename}"
+
+
 def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 

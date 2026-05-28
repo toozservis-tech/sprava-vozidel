@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import base64
 from datetime import date, datetime
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from PIL import Image
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -19,9 +22,19 @@ from src.modules.vehicle_hub.models import (
     Tenant,
     Vehicle,
     VehicleOwnership,
+    VehiclePhotoAsset,
     VehicleServiceLink,
 )
 from src.modules.vehicle_hub.routers_v1 import service_dashboard as dashboard_router
+from src.modules.vehicle_hub.routers_v1.work_order_photos_api import (
+    WorkOrderPhotoUploadRequest,
+    WorkOrderPhotoVisibilityUpdateRequest,
+    delete_work_order_photo,
+    filter_owner_safe_work_order_photos,
+    list_work_order_photos,
+    update_work_order_photo_visibility,
+    upload_work_order_photo,
+)
 from src.modules.vehicle_hub.routers_v1.work_order_items_api import (
     ServiceWorkOrderCreateRecordRequest,
     ServiceWorkOrderLaborCreateRequest,
@@ -446,6 +459,12 @@ def test_service_workspace_lookup_accepts_vin_plate_payload() -> None:
     assert str(payload.plate or "").strip()
 
 
+def _jpeg_base64() -> str:
+    buf = BytesIO()
+    Image.new("RGB", (48, 36), color=(120, 160, 200)).save(buf, format="JPEG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
 def _create_basic_work_order(db, owner, service, vehicle):
     return dashboard_router.create_service_work_order(
         payload=dashboard_router.ServiceWorkOrderCreateRequest(
@@ -477,7 +496,7 @@ def test_service_work_order_add_labor(tmp_path: Path) -> None:
         assert len(detail["items"]["labor"]) == 1
         assert detail["items"]["labor"][0]["name"] == "Výměna oleje"
         assert detail["capabilities"]["labor"] is True
-        assert detail["capabilities"]["photos"] is False
+        assert detail["capabilities"]["photos"] is True
     finally:
         db.close()
         engine.dispose()
@@ -527,17 +546,342 @@ def test_service_work_order_add_time(tmp_path: Path) -> None:
         engine.dispose()
 
 
-def test_service_work_order_photo_upload_or_limited(tmp_path: Path) -> None:
+def test_service_work_order_photo_upload_for_authorized_vehicle(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
     engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
     try:
         created = _create_basic_work_order(db, owner, service, vehicle)
-        detail = dashboard_router.get_service_work_order_detail(
-            work_order_id=int(created["id"]),
+        wid = int(created["id"])
+        uploaded = upload_work_order_photo(
+            wid,
+            WorkOrderPhotoUploadRequest(
+                photo_type="damage",
+                file_name="damage.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
             current_user=_service_user(service),
             db=db,
         )
-        assert detail["capabilities"]["photos"] is False
-        assert "Fotodokumentace" in detail["limited_notices"]["photos"]
+        assert uploaded["photo_type"] == "damage"
+        assert uploaded["visibility_scope"] == "service_private"
+        assert "storage_path" not in uploaded
+        assert "/opt/" not in str(uploaded)
+        listed = list_work_order_photos(wid, current_user=_service_user(service), db=db)
+        assert listed["count"] == 1
+        detail = dashboard_router.get_service_work_order_detail(
+            work_order_id=wid,
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert detail["capabilities"]["photos"] is True
+        assert len(detail["photos"]) == 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_upload_for_unowned_vehicle(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, _owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        vehicle = _seed_unowned_vehicle(db, service, vin="TMBPHOTOS123456789")
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=service.id,
+                title="Unowned photos",
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        wid = int(created["id"])
+        upload_work_order_photo(
+            wid,
+            WorkOrderPhotoUploadRequest(
+                photo_type="intake",
+                file_name="intake.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        listed = list_work_order_photos(wid, current_user=_service_user(service), db=db)
+        assert listed["count"] == 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_forbidden_cross_service(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, owner, service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        with pytest.raises(HTTPException) as exc:
+            upload_work_order_photo(
+                int(created["id"]),
+                WorkOrderPhotoUploadRequest(
+                    photo_type="damage",
+                    file_name="x.jpg",
+                    file_mime_type="image/jpeg",
+                    file_content_base64=_jpeg_base64(),
+                ),
+                current_user=_service_user(foreign_service),
+                db=db,
+            )
+        assert exc.value.status_code in {403, 404}
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_list_only_own_work_order(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        wo1 = _create_basic_work_order(db, owner, service, vehicle)
+        complete_work_order(int(wo1["id"]), current_user=_service_user(service), db=db)
+        wo2 = _create_basic_work_order(db, owner, service, vehicle)
+        upload_work_order_photo(
+            int(wo1["id"]),
+            WorkOrderPhotoUploadRequest(
+                photo_type="part",
+                file_name="a.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        listed = list_work_order_photos(int(wo2["id"]), current_user=_service_user(service), db=db)
+        assert listed["count"] == 0
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_visibility_change(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        uploaded = upload_work_order_photo(
+            wid,
+            WorkOrderPhotoUploadRequest(
+                photo_type="completion",
+                file_name="done.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        updated = update_work_order_photo_visibility(
+            wid,
+            int(uploaded["id"]),
+            WorkOrderPhotoVisibilityUpdateRequest(visibility_scope="owner_visible"),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert updated["visibility_scope"] == "owner_visible"
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_delete_or_hide(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        uploaded = upload_work_order_photo(
+            wid,
+            WorkOrderPhotoUploadRequest(
+                photo_type="work_progress",
+                file_name="p.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        delete_work_order_photo(
+            wid,
+            int(uploaded["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        listed = list_work_order_photos(wid, current_user=_service_user(service), db=db)
+        assert listed["count"] == 0
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_rejects_non_image(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        with pytest.raises(HTTPException) as exc:
+            upload_work_order_photo(
+                int(created["id"]),
+                WorkOrderPhotoUploadRequest(
+                    photo_type="damage",
+                    file_name="bad.txt",
+                    file_mime_type="text/plain",
+                    file_content_base64=base64.b64encode(b"not-a-valid-image-payload").decode("ascii"),
+                ),
+                current_user=_service_user(service),
+                db=db,
+            )
+        assert exc.value.status_code == 415
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_rejects_too_large(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        huge = base64.b64encode(b"x" * (11 * 1024 * 1024)).decode("ascii")
+        with pytest.raises(HTTPException) as exc:
+            upload_work_order_photo(
+                int(created["id"]),
+                WorkOrderPhotoUploadRequest(
+                    photo_type="damage",
+                    file_name="big.jpg",
+                    file_mime_type="image/jpeg",
+                    file_content_base64=huge,
+                ),
+                current_user=_service_user(service),
+                db=db,
+            )
+        assert exc.value.status_code == 413
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_work_order_photo_default_service_private(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        uploaded = upload_work_order_photo(
+            int(created["id"]),
+            WorkOrderPhotoUploadRequest(
+                photo_type="internal",
+                file_name="internal.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert uploaded["visibility_scope"] == "internal_only"
+        row = db.query(VehiclePhotoAsset).filter(VehiclePhotoAsset.id == int(uploaded["id"])).first()
+        assert row.visibility_scope == "internal_only"
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_owner_safe_history_does_not_include_private_photos(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        upload_work_order_photo(
+            wid,
+            WorkOrderPhotoUploadRequest(
+                photo_type="damage",
+                visibility_scope="service_private",
+                file_name="private.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        rows = db.query(VehiclePhotoAsset).filter(VehiclePhotoAsset.work_order_id == wid).all()
+        safe = filter_owner_safe_work_order_photos(rows)
+        assert safe == []
+        history = build_owner_safe_service_history(db, vehicle_id=int(vehicle.id), owner_customer_id=int(owner.id))
+        blob = str(history)
+        assert "private.jpg" not in blob
+        assert "photos" not in blob or "photos': []" in blob.replace(" ", "")
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_owner_claim_does_not_leak_internal_photos(tmp_path: Path, monkeypatch) -> None:
+    photos_dir = tmp_path / "vehicle_photos"
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr("src.modules.vehicle_hub.routers_v1.work_order_photos_api.VEHICLE_PHOTOS_DIR", photos_dir)
+    engine, db, _owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        vehicle = _seed_unowned_vehicle(db, service, vin="TMBCLAIMPHOTOS12345")
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=service.id,
+                title="Claim photos",
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        wid = int(created["id"])
+        upload_work_order_photo(
+            wid,
+            WorkOrderPhotoUploadRequest(
+                photo_type="internal",
+                file_name="secret.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        upload_work_order_photo(
+            wid,
+            WorkOrderPhotoUploadRequest(
+                photo_type="completion",
+                visibility_scope="safe_after_claim",
+                file_name="safe.jpg",
+                file_mime_type="image/jpeg",
+                file_content_base64=_jpeg_base64(),
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        rows = db.query(VehiclePhotoAsset).filter(VehiclePhotoAsset.work_order_id == wid).all()
+        safe = filter_owner_safe_work_order_photos(rows)
+        assert len(safe) == 1
+        assert safe[0]["photo_type"] == "completion"
+        assert all(item["photo_type"] != "internal" for item in safe)
     finally:
         db.close()
         engine.dispose()

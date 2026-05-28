@@ -513,8 +513,11 @@ class VehiclePhotoAsset(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
     vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False, index=True)
     related_case_id = Column(Integer, ForeignKey("service_intakes.id"), nullable=True, index=True)
+    work_order_id = Column(Integer, ForeignKey("service_work_orders.id"), nullable=True, index=True)
+    service_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
     owner_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
-    role = Column(String(16), nullable=False, index=True)  # main | gallery
+    role = Column(String(16), nullable=False, index=True)  # main | gallery | work_order
+    visibility_scope = Column(String(32), nullable=False, default="service_private", index=True)
     photo_kind = Column(String(64), nullable=False, default="other", index=True)
     vin = Column(String, nullable=True, index=True)
     capture_date = Column(DateTime, nullable=True, index=True)

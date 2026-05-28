@@ -392,6 +392,46 @@ body.service-shell-app.service-shell-theme-light {
   min-width: 0;
 }
 
+.service-work-order-photo-list {
+  display: grid;
+  gap: 12px;
+}
+
+.service-work-order-photo-card {
+  list-style: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+  background: #fff;
+}
+
+.service-work-order-photo-card img {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  margin-top: 8px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.service-work-order-photo-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.service-work-order-photo-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.service-work-order-photo-error.hidden {
+  display: none;
+}
+
 .service-work-row {
   display: grid;
   grid-template-columns: 86px minmax(230px, 1fr) 132px 82px 70px 88px 128px 18px;

@@ -67,10 +67,9 @@ test.describe('Service shell work orders route', () => {
     await expect(page.locator('[data-testid="service-work-order-labor-list"]')).toBeVisible();
     const addLabor = page.locator('[data-testid="service-work-order-add-labor-button"]');
     await expect(addLabor).toBeEnabled();
-    const addPhoto = page.locator('[data-testid="service-work-order-add-photo-button"]');
-    await expect(addPhoto).toBeDisabled();
-    await expect(page.locator('[data-testid="service-work-order-limited-notice"]').first()).toContainText(
-      /Fotodokumentace zakázky bude doplněna/i,
+    await expect(page.locator('[data-testid="service-work-order-photo-list"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-photo-limited-notice"]')).toContainText(
+      /Interní fotky a doklady nejsou viditelné pro majitele/i,
     );
   });
 
@@ -93,14 +92,66 @@ test.describe('Service shell work orders route', () => {
     await expect(page.locator('[data-testid="service-work-order-add-time-button"]')).toBeEnabled();
   });
 
-  test('service_work_order_photo_or_limited', async ({ page }) => {
+  test('service_work_order_photo_section_loads', async ({ page }) => {
     await openWorkOrders(page);
     if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
       test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
     }
     await page.locator('[data-testid="service-work-order-row"]').first().click();
     await expect(page.locator('[data-testid="service-work-order-photo-list"]')).toBeVisible();
-    await expect(page.locator('[data-testid="service-work-order-add-photo-button"]')).toBeDisabled();
+    await expect(page.locator('[data-testid="service-work-order-add-photo-button"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-photo-type"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-photo-visibility-upload"]')).toBeVisible();
+  });
+
+  test('service_work_order_photo_visibility_notice', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-photo-limited-notice"]')).toContainText(
+      /Interní fotky/i,
+    );
+  });
+
+  test('service_work_order_photo_upload_or_limited', async ({ page }) => {
+    test.skip(process.env.E2E_ALLOW_MUTATIONS !== '1', 'Mutační upload vyžaduje E2E_ALLOW_MUTATIONS=1');
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro upload test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    const addPhoto = page.locator('[data-testid="service-work-order-add-photo-button"]');
+    if (!(await addPhoto.isEnabled())) {
+      test.skip(true, 'Upload fotek není v tomto prostředí dostupný (limited).');
+    }
+    await page.locator('[data-testid="service-work-order-photo-type"]').selectOption('damage');
+    await page.locator('[data-testid="service-work-order-photo-input"]').setInputFiles({
+      name: 'e2e-damage.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from(
+        '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA//2Q==',
+        'base64',
+      ),
+    });
+    await page.locator('[data-testid="service-work-order-photo-upload-submit"]').click();
+    await expect(page.locator('[data-testid="service-work-order-photo-card"]').first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.locator('[data-testid="service-work-order-photo-error"]')).toBeHidden();
+  });
+
+  test('service_work_order_photo_type_selector', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    const typeSelect = page.locator('[data-testid="service-work-order-photo-type"]');
+    await expect(typeSelect).toBeVisible();
+    await expect(typeSelect.locator('option[value="damage"]')).toHaveCount(1);
+    await expect(typeSelect.locator('option[value="completion"]')).toHaveCount(1);
   });
 
   test('service_work_order_complete_or_limited', async ({ page }) => {
@@ -134,13 +185,51 @@ test.describe('Service shell work orders route', () => {
     }
   });
 
-  test('service_work_order_no_fake_success', async ({ page }) => {
+  test('service_work_order_photo_no_fake_success', async ({ page }) => {
     await openWorkOrders(page);
     if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
       test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
     }
     await page.locator('[data-testid="service-work-order-row"]').first().click();
-    await expect(page.locator('[data-testid="service-work-order-add-photo-button"]')).toBeDisabled();
+    const errorBox = page.locator('[data-testid="service-work-order-photo-error"]');
+    await expect(errorBox).toBeHidden();
+    const addPhoto = page.locator('[data-testid="service-work-order-add-photo-button"]');
+    if (await addPhoto.isEnabled()) {
+      await addPhoto.click();
+      await page.locator('[data-testid="service-work-order-photo-upload-submit"]').click();
+      await expect(errorBox).toBeVisible();
+      await expect(page.locator('[data-testid="service-work-order-photo-card"]')).toHaveCount(0);
+    }
+  });
+
+  test('service_work_order_photo_f5_keeps_session', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-photo-list"]')).toBeVisible();
+    const before = page.url();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    await expect(page).toHaveURL(before);
+    await expect(page.locator('[data-testid="login-form"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-photo-list"]')).toBeVisible();
+  });
+
+  test('service_work_order_photo_owner_visibility_safe', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro detail test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-photo-limited-notice"]')).toContainText(
+      /majitel/i,
+    );
+    const visibilityUpload = page.locator('[data-testid="service-work-order-photo-visibility-upload"]');
+    if (await visibilityUpload.isVisible()) {
+      await expect(visibilityUpload.locator('option[value="internal_only"]')).toHaveCount(0);
+    }
   });
 
   test('service_work_order_create_for_unowned_vehicle', async ({ page }) => {

@@ -311,7 +311,7 @@ def work_order_capabilities(*, order: ServiceWorkOrder) -> dict[str, bool]:
         "labor": True,
         "parts": True,
         "time": True,
-        "photos": False,
+        "photos": True,
         "complete": str(order.status or "").lower() != "completed",
         "create_service_record": str(order.status or "").lower() == "completed",
     }
@@ -319,10 +319,7 @@ def work_order_capabilities(*, order: ServiceWorkOrder) -> dict[str, bool]:
 
 def work_order_limited_notices() -> dict[str, str]:
     return {
-        "photos": (
-            "Fotodokumentace zakázky bude doplněna v další fázi. "
-            "Aktuálně se fotky evidují v příjmu nebo u vozidla."
-        ),
+        "photos": "Interní fotky a doklady nejsou viditelné pro majitele.",
     }
 
 

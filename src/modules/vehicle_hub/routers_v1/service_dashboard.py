@@ -1257,6 +1257,11 @@ def get_service_work_order_detail(
     )
 
     detail["items"] = list_work_order_items_grouped(db, work_order_id=int(order.id))
+    detail["photos"] = list_work_order_photos_for_order(
+        db,
+        work_order_id=int(order.id),
+        service_customer_id=int(current_user.id),
+    )
     detail["capabilities"] = work_order_capabilities(order=order)
     detail["limited_notices"] = work_order_limited_notices()
     linked_record = (
@@ -1566,8 +1571,10 @@ def update_service_work_order(
 
 
 from .work_order_items_api import register_work_order_item_routes
+from .work_order_photos_api import list_work_order_photos_for_order, register_work_order_photo_routes
 
 register_work_order_item_routes(router)
+register_work_order_photo_routes(router)
 
 
 @router.post("/quotes/from-record/{record_id}")

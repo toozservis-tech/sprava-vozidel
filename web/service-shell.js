@@ -3633,6 +3633,31 @@
     }).join('');
   }
 
+  function renderWorkOrderPhotoCards(photos) {
+    if (!Array.isArray(photos) || !photos.length) {
+      return '<li class="service-shell-list-note">Zatím bez fotodokumentace.</li>';
+    }
+    return photos.map((photo) => `
+      <li class="service-work-order-photo-card" data-testid="service-work-order-photo-card">
+        <div class="service-work-order-photo-card-head">
+          <strong>${escape(photo.photo_type_label || photo.photo_type || 'Foto')}</strong>
+          <span class="service-shell-list-note">${escape(photo.visibility_scope || 'service_private')}</span>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openWorkOrderPhotoPreview(${Number(photo.work_order_id || 0)}, ${Number(photo.id)})">Zobrazit náhled</button>
+        <div class="service-work-order-photo-card-actions">
+          <select data-work-order-photo-visibility="${Number(photo.id)}" data-testid="service-work-order-photo-visibility">
+            <option value="service_private" ${photo.visibility_scope === 'service_private' ? 'selected' : ''}>Servisní soukromé</option>
+            <option value="owner_visible" ${photo.visibility_scope === 'owner_visible' ? 'selected' : ''}>Viditelné majiteli</option>
+            <option value="safe_after_claim" ${photo.visibility_scope === 'safe_after_claim' ? 'selected' : ''}>Bezpečné po převzetí</option>
+            <option value="internal_only" ${photo.visibility_scope === 'internal_only' ? 'selected' : ''}>Pouze interní</option>
+          </select>
+          <button type="button" class="btn btn-secondary" onclick="window.serviceShell.submitWorkOrderPhotoVisibility(${Number(photo.work_order_id || 0)}, ${Number(photo.id)})">Uložit viditelnost</button>
+          <button type="button" class="btn btn-secondary" onclick="window.serviceShell.deleteWorkOrderPhoto(${Number(photo.work_order_id || 0)}, ${Number(photo.id)})">Skrýt</button>
+        </div>
+      </li>
+    `).join('');
+  }
+
   function renderWorkOrderItemsPanel(detail, workOrderId) {
     const items = detail?.items || {};
     const caps = detail?.capabilities || {};
@@ -3640,11 +3665,13 @@
     const labor = items.labor || [];
     const parts = items.parts || [];
     const times = items.time || [];
-    const limitedPhoto = notices.photos || 'Fotodokumentace zakázky bude doplněna v další fázi. Aktuálně se fotky evidují v příjmu nebo u vozidla.';
+    const photos = Array.isArray(detail?.photos) ? detail.photos : [];
+    const photoNotice = notices.photos || 'Interní fotky a doklady nejsou viditelné pro majitele.';
     const recordId = Number(detail?.service_record_id || 0);
     const canAddLabor = caps.labor !== false;
     const canAddPart = caps.parts !== false;
     const canAddTime = caps.time !== false;
+    const canAddPhotos = caps.photos !== false;
     const canCreateRecord = Boolean(caps.create_service_record) && recordId <= 0;
     const limitedNotice = state.workOrderLimitedNotice
       ? `<p class="service-shell-list-note" data-testid="service-work-order-limited-notice">${escape(state.workOrderLimitedNotice)}</p>`
@@ -3681,10 +3708,29 @@
         </div>
       </section>
       <section class="service-shell-side-card" aria-label="Fotodokumentace zakázky">
-        <h3>Fotky</h3>
-        <p class="service-shell-list-note" data-testid="service-work-order-limited-notice">${escape(limitedPhoto)}</p>
-        <ul class="service-shell-list" data-testid="service-work-order-photo-list"><li class="service-shell-list-note">Bez fotek u zakázky.</li></ul>
-        <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-photo-button" disabled title="${escape(limitedPhoto)}">Přidat foto</button>
+        <h3>Fotodokumentace</h3>
+        <p class="service-shell-list-note" data-testid="service-work-order-photo-limited-notice">${escape(photoNotice)}</p>
+        <ul class="service-shell-list service-work-order-photo-list" data-testid="service-work-order-photo-list">${renderWorkOrderPhotoCards(photos)}</ul>
+        <div class="service-work-order-add-row">
+          <input type="file" id="serviceWoPhotoInput" accept="image/jpeg,image/png,image/webp" class="hidden" data-testid="service-work-order-photo-input" ${canAddPhotos ? '' : 'disabled'} onchange="window.serviceShell.handleWorkOrderPhotoSelection(this, ${workOrderId})">
+          <select id="serviceWoPhotoType" data-testid="service-work-order-photo-type" ${canAddPhotos ? '' : 'disabled'}>
+            <option value="intake">Vstupní stav</option>
+            <option value="damage">Poškození</option>
+            <option value="work_progress">Průběh práce</option>
+            <option value="part">Díl</option>
+            <option value="completion">Výstupní stav</option>
+            <option value="internal">Interní fotka</option>
+          </select>
+          <select id="serviceWoPhotoVisibility" data-testid="service-work-order-photo-visibility-upload" ${canAddPhotos ? '' : 'disabled'}>
+            <option value="service_private">Servisní soukromé</option>
+            <option value="owner_visible">Viditelné majiteli</option>
+            <option value="safe_after_claim">Bezpečné po převzetí</option>
+            <option value="internal_only">Pouze interní</option>
+          </select>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-photo-button" ${canAddPhotos ? '' : 'disabled'} onclick="document.getElementById('serviceWoPhotoInput')?.click()">Vybrat foto</button>
+          <button type="button" class="btn btn-primary" data-testid="service-work-order-photo-upload-submit" ${canAddPhotos ? '' : 'disabled'} onclick="window.serviceShell.triggerWorkOrderPhotoUpload(${workOrderId})">Nahrát foto</button>
+        </div>
+        <p class="service-shell-list-note service-work-order-photo-error hidden" id="serviceWoPhotoError" data-testid="service-work-order-photo-error"></p>
       </section>
       <section class="service-shell-side-card" aria-label="Servisní záznam ze zakázky">
         <h3>Servisní záznam</h3>
@@ -3794,6 +3840,109 @@
     } catch (err) {
       setWorkOrderLimitedNotice(err?.message || 'Servisní záznam se nepodařilo vytvořit.');
       await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  let pendingWorkOrderPhotoFile = null;
+
+  function showWorkOrderPhotoError(message) {
+    const el = document.getElementById('serviceWoPhotoError');
+    if (!el) return;
+    const text = String(message || '').trim();
+    if (!text) {
+      el.textContent = '';
+      el.classList.add('hidden');
+      return;
+    }
+    el.textContent = text;
+    el.classList.remove('hidden');
+  }
+
+  async function handleWorkOrderPhotoSelection(input, workOrderId) {
+    const file = (input?.files && input.files[0]) ? input.files[0] : null;
+    pendingWorkOrderPhotoFile = file;
+    showWorkOrderPhotoError(file ? `Vybráno: ${file.name}` : '');
+  }
+
+  async function triggerWorkOrderPhotoUpload(workOrderId) {
+    const id = Number(workOrderId || 0);
+    const file = pendingWorkOrderPhotoFile;
+    if (!id || !file) {
+      showWorkOrderPhotoError('Nejprve vyberte obrázek (JPEG, PNG nebo WebP).');
+      return;
+    }
+    const photoType = String(document.getElementById('serviceWoPhotoType')?.value || 'work_progress').trim();
+    const visibilityScope = String(document.getElementById('serviceWoPhotoVisibility')?.value || 'service_private').trim();
+    showWorkOrderPhotoError('Nahrávám…');
+    try {
+      const fileContentBase64 = await fileToBase64(file);
+      await window.apiCall(`/api/service/work-orders/${id}/photos`, 'POST', {
+        photo_type: photoType,
+        visibility_scope: visibilityScope,
+        file_name: file.name || 'photo.jpg',
+        file_mime_type: file.type || 'image/jpeg',
+        file_content_base64: fileContentBase64,
+      }, 180000);
+      pendingWorkOrderPhotoFile = null;
+      const input = document.getElementById('serviceWoPhotoInput');
+      if (input) input.value = '';
+      showWorkOrderPhotoError('');
+      if (typeof window.showAlert === 'function') window.showAlert('Fotka byla nahrána.', 'success');
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      showWorkOrderPhotoError(err?.message || 'Nahrání fotky se nepodařilo.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  async function submitWorkOrderPhotoVisibility(workOrderId, photoId) {
+    const woId = Number(workOrderId || 0);
+    const pid = Number(photoId || 0);
+    const select = document.querySelector(`[data-work-order-photo-visibility="${pid}"]`);
+    const visibilityScope = String(select?.value || 'service_private').trim();
+    try {
+      await window.apiCall(`/api/service/work-orders/${woId}/photos/${pid}/visibility`, 'PUT', {
+        visibility_scope: visibilityScope,
+      });
+      if (typeof window.showAlert === 'function') window.showAlert('Viditelnost fotky byla uložena.', 'success');
+      await reloadWorkOrderDetailModal(woId);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Viditelnost se nepodařilo uložit.');
+      await reloadWorkOrderDetailModal(woId);
+    }
+  }
+
+  async function openWorkOrderPhotoPreview(workOrderId, photoId) {
+    const woId = Number(workOrderId || 0);
+    const pid = Number(photoId || 0);
+    if (!woId || !pid) return;
+    try {
+      const { blob } = await payrollFetchBlob(`/api/service/work-orders/${woId}/photos/${pid}/file`);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener');
+      window.setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          /* ignore */
+        }
+      }, 120000);
+    } catch (err) {
+      showWorkOrderPhotoError(err?.message || 'Náhled fotky se nepodařilo načíst.');
+    }
+  }
+
+  async function deleteWorkOrderPhoto(workOrderId, photoId) {
+    const woId = Number(workOrderId || 0);
+    const pid = Number(photoId || 0);
+    if (!woId || !pid) return;
+    try {
+      await window.apiCall(`/api/service/work-orders/${woId}/photos/${pid}`, 'DELETE');
+      if (typeof window.showAlert === 'function') window.showAlert('Fotka byla skryta.', 'success');
+      await reloadWorkOrderDetailModal(woId);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Fotku se nepodařilo odstranit.');
+      await reloadWorkOrderDetailModal(woId);
     }
   }
 
@@ -8886,6 +9035,11 @@
     submitWorkOrderTime,
     submitWorkOrderComplete,
     submitWorkOrderServiceRecord,
+    handleWorkOrderPhotoSelection,
+    triggerWorkOrderPhotoUpload,
+    submitWorkOrderPhotoVisibility,
+    deleteWorkOrderPhoto,
+    openWorkOrderPhotoPreview,
     reloadWorkOrderDetailModal,
     setWorkOrderLimitedNotice,
     openWorkOrderVehicleContext,
