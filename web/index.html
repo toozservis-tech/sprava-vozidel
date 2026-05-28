@@ -43997,6 +43997,33 @@
             return 'dashboard';
         }
 
+        const KNOWN_SERVICE_URL_SECTIONS = new Set([
+            'dashboard', 'intake', 'work-orders', 'vehicles', 'customers', 'clients',
+            'photos', 'history', 'billing', 'invoices', 'quotes', 'parts-stock', 'parts',
+            'reservations', 'reminders', 'documents', 'team', 'audit-security', 'audit', 'settings', 'support',
+        ]);
+
+        function isKnownServiceUrlSection(section) {
+            return KNOWN_SERVICE_URL_SECTIONS.has(String(section || '').toLowerCase());
+        }
+
+        function warnUnknownServiceRoute(section) {
+            const s = String(section || '').toLowerCase();
+            if (!s || isKnownServiceUrlSection(s)) return;
+            try {
+                const host = String(window.location && window.location.hostname || '').toLowerCase();
+                const isDev = host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+                if (isDev || window.__SPRAVA_DEV_ROUTING__) {
+                    console.warn('[SERVICE_SHELL] Neznámá servisní route, přesměrování na dashboard:', s);
+                }
+            } catch (e) {
+                /* ignore */
+            }
+        }
+
+        window.isKnownServiceUrlSection = isKnownServiceUrlSection;
+        window.warnUnknownServiceRoute = warnUnknownServiceRoute;
+
         function serviceShellSectionFromUrlSection(section) {
             const s = String(section || '').toLowerCase();
             const aliases = {
@@ -44009,8 +44036,10 @@
                 'photos': 'photos',
                 'history': 'history',
                 'invoices': 'invoices',
+                'billing': 'invoices',
                 'quotes': 'invoices',
                 'parts': 'parts',
+                'parts-stock': 'parts',
                 'reservations': 'reservations',
                 'reminders': 'reminders',
                 'documents': 'documents',
@@ -44023,14 +44052,17 @@
             if (aliases[s]) {
                 return aliases[s];
             }
+            warnUnknownServiceRoute(s);
             return 'dashboard';
         }
 
         function serviceUrlSectionFromShellSection(section) {
             const s = String(section || '').toLowerCase();
             if (s === 'audit') return 'audit-security';
-            if (s === 'customers') return 'clients';
-            if (s === 'quotes') return 'invoices';
+            if (s === 'clients') return 'customers';
+            if (s === 'invoices') return 'billing';
+            if (s === 'parts') return 'parts-stock';
+            if (s === 'quotes') return 'billing';
             if (s === 'support') return 'dashboard';
             if (s === 'dashboard') return 'dashboard';
             return s;
@@ -44218,7 +44250,17 @@
             const slugOk = parsedStay
                 && String(parsedStay.slug || '').toLowerCase() === String(me.account_slug || '').toLowerCase();
             const tokenOk = parsedStay && parsedStay.routeToken === expectToken;
-            const historyPath = parsedStay && slugOk && tokenOk ? normPath : me.default_app_path;
+            let historyPath = parsedStay && slugOk && tokenOk ? normPath : me.default_app_path;
+            if (
+                parsedStay
+                && slugOk
+                && tokenOk
+                && me.workspace_route_kind === 'service'
+                && parsedStay.section
+                && !isKnownServiceUrlSection(String(parsedStay.section).toLowerCase())
+            ) {
+                historyPath = buildAppWorkspacePath('s', me.account_slug, 'dashboard');
+            }
             window.history[method]({}, document.title, `${toBrowserAppPath(historyPath)}${window.location.search || ''}`);
             if (typeof applyWorkspaceRouteFromUrl === 'function') {
                 applyWorkspaceRouteFromUrl({ skipUnsavedGuard: true });
@@ -44243,6 +44285,15 @@
                 return applyWorkspaceRouteFromUrl({ ...options, _depth: depth + 1, skipUnsavedGuard: true });
             }
             if (isServiceWorkspaceRole()) {
+                const rawSection = String(parsed.section || '').toLowerCase();
+                if (rawSection && !isKnownServiceUrlSection(rawSection)) {
+                    warnUnknownServiceRoute(rawSection);
+                    workspaceHistoryReplace(buildAppWorkspacePath('s', parsed.slug, 'dashboard'));
+                    if (window.serviceShell && typeof window.serviceShell.navigate === 'function') {
+                        window.serviceShell.navigate('dashboard', { forceLoad: false, replaceHistory: true });
+                    }
+                    return;
+                }
                 const sec = serviceShellSectionFromUrlSection(parsed.section);
                 if (window.serviceShell && typeof window.serviceShell.navigate === 'function') {
                     window.serviceShell.navigate(sec, { forceLoad: false });
@@ -44460,14 +44511,19 @@
             }
         }
 
-        window.syncWorkspaceHistoryFromServiceShell = function(shellSection) {
+        window.syncWorkspaceHistoryFromServiceShell = function(shellSection, options) {
             try {
                 if (!isAuthenticated() || !lastWorkspaceMePayload || !lastWorkspaceMePayload.authenticated) return;
                 if (!isServiceWorkspaceRole()) return;
                 const slug = lastWorkspaceMePayload.account_slug;
                 if (!slug) return;
                 const sec = serviceUrlSectionFromShellSection(shellSection);
-                workspaceHistoryPush(buildAppWorkspacePath('s', slug, sec));
+                const path = buildAppWorkspacePath('s', slug, sec);
+                if (options && options.replaceHistory) {
+                    workspaceHistoryReplace(path);
+                } else {
+                    workspaceHistoryPush(path);
+                }
             } catch (e) {
                 console.warn('[ROUTER] service shell URL sync failed', e);
             }

@@ -3584,3 +3584,155 @@ body.service-shell-app .service-nav {
   opacity: 0.001;
   position: absolute;
 }
+
+/* Fáze 2: sdílený shell layout a stavy sekcí */
+.service-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 4px 4px 0;
+}
+
+.service-page-header h1 {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--service-text, #0f172a);
+  letter-spacing: -0.02em;
+}
+
+.service-page-header-sub,
+.service-shell-muted {
+  margin: 8px 0 0;
+  color: var(--service-text-muted, #64748b);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.service-section-shell {
+  padding: 8px 4px 24px;
+}
+
+.service-section-shell--limited .service-page-header h1 {
+  color: var(--service-text, #0f172a);
+}
+
+.service-state-card {
+  background: #ffffff;
+  border: 1px solid var(--service-border, #dbe3ef);
+  border-radius: var(--service-radius, 24px);
+  box-shadow: var(--service-shadow, 0 18px 50px rgba(15, 23, 42, 0.08));
+  padding: 22px 24px;
+}
+
+.service-state-card--limited {
+  border-left: 4px solid var(--service-primary, #2563eb);
+}
+
+.service-state-card--empty {
+  border-style: dashed;
+}
+
+.service-state-card--error {
+  border-left: 4px solid #dc2626;
+}
+
+.service-state-card--denied {
+  border-left: 4px solid #ea580c;
+}
+
+.service-state-card p {
+  margin: 10px 0 0;
+  color: var(--service-text-soft, #334155);
+  line-height: 1.55;
+}
+
+.service-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.service-status-badge--success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.service-status-badge--warning,
+.service-status-badge--pending {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.service-status-badge--danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.service-status-badge--neutral {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.service-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.service-loading-skeleton {
+  display: grid;
+  gap: 14px;
+}
+
+.service-loading-skeleton-block,
+.service-loading-skeleton-card {
+  border-radius: var(--service-radius-sm, 14px);
+  background: linear-gradient(90deg, #eef2f7 0%, #f8fafc 50%, #eef2f7 100%);
+  background-size: 200% 100%;
+  animation: service-shell-skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.service-loading-skeleton-block {
+  min-height: 28px;
+}
+
+.service-loading-skeleton-block--short {
+  width: 55%;
+  min-height: 18px;
+}
+
+.service-loading-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.service-loading-skeleton-card {
+  min-height: 140px;
+  border-radius: var(--service-radius, 24px);
+}
+
+@keyframes service-shell-skeleton-pulse {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* Horní ERP navigace se v servisním shellu nepoužívá */
+.service-shell-header .service-shell-nav,
+.service-shell-nav-section {
+  display: none !important;
+}
+
+.service-nav-item.active,
+.service-nav-item[aria-current="page"] {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--service-primary-strong, #1d4ed8);
+}

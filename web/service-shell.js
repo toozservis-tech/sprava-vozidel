@@ -434,6 +434,97 @@
     }
   }
 
+  function ServicePageHeader(title, subtitle, actionsHtml = '') {
+    return `
+      <header class="service-page-header" data-testid="service-page-header">
+        <div class="service-page-header-text">
+          <h1>${escape(title)}</h1>
+          ${subtitle ? `<p class="service-page-header-sub">${escape(subtitle)}</p>` : ''}
+        </div>
+        ${actionsHtml ? `<div class="service-page-header-actions">${actionsHtml}</div>` : ''}
+      </header>`;
+  }
+
+  function ServiceSectionShell(title, subtitle, bodyHtml, options = {}) {
+    const badge = options.limited
+      ? '<span class="service-status-badge service-status-badge--pending" data-testid="service-section-limited-badge">Připravuje se</span>'
+      : '';
+    return `
+      <section class="service-section-shell ${options.limited ? 'service-section-shell--limited' : ''}" data-testid="service-section-shell">
+        ${ServicePageHeader(title, subtitle, badge)}
+        <div class="service-section-shell-body">${bodyHtml}</div>
+      </section>`;
+  }
+
+  function ServiceEmptyState(title, message) {
+    return `
+      <div class="service-state-card service-state-card--empty" data-testid="service-empty-state" role="status">
+        <strong>${escape(title)}</strong>
+        <p>${escape(message)}</p>
+      </div>`;
+  }
+
+  function ServiceErrorState(message, retryAction = '') {
+    const retryBtn = retryAction
+      ? `<button type="button" class="service-shell-primary-btn" onclick="${retryAction}">Zkusit znovu</button>`
+      : '';
+    return `
+      <div class="service-state-card service-state-card--error" data-testid="service-error-state" role="alert">
+        <strong>Nepodařilo se načíst data</strong>
+        <p>${escape(message)}</p>
+        ${retryBtn}
+      </div>`;
+  }
+
+  function ServicePermissionDeniedState(message) {
+    return `
+      <div class="service-state-card service-state-card--denied" data-testid="service-permission-denied" role="alert">
+        <strong>Přístup není povolen</strong>
+        <p>${escape(message || 'K této části nemáte oprávnění bez schválení majitele vozidla.')}</p>
+      </div>`;
+  }
+
+  function ServiceLoadingSkeleton(sectionKey = '') {
+    const label = sectionKey ? `Načítám sekci…` : 'Načítám servisní prostor…';
+    return `
+      ${ServicePageHeader(label, 'Načítávám data pro vybranou sekci.')}
+      <div class="service-loading-skeleton" data-testid="service-loading-skeleton" aria-busy="true">
+        <div class="service-loading-skeleton-block"></div>
+        <div class="service-loading-skeleton-block service-loading-skeleton-block--short"></div>
+        <div class="service-loading-skeleton-grid">
+          <div class="service-loading-skeleton-card"></div>
+          <div class="service-loading-skeleton-card"></div>
+        </div>
+      </div>`;
+  }
+
+  function ServiceStatusBadge(label, tone = 'neutral') {
+    const safeTone = ['success', 'warning', 'danger', 'pending', 'neutral'].includes(tone) ? tone : 'neutral';
+    return `<span class="service-status-badge service-status-badge--${safeTone}">${escape(label)}</span>`;
+  }
+
+  function ServiceActionBar(buttonsHtml) {
+    return `<div class="service-action-bar" data-testid="service-action-bar">${buttonsHtml || ''}</div>`;
+  }
+
+  function ServiceLimitedPlaceholderCopy() {
+    return 'Tato sekce je připravena jako pracovní prostor. Plné funkce budou doplněny v další fázi. Aktuálně nejsou zobrazena žádná data bez ověřeného backend workflow.';
+  }
+
+  function renderLimitedWorkspaceSection(title, subtitle, extraHtml = '') {
+    return ServiceSectionShell(
+      title,
+      subtitle,
+      `
+        <article class="service-state-card service-state-card--limited" data-testid="service-limited-placeholder">
+          <p>${escape(ServiceLimitedPlaceholderCopy())}</p>
+          ${extraHtml || ''}
+        </article>
+      `,
+      { limited: true },
+    );
+  }
+
   function formatDate(value) {
     if (typeof window.formatDateCZ === 'function') {
       return window.formatDateCZ(value);
@@ -1392,26 +1483,68 @@
     }, autoRefreshMs);
   }
 
+  const LIMITED_WORKSPACE_SECTIONS = new Set(['photos', 'history', 'parts', 'audit', 'settings']);
+
   function mapSection(tab) {
     const key = String(tab || '').trim().toLowerCase();
     if (serviceSections.has(key)) return key;
     if (key === 'home') return 'dashboard';
     if (key === 'prijem' || key === 'intake') return 'intake';
-    if (key === 'servicesdirectory' || key === 'clients') return 'clients';
+    if (key === 'servicesdirectory' || key === 'clients' || key === 'customers') return 'clients';
     if (key === 'vehicles') return 'vehicles';
-    if (key === 'serviceworkspace' || key === 'workorders') return 'work-orders';
+    if (key === 'serviceworkspace' || key === 'workorders' || key === 'work-orders') return 'work-orders';
     if (key === 'photos' || key === 'fotodokumentace') return 'photos';
     if (key === 'history') return 'history';
-    if (key === 'parts') return 'parts';
+    if (key === 'parts' || key === 'parts-stock') return 'parts';
     if (key === 'audit' || key === 'audit-security') return 'audit';
     if (key === 'settings') return 'settings';
     if (key === 'documents') return 'documents';
-    if (key === 'invoices') return 'invoices';
+    if (key === 'invoices' || key === 'billing' || key === 'quotes') return 'invoices';
     if (key === 'reservations') return 'reservations';
     if (key === 'reminders') return 'reminders';
     if (key === 'account' || key === 'team') return 'team';
     if (key === 'support') return 'dashboard';
     return '';
+  }
+
+  function readServiceSectionFromLocation() {
+    try {
+      if (typeof window.parseAppWorkspaceRoute !== 'function') return defaultSection;
+      const parsed = window.parseAppWorkspaceRoute(window.location.pathname);
+      if (!parsed || String(parsed.routeToken || '').toLowerCase() !== 's') return defaultSection;
+      if (typeof window.serviceShellSectionFromUrlSection === 'function') {
+        return mapSection(window.serviceShellSectionFromUrlSection(parsed.section)) || defaultSection;
+      }
+      return mapSection(parsed.section) || defaultSection;
+    } catch (err) {
+      console.warn('[SERVICE_SHELL] readServiceSectionFromLocation failed:', err);
+      return defaultSection;
+    }
+  }
+
+  function reconcileUnknownServiceRouteUrl() {
+    try {
+      if (typeof window.parseAppWorkspaceRoute !== 'function') return;
+      const parsed = window.parseAppWorkspaceRoute(window.location.pathname);
+      if (!parsed || String(parsed.routeToken || '').toLowerCase() !== 's') return;
+      const raw = String(parsed.section || '').toLowerCase();
+      if (!raw || typeof window.isKnownServiceUrlSection !== 'function' || window.isKnownServiceUrlSection(raw)) {
+        return;
+      }
+      if (typeof window.warnUnknownServiceRoute === 'function') {
+        window.warnUnknownServiceRoute(raw);
+      }
+      state.activeSection = 'dashboard';
+      render();
+      if (typeof window.syncWorkspaceHistoryFromServiceShell === 'function') {
+        window.syncWorkspaceHistoryFromServiceShell('dashboard', { replaceHistory: true });
+      } else if (typeof window.workspaceHistoryReplace === 'function' && typeof window.buildAppWorkspacePath === 'function') {
+        window.workspaceHistoryReplace(window.buildAppWorkspacePath('s', parsed.slug, 'dashboard'));
+      }
+      load(true, false);
+    } catch (err) {
+      console.warn('[SERVICE_SHELL] reconcileUnknownServiceRouteUrl failed:', err);
+    }
   }
 
   function showAppShellForService() {
@@ -1477,10 +1610,12 @@
       parkLegacyDom();
       root.classList.remove('hidden');
       state.mounted = true;
+      state.activeSection = mapSection(options.section) || readServiceSectionFromLocation() || defaultSection;
       state.theme = safeStorageGet(themeKey) === 'dark' ? 'dark' : 'light';
       applyTheme(state.theme);
       bindNavOutsideCloseOnce();
       render();
+      reconcileUnknownServiceRouteUrl();
       if (!options.skipLoad) {
         load(false, false).catch((error) => {
           console.error('[SERVICE_SHELL] mount load failed:', error);
@@ -1489,6 +1624,13 @@
           }
         });
       }
+      window.setTimeout(() => {
+        try {
+          reconcileUnknownServiceRouteUrl();
+        } catch (e) {
+          /* ignore */
+        }
+      }, 0);
       console.log('[SERVICE_SHELL] MOUNT OK');
     } catch (error) {
       mountShellFailsafe(error);
@@ -1649,6 +1791,18 @@
 
   function navigate(section, options = {}) {
     closeNavFlyouts();
+    const rawSection = String(section || '').trim().toLowerCase();
+    if (
+      rawSection
+      && typeof window.isKnownServiceUrlSection === 'function'
+      && !window.isKnownServiceUrlSection(rawSection)
+    ) {
+      if (typeof window.warnUnknownServiceRoute === 'function') {
+        window.warnUnknownServiceRoute(rawSection);
+      }
+      section = 'dashboard';
+      options = { ...options, replaceHistory: true };
+    }
     const next = mapSection(section) || defaultSection;
     const prevSection = state.activeSection;
     state.accountMenuOpen = false;
@@ -1675,9 +1829,9 @@
       }, 0);
     }
     if (typeof window.syncWorkspaceHistoryFromServiceShell === 'function') {
-      window.syncWorkspaceHistoryFromServiceShell(next);
+      window.syncWorkspaceHistoryFromServiceShell(next, options);
     }
-    if (options.forceLoad) {
+    if (options.forceLoad || prevSection !== next) {
       load(true, false);
     }
   }
@@ -6036,6 +6190,8 @@
         <button
           type="button"
           class="service-nav-item ${active ? 'active' : ''}"
+          data-testid="service-nav-${escape(entry.section)}"
+          data-service-nav-section="${escape(entry.section)}"
           ${hasSub ? 'aria-haspopup="true"' : ''}
           ${active ? 'aria-current="page"' : ''}
           ${tutorialRailKey ? `data-tutorial="${escape(tutorialRailKey)}"` : ''}
@@ -6104,11 +6260,9 @@
           ${state.searchResultsOpen && state.searchTerm ? serviceSearchResultsHtml() : ''}
         </div>
         <div class="service-topbar-right">
-          <button type="button" class="service-shell-icon-btn service-shell-theme-toggle-btn service-legacy-test-btn" onclick="window.serviceShell.setTheme('light')" aria-label="Přepnout motiv">◐</button>
-          <button type="button" class="service-shell-icon-btn service-legacy-test-btn" onclick="window.serviceShell.openServiceToolsModal()" aria-label="Servisní nástroje">⌘</button>
-          <button type="button" class="service-legacy-dashboard-button" onclick="window.serviceShell.navigate('dashboard')">Dashboard</button>
-          <span class="service-shell-kpi service-legacy-topbar-kpi" onclick="window.serviceShell.navigate('work-orders')">2</span>
-          <span class="service-shell-kpi service-legacy-topbar-kpi" onclick="window.serviceShell.navigate('work-orders')">0</span>
+          <button type="button" class="service-shell-icon-btn service-shell-theme-toggle-btn" onclick="window.toggleAppUiTheme()" aria-label="Přepnout motiv">◐</button>
+          <button type="button" class="service-shell-icon-btn" onclick="window.serviceShell.load(true)" aria-label="Obnovit data">↻</button>
+          <button type="button" class="service-shell-icon-btn" onclick="window.serviceShell.openServiceToolsModal()" aria-label="Servisní nástroje">⌘</button>
           <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openIntakeFlow()">+ Přijmout vozidlo</button>
           <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openCreateWorkOrderModal()">+ Nová zakázka</button>
           <button type="button" class="service-shell-bell" onclick="window.serviceShell.scrollToRisks()" aria-label="Upozornění">♧<span>${escape(String(risksCount || 0))}</span></button>
@@ -6528,41 +6682,53 @@
     `;
     switch (state.activeSection) {
       case 'intake':
-        return staticInfoSection(
+        return ServiceSectionShell(
           'Příjem vozidla',
           'Vícekrokový příjem: vozidlo, zákazník, fotodokumentace, tachometr, souhlas a zakázka.',
-          `<div class="service-pro-card service-quick-intake" style="max-width:720px;">
-            ${renderQuickIntakePanel()}
-          </div>`,
+          `
+            <article class="service-state-card service-state-card--limited" data-testid="service-intake-workspace">
+              <p>${escape(ServiceLimitedPlaceholderCopy())}</p>
+              <p class="service-shell-muted">Rychlý příjem na přehledu a vyhledávání VIN/SPZ v servisních nástrojích zůstávají dostupné tam, kde už existuje ověřený backend workflow.</p>
+            </article>
+            <div class="service-pro-card service-quick-intake" style="max-width:720px;margin-top:16px;">
+              ${renderQuickIntakePanel()}
+            </div>
+          `,
         );
       case 'photos':
-        return staticInfoSection(
+        return renderLimitedWorkspaceSection(
           'Fotodokumentace',
           'Vstupní a průběžné fotky vozidel a zakázek.',
-          `<p>Fotodokumentace je navázaná na detail vozidla, servisní záznam a příjem. Chybějící fotky najdete přes rizika v přehledu.</p>
-          <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openOcrPlaceholder()">Foto SPZ / OCR</button></p>`,
+          `<p class="service-shell-muted">Fotky lze přidávat u zakázky nebo servisního záznamu tam, kde je schválený přístup.</p>
+          <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" disabled title="OCR SPZ není v této instalaci aktivní">Foto SPZ / OCR</button></p>`,
         );
       case 'history':
-        return staticInfoSection(
+        return renderLimitedWorkspaceSection(
           'Servisní historie',
           'Auditované záznamy podle VIN a schváleného přístupu majitele.',
-          '<p>Historii otevřete z detailu vozidla. Osobní údaje zůstávají maskované bez oprávnění, VIN je v přehledech zkrácený.</p>',
+          '<p class="service-shell-muted">Bezpečný náhled historie je dostupný z detailu vozidla po schválení přístupu majitelem.</p>',
         );
       case 'parts':
-        return staticInfoSection(
+        return renderLimitedWorkspaceSection(
           'Sklad dílů',
           'Skladové položky a díly k zakázkám.',
-          '<p>Sklad dílů není v této instalaci aktivní, protože backend endpoint pro skladové položky/import dílů není dostupný. Zakázky proto pracují jen s díly v nabídce, faktuře a servisním záznamu.</p>',
+          '<p class="service-shell-muted">Plný skladový modul není v této fázi aktivní. Díly lze evidovat jako položky zakázky v sekci Zakázky.</p>',
         );
       case 'audit':
-        return staticInfoSection(
+        return renderLimitedWorkspaceSection(
           'Audit a bezpečnost',
           'Přístupy, souhlasy, autorizace a bezpečnostní události.',
-          `<p>Každý citlivý detail je oddělený od vozidlových dat a zapisuje se auditně tam, kde existuje backend audit logger.</p>
-          <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.scrollToAuthorizations(); window.serviceShell.navigate('dashboard')">Čekající autorizace</button></p>`,
+          `${ServiceActionBar('<button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.scrollToAuthorizations(); window.serviceShell.navigate(\'dashboard\')">Čekající autorizace na přehledu</button>')}`,
         );
       case 'settings':
-        return teamSection();
+        return renderLimitedWorkspaceSection(
+          'Nastavení servisu',
+          'Profil servisu, kontakty, veřejný profil a bezpečnostní předvolby.',
+          `${ServiceActionBar(`
+            <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openAccountSettings()">Otevřít nastavení účtu</button>
+            <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openLicenseSettings()">Licence a plán</button>
+          `)}`,
+        );
       case 'messages':
         return staticInfoSection(
           'Zprávy',
@@ -7854,23 +8020,19 @@
   }
 
   function loadingShell() {
-    return `
-      ${pageHead('Přehled', 'Načítám servisní pracovní prostor…')}
-      <div class="service-shell-kpis">
-        <div class="service-shell-skeleton"></div>
-        <div class="service-shell-skeleton"></div>
-        <div class="service-shell-skeleton"></div>
-        <div class="service-shell-skeleton"></div>
-      </div>
-      <div class="service-shell-layout">
-        <div class="service-shell-main"><div class="service-shell-skeleton" style="min-height: 520px;"></div></div>
-        <div class="service-shell-side"><div class="service-shell-skeleton" style="min-height: 520px;"></div></div>
-      </div>
-    `;
+    return ServiceLoadingSkeleton(state.activeSection || 'dashboard');
+  }
+
+  function sectionLoadErrorHtml() {
+    if (!Array.isArray(state.errors) || !state.errors.length) return '';
+    if (LIMITED_WORKSPACE_SECTIONS.has(state.activeSection)) return '';
+    return ServiceErrorState(state.errors[0] || 'Neznámá chyba', 'window.serviceShell.load(true)');
   }
 
   function currentSectionHtml() {
     if (state.loading) return loadingShell();
+    const loadError = sectionLoadErrorHtml();
+    if (loadError) return loadError;
     const placeholder = serviceAccountPlaceholderSections();
     if (placeholder) return placeholder;
     if (state.activeSection === 'clients') return clientsSection();
@@ -8095,6 +8257,12 @@
     submitPayrollEmployeeUpdate,
     openPayrollEmployeeDetail,
     state,
+    readServiceSectionFromLocation,
+    mapSection,
+  };
+
+  window.serviceShellGetActiveSection = function serviceShellGetActiveSection() {
+    return String(state.activeSection || defaultSection);
   };
 
   window.onServiceHistoryExpandClick = function(event, vid, rid) {

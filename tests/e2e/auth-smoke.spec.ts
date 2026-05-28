@@ -228,7 +228,7 @@ test.describe('Service workspace E2E', () => {
     await expect(page).toHaveURL(/\/(web\/)?app\/s\/[^/]+\/[^/]+/);
   });
 
-  test('service navigation clients → work-orders and URL', async ({ page }) => {
+  test('service navigation customers → work-orders and URL', async ({ page }) => {
     await loginServiceUser(page);
     await expect(page.locator(serviceRoot)).toBeVisible({ timeout: 25_000 });
     await page.waitForTimeout(500);
@@ -241,7 +241,7 @@ test.describe('Service workspace E2E', () => {
       const w = window as unknown as { serviceShell?: { navigate?: (s: string) => void } };
       w.serviceShell?.navigate?.('clients');
     });
-    await expect(page).toHaveURL(/\/(web\/)?app\/s\/[^/]+\/clients/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/(web\/)?app\/s\/[^/]+\/(customers|clients)/, { timeout: 20_000 });
     await page.evaluate(() => {
       const w = window as unknown as { serviceShell?: { navigate?: (s: string) => void } };
       w.serviceShell?.navigate?.('work-orders');
