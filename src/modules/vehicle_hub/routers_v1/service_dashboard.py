@@ -1241,6 +1241,13 @@ def get_service_work_order_detail(
             public_token=public_token,
             work_order=order,
         )
+    from .work_order_billing_api import _linked_invoice, _serialize_invoice_summary
+
+    linked_invoice = _linked_invoice(
+        db, work_order_id=int(order.id), service_customer_id=int(current_user.id)
+    )
+    if linked_invoice:
+        detail["invoice_summary"] = _serialize_invoice_summary(linked_invoice)
     detail["audit_log"] = [
         {
             "id": int(row.id),
@@ -1570,11 +1577,13 @@ def update_service_work_order(
     return _serialize_work_order(order, owner=owner, vehicle=vehicle, technician=technician)
 
 
+from .work_order_billing_api import register_work_order_billing_routes
 from .work_order_items_api import register_work_order_item_routes
 from .work_order_photos_api import list_work_order_photos_for_order, register_work_order_photo_routes
 
 register_work_order_item_routes(router)
 register_work_order_photo_routes(router)
+register_work_order_billing_routes(router)
 
 
 @router.post("/quotes/from-record/{record_id}")

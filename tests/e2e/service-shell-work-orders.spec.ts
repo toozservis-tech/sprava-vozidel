@@ -270,7 +270,76 @@ test.describe('Service shell work orders route', () => {
       test.skip(true, 'Žádná dostupná zakázka pro quote test v tomto prostředí.');
     }
     await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-quote-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-create-quote-button"]')).toBeVisible();
+  });
+
+  test('service_work_order_billing_panel_loads', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro billing panel test.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-quote-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-invoice-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-billing-limited-notice"]')).toContainText(/majitel/i);
+  });
+
+  test('service_work_order_create_invoice_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro invoice test.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    const createInvoice = page.locator('[data-testid="service-work-order-create-invoice-button"]');
+    await expect(createInvoice).toBeVisible();
+  });
+
+  test('service_billing_route_loads', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    await expect(page.locator('[data-testid="service-billing-section"]')).toBeVisible({ timeout: 30_000 });
+  });
+
+  test('service_billing_f5_keeps_session', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    const before = page.url();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    await expect(page).toHaveURL(before);
+    await expect(page.locator('[data-testid="login-form"]')).not.toBeVisible();
+  });
+
+  test('service_invoice_pdf_button_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro PDF tlačítko.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    const pdfBtn = page.locator('[data-testid="service-work-order-invoice-pdf-button"]');
+    if ((await pdfBtn.count()) === 0) {
+      return;
+    }
+    await expect(pdfBtn).toBeVisible();
+  });
+
+  test('service_billing_no_fake_success', async ({ page }) => {
+    test.skip(process.env.E2E_ALLOW_MUTATIONS === '1', 'Kontrola bez mutace — tlačítko bez položek nesmí falešně uspět.');
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná zakázka pro billing no-fake test.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
     const createQuote = page.locator('[data-testid="service-work-order-create-quote-button"]');
-    await expect(createQuote).toBeVisible();
+    if (!(await createQuote.isVisible())) {
+      return;
+    }
+    await createQuote.click();
+    await expect(page.locator('[data-testid="service-work-order-quote-status"]')).not.toBeVisible({ timeout: 5000 });
   });
 });

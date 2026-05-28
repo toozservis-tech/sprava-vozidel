@@ -208,6 +208,7 @@
     reminders: [],
     documents: [],
     invoices: [],
+    quotes: [],
     dashboardOverview: null,
     dashboardWorkOrders: [],
     pendingAuthorizations: [],
@@ -1785,6 +1786,10 @@
           console.warn('[SERVICE_SHELL] invoices endpoint:', err?.message || err);
           return { items: [] };
         }),
+        quotes: () => window.apiCall('/api/service/quotes', 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] quotes endpoint:', err?.message || err);
+          return { items: [] };
+        }),
         profile: () => window.apiCall('/user/me', 'GET'),
         partnerProfile: () => window.apiCall('/api/v1/services/workspace/partner-public-profile', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] partner-public-profile:', err?.message || err);
@@ -1809,6 +1814,7 @@
         if (key === 'reminders') state.reminders = Array.isArray(payload) ? payload : [];
         if (key === 'documents') state.documents = Array.isArray(payload) ? payload : [];
         if (key === 'invoices') state.invoices = Array.isArray(payload?.items) ? payload.items : [];
+        if (key === 'quotes') state.quotes = Array.isArray(payload?.items) ? payload.items : [];
         if (key === 'profile') state.profile = payload || {};
         if (key === 'partnerProfile') state.partnerPublicProfile = payload && typeof payload === 'object' ? payload : {};
       };
@@ -1859,7 +1865,7 @@
         reservations: ['reservations'],
         reminders: ['reminders'],
         documents: ['documents'],
-        invoices: ['invoices', 'customers', 'vehicles'],
+        invoices: ['invoices', 'quotes', 'customers', 'vehicles'],
         history: ['vehicles', 'customers'],
         photos: ['vehicles', 'customers'],
         intake: ['customers', 'vehicles'],
@@ -3658,6 +3664,58 @@
     `).join('');
   }
 
+  function renderWorkOrderBillingPanel(detail, workOrderId) {
+    const caps = detail?.capabilities || {};
+    const notices = detail?.limited_notices || {};
+    const billingNotice = notices.billing || 'Ceny a faktury jsou pouze pro servis — majitel je v historii nevidí.';
+    const quote = detail?.quote_summary || null;
+    const invoice = detail?.invoice_summary || null;
+    const canQuote = caps.quotes !== false;
+    const canInvoice = caps.invoices !== false;
+    const canPdf = caps.invoice_pdf !== false && invoice?.pdf_available !== false;
+    const woId = Number(workOrderId || 0);
+    const ownerId = Number(detail?.owner_id || detail?.customer_id || 0);
+    const isUnowned = Boolean(detail?.is_unowned_vehicle) || ownerId <= 0;
+    return `
+      <p class="service-shell-list-note" data-testid="service-work-order-billing-limited-notice">${escape(billingNotice)}</p>
+      <section class="service-shell-side-card" data-testid="service-work-order-quote-panel" aria-label="Nabídka ze zakázky">
+        <h3>Nabídka</h3>
+        ${quote ? `
+          <div class="service-shell-list">
+            <div class="service-shell-list-row"><span class="service-shell-list-title">Stav</span><span class="service-shell-list-value" data-testid="service-work-order-quote-status">${escape(quote.status_label || quote.status || '-')}</span></div>
+            <div class="service-shell-list-row"><span class="service-shell-list-title">Celkem</span><span class="service-shell-list-value">${escape(quote.total_price != null ? `${Number(quote.total_price).toLocaleString('cs-CZ')} Kč` : '-')}</span></div>
+          </div>
+          <div class="service-shell-modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openQuoteModal(${Number(quote.quote_id || 0)})">Otevřít nabídku</button>
+            <button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Otevřít v Nabídky a faktury</button>
+          </div>
+        ` : `
+          <p class="service-shell-list-note">K zakázce zatím není nabídka.</p>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-quote-button" ${canQuote ? '' : 'disabled'} onclick="window.serviceShell.createWorkOrderQuote(${woId})">Vytvořit nabídku</button>
+        `}
+      </section>
+      <section class="service-shell-side-card" data-testid="service-work-order-invoice-panel" aria-label="Faktura ze zakázky">
+        <h3>Faktura</h3>
+        ${invoice ? `
+          <div class="service-shell-list">
+            <div class="service-shell-list-row"><span class="service-shell-list-title">Stav</span><span class="service-shell-list-value" data-testid="service-work-order-invoice-status">${escape(invoice.status_label || invoice.status || '-')}</span></div>
+            <div class="service-shell-list-row"><span class="service-shell-list-title">Celkem</span><span class="service-shell-list-value">${invoice.total != null ? escape(`${Number(invoice.total).toLocaleString('cs-CZ')} ${invoice.currency || 'CZK'}`) : '-'}</span></div>
+            ${invoice.invoice_number ? `<div class="service-shell-list-row"><span class="service-shell-list-title">Číslo</span><span class="service-shell-list-value">${escape(invoice.invoice_number)}</span></div>` : ''}
+          </div>
+          <div class="service-shell-modal-actions">
+            <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openServiceInvoiceDetailModal(${Number(invoice.invoice_id || 0)})">Otevřít fakturu</button>
+            <button type="button" class="btn btn-secondary" data-testid="service-work-order-invoice-pdf-button" ${canPdf ? '' : 'disabled'} onclick="window.serviceShell.openServiceInvoicePdf(${Number(invoice.invoice_id || 0)})">Stáhnout PDF</button>
+            <button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Otevřít v Nabídky a faktury</button>
+          </div>
+        ` : `
+          <p class="service-shell-list-note">${isUnowned ? 'U nepřiřazeného vozidla je nutný propojený zákazník pro fakturaci (vyberte v Nabídky a faktury).' : 'K zakázce zatím není faktura.'}</p>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-invoice-button" ${canInvoice && !isUnowned ? '' : 'disabled'} onclick="window.serviceShell.createWorkOrderInvoice(${woId})">Vytvořit fakturu</button>
+          ${isUnowned ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Nabídky a faktury</button>` : ''}
+        `}
+      </section>
+    `;
+  }
+
   function renderWorkOrderItemsPanel(detail, workOrderId) {
     const items = detail?.items || {};
     const caps = detail?.capabilities || {};
@@ -3742,7 +3800,55 @@
                <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-record-button" ${canCreateRecord ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderServiceRecord(${workOrderId})">Vytvořit servisní záznam</button>
              </div>`}
       </section>
+      ${renderWorkOrderBillingPanel(detail, workOrderId)}
     `;
+  }
+
+  async function createWorkOrderQuote(workOrderId) {
+    const id = Number(workOrderId || 0);
+    if (!id) return;
+    try {
+      const quote = await window.apiCall(`/api/service/work-orders/${id}/quote`, 'POST');
+      if (typeof window.showAlert === 'function') {
+        window.showAlert('Nabídka ze zakázky byla vytvořena.', 'success');
+      }
+      await reloadWorkOrderDetailModal(id);
+      if (quote?.id) openQuoteModal(Number(quote.id));
+    } catch (err) {
+      const existingId = Number(err?.detail?.quote_id || err?.payload?.quote_id || 0);
+      if (existingId > 0) {
+        if (typeof window.showAlert === 'function') window.showAlert('K zakázce už existuje nabídka.', 'info');
+        await reloadWorkOrderDetailModal(id);
+        openQuoteModal(existingId);
+        return;
+      }
+      setWorkOrderLimitedNotice(err?.message || 'Nabídku se nepodařilo vytvořit.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  async function createWorkOrderInvoice(workOrderId) {
+    const id = Number(workOrderId || 0);
+    if (!id) return;
+    try {
+      const invoice = await window.apiCall(`/api/service/work-orders/${id}/invoice`, 'POST', {});
+      if (typeof window.showAlert === 'function') {
+        const label = invoice?.invoice_number ? ` ${invoice.invoice_number}` : '';
+        window.showAlert(`Faktura${label} ze zakázky byla vytvořena.`, 'success');
+      }
+      await reloadWorkOrderDetailModal(id);
+      if (invoice?.id) openServiceInvoiceDetailModal(Number(invoice.id));
+    } catch (err) {
+      const existingId = Number(err?.detail?.invoice_id || err?.payload?.invoice_id || 0);
+      if (existingId > 0) {
+        if (typeof window.showAlert === 'function') window.showAlert('K zakázce už existuje faktura.', 'info');
+        await reloadWorkOrderDetailModal(id);
+        openServiceInvoiceDetailModal(existingId);
+        return;
+      }
+      setWorkOrderLimitedNotice(err?.message || 'Fakturu se nepodařilo vytvořit.');
+      await reloadWorkOrderDetailModal(id);
+    }
   }
 
   async function reloadWorkOrderDetailModal(workOrderId) {
@@ -4029,23 +4135,6 @@
               <label for="serviceShellDetailDescription">Popis</label>
               <textarea id="serviceShellDetailDescription" rows="4">${escape(detail?.description || '')}</textarea>
             </div>
-            ${quote ? `
-              <section class="service-shell-side-card">
-                <h3>Nabídka</h3>
-                <div class="service-shell-list">
-                  <div class="service-shell-list-row"><span class="service-shell-list-title">Stav</span><span class="service-shell-list-value">${escape(quote?.status_label || quote?.status || '-')}</span></div>
-                  <div class="service-shell-list-row"><span class="service-shell-list-title">Cena</span><span class="service-shell-list-value">${escape(quote?.total_price != null ? `${Number(quote.total_price).toLocaleString('cs-CZ')} Kč` : '-')}</span></div>
-                  <div class="service-shell-list-row"><span class="service-shell-list-title">Schváleno</span><span class="service-shell-list-value">${escape(quote?.approved_at ? formatDateTime(quote.approved_at) : '-')}</span></div>
-                  <div class="service-shell-list-row"><span class="service-shell-list-title">Odmítnuto</span><span class="service-shell-list-value">${escape(quote?.rejected_at ? formatDateTime(quote.rejected_at) : '-')}</span></div>
-                  <div class="service-shell-list-row"><span class="service-shell-list-title">Veřejný odkaz</span><span class="service-shell-list-value">${escape(quote?.public_quote_url || '-')}</span></div>
-                </div>
-                ${quote?.consistency_note ? `<p class="service-shell-list-note">${escape(quote.consistency_note)}</p>` : ''}
-                <div class="service-shell-modal-actions">
-                  <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openQuoteModal(${Number(quote?.quote_id || 0)})">Otevřít nabídku</button>
-                  <button type="button" class="btn btn-secondary" onclick="window.serviceShell.copyQuotePublicLinkByUrl(${JSON.stringify(String(quote?.public_quote_url || ''))})">Kopírovat odkaz</button>
-                </div>
-              </section>
-            ` : ''}
             ${renderWorkOrderItemsPanel(detail, id)}
             <div class="form-group">
               <label>Audit</label>
@@ -4056,8 +4145,6 @@
               </div>
             </div>
             <div class="service-shell-modal-actions">
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-quote-button" ${Number(detail?.vehicle_id || 0) <= 0 ? 'disabled' : ''} onclick="window.serviceShell.openCreateQuoteModal(${Number(detail?.vehicle_id || 0)}, ${Number(detail?.owner_id || 0)}, ${id})">Vytvořit nabídku</button>
-              <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-invoice-button" ${Number(detail?.vehicle_id || 0) <= 0 ? 'disabled' : ''} onclick="window.serviceShell.navigate('billing')">Vytvořit fakturu</button>
               <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-button" ${detail?.status === 'completed' ? 'disabled' : ''} onclick="window.serviceShell.submitWorkOrderComplete(${id})">Dokončit zakázku</button>
             </div>
           </form>
@@ -8494,6 +8581,7 @@
 
   function invoicesSection() {
     const allInvoices = Array.isArray(state.invoices) ? state.invoices : [];
+    const allQuotes = Array.isArray(state.quotes) ? state.quotes : [];
     const invoices = filteredInvoices();
     const draftCount = allInvoices.filter((item) => invoiceStatusKey(item?.status) === 'draft').length;
     const issuedCount = allInvoices.filter((item) => invoiceStatusKey(item?.status) === 'issued').length;
@@ -8501,7 +8589,23 @@
     const totalIssued = allInvoices
       .filter((item) => invoiceStatusKey(item?.status) === 'issued')
       .reduce((sum, item) => sum + Number(item?.total || 0), 0);
-    const cards = invoices.length
+    const quoteCards = allQuotes.length
+      ? allQuotes.map((quote) => listCard({
+        kicker: quote?.vehicle_label || 'Nabídka',
+        title: `Nabídka #${Number(quote?.quote_id || 0)}`,
+        badge: String(quote?.status_label || quote?.status || '-'),
+        badgeClass: quoteBadgeClass(quote?.status),
+        rows: [
+          ['Celkem', formatQuotePriceCs(quote?.total_price)],
+          ['Zakázka', quote?.work_order_id ? `#${quote.work_order_id}` : '—'],
+          ['Vytvořeno', quote?.created_at ? formatDateTime(quote.created_at) : '-'],
+        ],
+        action: `window.serviceShell.openQuoteModal(${Number(quote?.quote_id || 0)})`,
+        actionLabel: 'Detail',
+        moreHtml: `<details class="service-shell-more-actions" onclick="event.stopPropagation()"><summary aria-label="Více akcí">Více</summary><button type="button" onclick="window.serviceShell.shareQuotePdf(${Number(quote?.quote_id || 0)})">PDF</button></details>`,
+      })).join('')
+      : '';
+    const invoiceCards = invoices.length
       ? invoices.map((inv) => listCard({
         kicker: inv?.vehicle_label || 'Faktura',
         title: inv?.invoice_number || 'Koncept',
@@ -8510,8 +8614,8 @@
         rows: [
           ['Celkem', invoiceMoney(inv?.total || 0, inv?.currency || 'CZK')],
           ['Zákazník', inv?.customer_label || (inv?.customer_id != null ? `Zákazník #${inv.customer_id}` : 'Osobní údaje skryty')],
+          ['Zakázka', inv?.work_order_id ? `#${inv.work_order_id}` : '—'],
           ['Splatnost', inv?.due_at ? formatDate(inv.due_at) : '-'],
-          ['VS', inv?.extra?.variable_symbol || '—'],
         ],
         action: `window.serviceShell.openServiceInvoiceDetailModal(${Number(inv?.id || 0)})`,
         actionLabel: 'Detail',
@@ -8519,35 +8623,37 @@
       })).join('')
       : '';
     const stats = `
-      <article class="service-shell-mini-card summary-card"><h3>Koncepty</h3><div class="service-shell-stat-value">${draftCount}</div><p class="service-shell-muted">Rozpracované doklady</p></article>
+      <article class="service-shell-mini-card summary-card"><h3>Nabídky</h3><div class="service-shell-stat-value">${allQuotes.length}</div><p class="service-shell-muted">Cenové nabídky servisu</p></article>
+      <article class="service-shell-mini-card summary-card"><h3>Koncepty</h3><div class="service-shell-stat-value">${draftCount}</div><p class="service-shell-muted">Rozpracované faktury</p></article>
       <article class="service-shell-mini-card summary-card"><h3>Vystavené</h3><div class="service-shell-stat-value">${issuedCount}</div><p class="service-shell-muted">Číslované faktury</p></article>
-      <article class="service-shell-mini-card summary-card"><h3>Zrušené</h3><div class="service-shell-stat-value">${cancelledCount}</div><p class="service-shell-muted">Anulované doklady</p></article>
-      <article class="service-shell-mini-card summary-card"><h3>Objem</h3><div class="service-shell-stat-value">${escape(invoiceMoney(totalIssued, 'CZK'))}</div><p class="service-shell-muted">Součet vystavených v přehledu</p></article>
+      <article class="service-shell-mini-card summary-card"><h3>Objem</h3><div class="service-shell-stat-value">${escape(invoiceMoney(totalIssued, 'CZK'))}</div><p class="service-shell-muted">Součet vystavených faktur</p></article>
     `;
-    const main = renderCardList({
-        head: `
-          <div class="service-shell-card-head">
-            <div><h3 class="service-shell-card-title">Fakturace</h3><p class="service-shell-subtitle">Koncepty, vystavení a PDF přímo v aplikaci — hlavička dodavatele z údajů servisu.</p></div>
-            <div class="service-shell-card-head-actions">
-              <button type="button" class="btn btn-primary" onclick="window.serviceShell.openCreateInvoiceModal()">Nová faktura</button>
-              <details class="service-shell-more-actions"><summary aria-label="Více akcí">Více</summary><button type="button" onclick="window.serviceShell.load(true)">Obnovit</button></details>
-            </div>
+    const main = `
+      <section data-testid="service-billing-section">
+        <div class="service-shell-card-head">
+          <div><h3 class="service-shell-card-title">Nabídky a faktury</h3><p class="service-shell-subtitle">Obchodní doklady servisu vázané na zakázky — nejsou součástí historie majitele.</p></div>
+          <div class="service-shell-card-head-actions">
+            <button type="button" class="btn btn-primary" onclick="window.serviceShell.openCreateInvoiceModal()">Nová faktura</button>
+            <button type="button" class="btn btn-secondary" onclick="window.serviceShell.load(true)">Obnovit</button>
           </div>
-          <div class="service-shell-invoice-toolbar">
-            <div class="service-shell-segmented">
-              ${[
-                ['all', 'Vše'],
-                ['draft', 'Koncepty'],
-                ['issued', 'Vystavené'],
-                ['cancelled', 'Zrušené'],
-              ].map(([key, label]) => `<button type="button" class="${state.invoiceStatusFilter === key ? 'active' : ''}" onclick="window.serviceShell.setInvoiceStatusFilter('${key}')">${label}</button>`).join('')}
-            </div>
-            <input class="service-shell-search" type="search" placeholder="Hledat číslo, klienta, vozidlo, VS" value="${escape(state.invoiceSearchTerm)}" oninput="window.serviceShell.setInvoiceSearchTerm(this.value)">
+        </div>
+        <h4 class="service-shell-subsection-title">Nabídky</h4>
+        <div class="service-shell-card-grid">${quoteCards || '<div class="service-shell-empty">Zatím bez nabídek.</div>'}</div>
+        <h4 class="service-shell-subsection-title">Faktury</h4>
+        <div class="service-shell-invoice-toolbar">
+          <div class="service-shell-segmented">
+            ${[
+              ['all', 'Vše'],
+              ['draft', 'Koncepty'],
+              ['issued', 'Vystavené'],
+              ['cancelled', 'Zrušené'],
+            ].map(([key, label]) => `<button type="button" class="${state.invoiceStatusFilter === key ? 'active' : ''}" onclick="window.serviceShell.setInvoiceStatusFilter('${key}')">${label}</button>`).join('')}
           </div>
-        `,
-        cards,
-        empty: 'Žádné faktury neodpovídají aktuálnímu filtru.',
-      });
+          <input class="service-shell-search" type="search" placeholder="Hledat číslo, klienta, vozidlo" value="${escape(state.invoiceSearchTerm)}" oninput="window.serviceShell.setInvoiceSearchTerm(this.value)">
+        </div>
+        <div class="service-shell-card-grid">${invoiceCards || '<div class="service-shell-empty">Žádné faktury neodpovídají filtru.</div>'}</div>
+      </section>
+    `;
     const side = `
       <aside class="service-shell-side">
         <section class="service-shell-side-card">
@@ -8569,8 +8675,8 @@
       </aside>
     `;
     return genericSection({
-      title: 'Faktury',
-      subtitle: 'Servisní faktury s plnou hlavičkou a tiskovým výstupem v aplikaci.',
+      title: 'Nabídky a faktury',
+      subtitle: 'Servisní nabídky a faktury vázané na zakázky — pouze pro servisní účet.',
       stats,
       main,
       side,
@@ -9041,6 +9147,8 @@
     deleteWorkOrderPhoto,
     openWorkOrderPhotoPreview,
     reloadWorkOrderDetailModal,
+    createWorkOrderQuote,
+    createWorkOrderInvoice,
     setWorkOrderLimitedNotice,
     openWorkOrderVehicleContext,
     openAddVehicleModal,
