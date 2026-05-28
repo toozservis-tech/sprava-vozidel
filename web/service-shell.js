@@ -242,6 +242,10 @@
     intakeLimitedNotice: '',
     workOrderLimitedNotice: '',
     workOrderDetailCache: {},
+    vehicleTimelineCache: {},
+    vehicleTimelineLoading: false,
+    vehicleTimelineError: '',
+    vehicleTimelineVehicleId: 0,
     searchResultsOpen: false,
     profile: {},
     partnerPublicProfile: {},
@@ -3665,6 +3669,130 @@
     `).join('');
   }
 
+  function timelineEventBadge(eventType) {
+    const map = {
+      intake_created: 'Příjem',
+      work_order_created: 'Zakázka',
+      work_order_completed: 'Dokončeno',
+      service_record_created: 'Servis',
+      photo_uploaded: 'Foto',
+      reminder_created: 'Připomínka',
+      reminder_completed: 'Splněno',
+      mileage_recorded: 'Km',
+      stk_recorded: 'STK',
+      document_added: 'Dokument',
+      quote_created: 'Nabídka',
+      invoice_created: 'Faktura',
+    };
+    return map[String(eventType || '')] || 'Událost';
+  }
+
+  function formatTimelineDayLabel(iso) {
+    if (!iso) return 'Bez data';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('cs-CZ', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (_e) {
+      return String(iso).slice(0, 10);
+    }
+  }
+
+  function groupTimelineByDay(items) {
+    const groups = new Map();
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      const day = String(item?.timestamp || '').slice(0, 10) || 'unknown';
+      if (!groups.has(day)) groups.set(day, []);
+      groups.get(day).push(item);
+    });
+    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }
+
+  function renderVehicleTimelineEvent(item) {
+    const ts = item?.timestamp ? new Date(item.timestamp).toLocaleString('cs-CZ') : '-';
+    const badge = timelineEventBadge(item?.event_type);
+    const mileage = item?.mileage != null ? `<span class="vehicle-timeline-event-mileage">${Number(item.mileage).toLocaleString('cs-CZ')} km</span>` : '';
+    const photo = item?.photo_preview?.preview_url
+      ? `<img class="vehicle-timeline-event-photo" data-testid="vehicle-timeline-event-photo" src="${escape(item.photo_preview.preview_url)}" alt="Náhled fotky" loading="lazy">`
+      : '';
+    const serviceMeta = item?.service_only
+      ? `<p class="service-shell-list-note">${escape(Object.values(item.service_only).filter(Boolean).join(' · '))}</p>`
+      : '';
+    return `
+      <article class="vehicle-timeline-event" data-testid="vehicle-timeline-event">
+        <div class="vehicle-timeline-event-head">
+          <span class="vehicle-timeline-event-badge" data-testid="vehicle-timeline-event-badge">${escape(badge)}</span>
+          <time class="vehicle-timeline-event-date" data-testid="vehicle-timeline-event-date">${escape(ts)}</time>
+        </div>
+        <h4 class="vehicle-timeline-event-title" data-testid="vehicle-timeline-event-title">${escape(item?.title || 'Událost')}</h4>
+        <p class="vehicle-timeline-event-summary">${escape(item?.summary || '')}</p>
+        ${mileage}
+        ${photo}
+        ${serviceMeta}
+      </article>
+    `;
+  }
+
+  async function loadVehicleTimeline(vehicleId) {
+    const id = Number(vehicleId || 0);
+    if (!id) return;
+    state.vehicleTimelineVehicleId = id;
+    state.vehicleTimelineLoading = true;
+    state.vehicleTimelineError = '';
+    render();
+    try {
+      const payload = await window.apiCall(`/api/v1/vehicles/${id}/timeline`, 'GET');
+      state.vehicleTimelineCache[id] = Array.isArray(payload?.items) ? payload.items : [];
+      state.vehicleTimelineError = '';
+    } catch (err) {
+      state.vehicleTimelineCache[id] = [];
+      state.vehicleTimelineError = err?.message || 'Timeline se nepodařilo načíst.';
+    } finally {
+      state.vehicleTimelineLoading = false;
+      render();
+    }
+  }
+
+  function renderVehicleTimelineSection(options = {}) {
+    const embedded = Boolean(options.embedded);
+    const vehicleId = Number(options.vehicleId || state.vehicleTimelineVehicleId || 0);
+    const vehicles = Array.isArray(state.vehicles) ? state.vehicles : [];
+    const items = vehicleId > 0 ? (state.vehicleTimelineCache[vehicleId] || []) : [];
+    const loading = state.vehicleTimelineLoading && state.vehicleTimelineVehicleId === vehicleId;
+    const error = state.vehicleTimelineError && state.vehicleTimelineVehicleId === vehicleId ? state.vehicleTimelineError : '';
+    const grouped = groupTimelineByDay(items);
+    const selector = embedded ? '' : `
+      <div class="vehicle-timeline-picker">
+        <label for="vehicleTimelineSelect">Vozidlo</label>
+        <select id="vehicleTimelineSelect" onchange="window.serviceShell.loadVehicleTimeline(Number(this.value))">
+          <option value="">— vyberte vozidlo —</option>
+          ${vehicles.map((v) => `<option value="${Number(v.id || v.vehicle_id || 0)}" ${Number(v.id || v.vehicle_id) === vehicleId ? 'selected' : ''}>${escape(v.label || v.plate || v.vin || `Vozidlo #${Number(v.id || 0)}`)}</option>`).join('')}
+        </select>
+      </div>
+    `;
+    const body = loading
+      ? `<p class="service-shell-list-note" data-testid="vehicle-timeline-loading">Načítám timeline vozidla…</p>`
+      : error
+        ? `<p class="service-shell-list-note vehicle-timeline-error" data-testid="vehicle-timeline-error">${escape(error)}</p>`
+        : !vehicleId
+          ? `<p class="service-shell-list-note" data-testid="vehicle-timeline-empty">Vyberte vozidlo pro zobrazení servisní osy.</p>`
+          : !items.length
+            ? `<p class="service-shell-list-note" data-testid="vehicle-timeline-empty">Pro toto vozidlo zatím nejsou žádné události v timeline.</p>`
+            : grouped.map(([day, dayItems]) => `
+                <section class="vehicle-timeline-day-group">
+                  <h3 class="vehicle-timeline-day-label">${escape(formatTimelineDayLabel(dayItems[0]?.timestamp || day))}</h3>
+                  <div class="vehicle-timeline-day-events">${dayItems.map(renderVehicleTimelineEvent).join('')}</div>
+                </section>
+              `).join('');
+    return `
+      <section class="service-shell-side-card vehicle-timeline-section" data-testid="vehicle-timeline-section">
+        <h2>${embedded ? 'Timeline vozidla' : 'Timeline vozidla'}</h2>
+        <p class="service-shell-subtitle">Chronologická servisní osa — bezpečně filtrovaná podle role a viditelnosti.</p>
+        ${selector}
+        ${body}
+      </section>
+    `;
+  }
+
   function renderWorkOrderBillingContactSection(detail, workOrderId) {
     const isUnowned = Boolean(detail?.is_unowned_vehicle) || Number(detail?.owner_id || detail?.customer_id || 0) <= 0;
     if (!isUnowned) return '';
@@ -6217,11 +6345,14 @@
       entityType: 'vehicle',
       entityId: id,
       load: async () => {
-        const [detail, records, quotes] = await Promise.all([
+        const [detail, records, quotes, timelinePayload] = await Promise.all([
           window.apiCall(`/api/v1/services/workspace/vehicles/${id}/detail`, 'GET'),
           window.apiCall(`/api/v1/vehicles/${id}/records`, 'GET').catch(() => []),
           window.apiCall(`/api/service/vehicles/${id}/quotes`, 'GET').catch(() => ({ items: [] })),
+          window.apiCall(`/api/v1/vehicles/${id}/timeline`, 'GET').catch(() => ({ items: [] })),
         ]);
+        state.vehicleTimelineCache[id] = Array.isArray(timelinePayload?.items) ? timelinePayload.items : [];
+        state.vehicleTimelineVehicleId = id;
         setActiveVehicle(detail);
         render();
         return {
@@ -6294,6 +6425,7 @@
             ${vehicleInvoicesSection(id)}
           </div>
         </section>
+        ${renderVehicleTimelineSection({ embedded: true, vehicleId: id })}
       `,
       renderFooter: (detail) => `
         <div class="service-shell-modal-footer">
@@ -7770,11 +7902,12 @@
           <p style="margin-top:14px;"><button type="button" class="service-shell-primary-btn" disabled title="OCR SPZ není v této instalaci aktivní">Foto SPZ / OCR</button></p>`,
         );
       case 'history':
-        return renderLimitedWorkspaceSection(
-          'Servisní historie',
-          'Auditované záznamy podle VIN a schváleného přístupu majitele.',
-          '<p class="service-shell-muted">Bezpečný náhled historie je dostupný z detailu vozidla po schválení přístupu majitelem.</p>',
-        );
+        return `
+          <section data-testid="service-history-section">
+            <span class="service-legacy-text-hook">Timeline vozidla</span>
+            ${renderVehicleTimelineSection()}
+          </section>
+        `;
       case 'parts':
         return renderLimitedWorkspaceSection(
           'Sklad dílů',
@@ -9310,6 +9443,7 @@
     createWorkOrderQuote,
     createWorkOrderInvoice,
     saveWorkOrderBillingContact,
+    loadVehicleTimeline,
     setWorkOrderLimitedNotice,
     openWorkOrderVehicleContext,
     openAddVehicleModal,

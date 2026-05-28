@@ -65,6 +65,7 @@ from ..central_vehicle_identity import (
     validate_normalized_vin,
     vehicle_state,
 )
+from ..vehicle_timeline import build_vehicle_timeline, service_can_view_vehicle_timeline
 from ..tachometer_browser import (
     TachometerBrowserError,
     TachometerBrowserInvalidCaptcha,
@@ -3321,6 +3322,76 @@ def get_owner_safe_service_history(
     items = build_owner_safe_service_history(db, vehicle_id=int(vehicle.id), owner_customer_id=int(current_user.id))
     db.commit()
     return {"vehicle_id": int(vehicle.id), "items": items}
+
+
+@router.get("/{vehicle_id}/timeline")
+def get_vehicle_timeline(
+    vehicle_id: int,
+    limit: int = 200,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo nenalezeno.")
+
+    role = normalize_role(getattr(current_user, "role", None))
+    viewer: str
+    if is_admin(role):
+        viewer = "admin"
+    elif is_service(role):
+        if not service_can_view_vehicle_timeline(db, current_user=current_user, vehicle=vehicle):
+            write_global_audit_log(
+                db,
+                entity_type="vehicle_timeline",
+                entity_id=int(vehicle.id),
+                action="forbidden_timeline_access",
+                actor_user_id=int(current_user.id),
+                actor_role=role,
+                tenant_id=int(getattr(current_user, "tenant_id", 0) or 0) or None,
+                vehicle_id=int(vehicle.id),
+                metadata={"reason": "service_no_access"},
+            )
+            db.commit()
+            raise HTTPException(status_code=403, detail="Servis nemá přístup k timeline tohoto vozidla.")
+        viewer = "service"
+    elif user_owns_vehicle(db, current_user, vehicle):
+        viewer = "owner"
+    else:
+        write_global_audit_log(
+            db,
+            entity_type="vehicle_timeline",
+            entity_id=int(vehicle.id),
+            action="forbidden_timeline_access",
+            actor_user_id=int(current_user.id),
+            actor_role=role,
+            tenant_id=int(getattr(current_user, "tenant_id", 0) or 0) or None,
+            vehicle_id=int(vehicle.id),
+            metadata={"reason": "not_owner_or_service"},
+        )
+        db.commit()
+        raise HTTPException(status_code=403, detail="Nemáte přístup k timeline tohoto vozidla.")
+
+    payload = build_vehicle_timeline(
+        db,
+        vehicle=vehicle,
+        viewer=viewer,  # type: ignore[arg-type]
+        current_user=current_user,
+        limit=limit,
+    )
+    write_global_audit_log(
+        db,
+        entity_type="vehicle_timeline",
+        entity_id=int(vehicle.id),
+        action="vehicle_timeline_viewed",
+        actor_user_id=int(current_user.id),
+        actor_role=role,
+        tenant_id=int(getattr(current_user, "tenant_id", 0) or 0) or None,
+        vehicle_id=int(vehicle.id),
+        metadata={"viewer": viewer, "count": payload.get("count", 0)},
+    )
+    db.commit()
+    return payload
 
 
 @router.post("/parse-orv", response_model=ORVParseResponseV1)

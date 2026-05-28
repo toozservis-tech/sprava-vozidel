@@ -567,4 +567,65 @@ test.describe('Service shell work orders route', () => {
       expect(lower).not.toContain(token);
     }
   });
+
+  test('vehicle_timeline_loads', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/history`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    await expect(page.locator('[data-testid="vehicle-timeline-section"]')).toBeVisible({ timeout: 30_000 });
+  });
+
+  test('vehicle_timeline_service_view', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/history`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    const select = page.locator('#vehicleTimelineSelect');
+    if ((await select.count()) === 0) {
+      test.skip(true, 'Timeline výběr vozidla není dostupný.');
+    }
+    const options = select.locator('option');
+    if ((await options.count()) <= 1) {
+      await expect(page.locator('[data-testid="vehicle-timeline-empty"]')).toBeVisible();
+      return;
+    }
+    await select.selectOption({ index: 1 });
+    await expect(
+      page.locator('[data-testid="vehicle-timeline-event"], [data-testid="vehicle-timeline-empty"], [data-testid="vehicle-timeline-loading"]'),
+    ).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('vehicle_timeline_f5_keeps_session', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/history`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    const before = page.url();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    await expect(page).toHaveURL(before);
+    await expect(page.locator('[data-testid="login-form"]')).not.toBeVisible();
+  });
+
+  test('vehicle_timeline_no_invoice_prices', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/history`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    const body = (await page.locator('body').innerText()).toLowerCase();
+    expect(body).not.toContain('invoice_id');
+    expect(body).not.toContain('pdf_url');
+  });
+
+  test('vehicle_timeline_no_fake_events', async ({ page }) => {
+    await page.goto(page.url().replace(/\/[^/]+$/, '/history'), { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await waitForServiceShellReady(page);
+    const section = page.locator('[data-testid="vehicle-timeline-section"]');
+    if ((await section.count()) === 0) {
+      test.skip(true, 'Timeline sekce není v UI.');
+    }
+    const fakeMarkers = page.locator('[data-testid="vehicle-timeline-event"][data-fake="1"]');
+    await expect(fakeMarkers).toHaveCount(0);
+  });
 });

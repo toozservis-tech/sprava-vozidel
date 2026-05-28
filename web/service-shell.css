@@ -3848,3 +3848,84 @@ body.service-shell-app .service-nav {
 .service-billing-contact-form .service-work-order-billing-error:not(.hidden) {
   color: var(--service-danger, #b91c1c);
 }
+
+.vehicle-timeline-section {
+  display: grid;
+  gap: 16px;
+}
+
+.vehicle-timeline-picker {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.vehicle-timeline-day-group {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.vehicle-timeline-day-label {
+  font-size: 0.95rem;
+  color: var(--service-muted, #64748b);
+  margin: 0;
+}
+
+.vehicle-timeline-day-events {
+  display: grid;
+  gap: 12px;
+  border-left: 2px solid rgba(37, 99, 235, 0.2);
+  padding-left: 14px;
+}
+
+.vehicle-timeline-event {
+  background: var(--service-surface, #fff);
+  border: 1px solid var(--service-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.vehicle-timeline-event-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.vehicle-timeline-event-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--service-primary-strong, #1d4ed8);
+}
+
+.vehicle-timeline-event-date {
+  font-size: 0.8rem;
+  color: var(--service-muted, #64748b);
+}
+
+.vehicle-timeline-event-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.vehicle-timeline-event-summary {
+  margin: 0;
+  color: var(--service-text, #0f172a);
+}
+
+.vehicle-timeline-event-photo {
+  margin-top: 8px;
+  max-width: 160px;
+  max-height: 120px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.vehicle-timeline-error {
+  color: var(--service-danger, #b91c1c);
+}
