@@ -23,6 +23,7 @@ from ..models import (
     ServiceInvoice,
     ServiceInvoiceCounter,
     ServiceInvoiceLine,
+    ServiceQuote,
     ServiceRecord,
     ServiceWorkOrder,
     Vehicle as VehicleModel,
@@ -31,7 +32,6 @@ from ..reports.service_invoice_pdf import render_service_invoice_pdf
 from ..schema_management import assert_module_ready
 from src.modules.licensing.service import assert_service_invoice_monthly_quota
 from .auth import get_current_user
-from .service_dashboard import _resolve_owner_and_vehicle
 
 router = APIRouter(prefix="/api/service", tags=["service-invoices"])
 
@@ -117,6 +117,8 @@ def _ensure_invoice_party(
     owner = _ensure_invoice_customer(db, current_user=current_user, customer_id=customer_id)
     if vehicle_id is None:
         return owner, None
+    from .service_dashboard import _resolve_owner_and_vehicle
+
     o2, vehicle = _resolve_owner_and_vehicle(
         db,
         current_user=current_user,
@@ -338,6 +340,13 @@ class ServiceInvoiceUpdateRequest(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=8000)
     extra: Optional[dict[str, Any]] = None
     lines: Optional[list[ServiceInvoiceLineIn]] = None
+
+
+class InvoiceFromQuoteRequest(BaseModel):
+    billing_customer_id: Optional[int] = Field(default=None, gt=0)
+    tax_rate: float = Field(default=21, ge=0, le=100)
+    currency: str = Field(default="CZK", max_length=8)
+    notes: Optional[str] = Field(default=None, max_length=8000)
 
 
 class FakturyWebExportRequest(BaseModel):
@@ -1126,6 +1135,171 @@ def cancel_service_invoice(
     )
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
     return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+
+
+def create_invoice_from_quote(
+    quote_id: int,
+    payload: InvoiceFromQuoteRequest,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from . import service_dashboard as sd
+    from .work_order_billing_api import (
+        _invoice_for_work_order,
+        _resolve_billing_customer_id,
+        quote_items_to_invoice_lines,
+    )
+
+    _require_service_invoice_role(current_user)
+    _ensure_service_invoices_schema(db)
+    sd._ensure_service_dashboard_schema(db)
+
+    quote = sd._get_quote_or_404(db, current_user=current_user, quote_id=int(quote_id))
+    if not quote.customer_id and quote.work_order_id:
+        order = (
+            db.query(ServiceWorkOrder)
+            .filter(
+                ServiceWorkOrder.id == int(quote.work_order_id),
+                ServiceWorkOrder.service_customer_id == int(current_user.id),
+            )
+            .first()
+        )
+        if not order:
+            raise HTTPException(status_code=404, detail="Zakázka nabídky nebyla nalezena.")
+        sd._assert_work_order_vehicle_access(db, current_user=current_user, order=order)
+    elif not quote.customer_id:
+        vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(quote.vehicle_id)).first()
+        if not vehicle or not sd._is_service_provisioned_unowned_for_service(
+            db, current_user=current_user, vehicle=vehicle
+        ):
+            raise HTTPException(status_code=403, detail="Servis nemá oprávnění k nabídce.")
+
+    work_order_id = int(quote.work_order_id) if quote.work_order_id else None
+    if work_order_id:
+        existing = _invoice_for_work_order(
+            db,
+            work_order_id=work_order_id,
+            service_customer_id=int(current_user.id),
+        )
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "work_order_invoice_exists",
+                    "message": "K této zakázce už existuje faktura.",
+                    "invoice_id": int(existing.id),
+                },
+            )
+
+    if quote.customer_id:
+        customer_id = int(quote.customer_id)
+        _ensure_invoice_customer(db, current_user=current_user, customer_id=customer_id)
+    elif work_order_id:
+        order = sd._get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
+        customer_id = _resolve_billing_customer_id(
+            db,
+            current_user=current_user,
+            order=order,
+            billing_customer_id=payload.billing_customer_id,
+        )
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": "unowned_requires_billing_customer",
+                "message": "Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt.",
+            },
+        )
+
+    items = sd._parse_quote_items(getattr(quote, "items_json", None))
+    if not items:
+        raise HTTPException(status_code=422, detail="Nabídka nemá žádné položky pro fakturu.")
+    line_payloads = quote_items_to_invoice_lines(items, default_tax_rate=float(payload.tax_rate))
+    vehicle_id_val = int(quote.vehicle_id)
+    sr_id = int(quote.service_record_id) if quote.service_record_id else None
+    _validate_service_invoice_links(
+        db,
+        tenant_id=int(current_user.tenant_id),
+        vehicle_id=vehicle_id_val,
+        service_record_id=sr_id,
+        work_order_id=work_order_id,
+    )
+
+    inv = ServiceInvoice(
+        tenant_id=int(current_user.tenant_id),
+        service_id=int(current_user.id),
+        customer_id=int(customer_id),
+        vehicle_id=vehicle_id_val,
+        service_record_id=sr_id,
+        work_order_id=work_order_id,
+        status="draft",
+        subtotal=0,
+        tax_total=0,
+        total=0,
+        currency=str(payload.currency or "CZK").strip()[:8] or "CZK",
+        notes=(str(payload.notes).strip() if payload.notes else None),
+        extra_json=_invoice_extra_json({"source_quote_id": int(quote.id), "work_order_billing": True}),
+    )
+    db.add(inv)
+    db.flush()
+
+    line_rows, sub, tax, tot = _build_lines_from_payload(
+        db,
+        tenant_id=int(current_user.tenant_id),
+        invoice_id=int(inv.id),
+        items=line_payloads,
+    )
+    for lr in line_rows:
+        db.add(lr)
+    inv.subtotal = sub
+    inv.tax_total = tax
+    inv.total = tot
+    db.flush()
+
+    _audit(
+        db,
+        invoice=inv,
+        action="invoice_created",
+        actor=current_user,
+        metadata={
+            "quote_id": int(quote.id),
+            "work_order_id": work_order_id,
+            "vehicle_id": vehicle_id_val,
+            "customer_id": int(customer_id),
+            "source": "quote",
+        },
+    )
+    write_global_audit_log(
+        db,
+        entity_type="service_invoice",
+        entity_id=int(inv.id),
+        action="invoice_created_from_quote",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(inv.tenant_id),
+        vehicle_id=vehicle_id_val,
+        metadata={"quote_id": int(quote.id), "work_order_id": work_order_id, "total": float(inv.total or 0)},
+    )
+    db.commit()
+    db.refresh(inv)
+    lines = (
+        db.query(ServiceInvoiceLine)
+        .filter(ServiceInvoiceLine.invoice_id == int(inv.id))
+        .order_by(ServiceInvoiceLine.sort_order, ServiceInvoiceLine.id)
+        .all()
+    )
+    customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+
+
+@router.post("/invoices/from-quote/{quote_id}", status_code=201)
+def create_service_invoice_from_quote(
+    quote_id: int,
+    payload: InvoiceFromQuoteRequest,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return create_invoice_from_quote(quote_id, payload, current_user=current_user, db=db)
 
 
 @router.get("/invoices/{invoice_id}/pdf")

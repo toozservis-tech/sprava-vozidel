@@ -3708,7 +3708,7 @@
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Otevřít v Nabídky a faktury</button>
           </div>
         ` : `
-          <p class="service-shell-list-note">${isUnowned ? 'U nepřiřazeného vozidla je nutný propojený zákazník pro fakturaci (vyberte v Nabídky a faktury).' : 'K zakázce zatím není faktura.'}</p>
+          <p class="service-shell-list-note">${isUnowned ? 'Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt v Nabídky a faktury.' : 'K zakázce zatím není faktura.'}</p>
           <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-invoice-button" ${canInvoice && !isUnowned ? '' : 'disabled'} onclick="window.serviceShell.createWorkOrderInvoice(${woId})">Vytvořit fakturu</button>
           ${isUnowned ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Nabídky a faktury</button>` : ''}
         `}
@@ -5388,21 +5388,53 @@
     }
   }
 
-  async function createInvoiceFromQuote(quoteId) {
+  async function createInvoiceFromQuote(quoteId, options = {}) {
     const resolvedQuoteId = Number(quoteId || state.modal?.context?.quoteId || 0);
     if (!resolvedQuoteId) return;
-    const invoice = await window.apiCall(`/api/service/invoices/from-quote/${resolvedQuoteId}`, 'POST');
-    if (typeof window.showAlert === 'function') {
-      const label = invoice?.invoice_number ? ` ${invoice.invoice_number}` : '';
-      window.showAlert(`Faktura${label} byla připravena z nabídky.`, 'success');
+    const body = {};
+    const billingCustomerId = Number(options.billingCustomerId || 0);
+    if (billingCustomerId > 0) body.billing_customer_id = billingCustomerId;
+    try {
+      const invoice = await window.apiCall(`/api/service/invoices/from-quote/${resolvedQuoteId}`, 'POST', body);
+      if (typeof window.showAlert === 'function') {
+        const label = invoice?.invoice_number ? ` ${invoice.invoice_number}` : '';
+        window.showAlert(`Faktura${label} byla připravena z nabídky.`, 'success');
+      }
+      await load(true, true);
+      openServiceInvoiceDetailModal(Number(invoice?.id || 0), { billingView: true });
+    } catch (err) {
+      const detail = err?.detail || err?.payload || {};
+      const code = String(detail?.code || err?.code || '');
+      if (code === 'unowned_requires_billing_customer') {
+        const msg = detail?.message || 'Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt.';
+        if (typeof window.showAlert === 'function') window.showAlert(msg, 'warning');
+        return;
+      }
+      const existingInvoiceId = Number(detail?.invoice_id || 0);
+      if (existingInvoiceId > 0) {
+        if (typeof window.showAlert === 'function') window.showAlert('K zakázce už existuje faktura.', 'info');
+        await load(true, true);
+        openServiceInvoiceDetailModal(existingInvoiceId, { billingView: true });
+        return;
+      }
+      const msg = err?.message || detail?.message || 'Fakturu z nabídky se nepodařilo vytvořit.';
+      if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
+      throw err;
     }
-    await load(true, true);
-    openServiceInvoiceDetailModal(Number(invoice?.id || 0));
   }
 
-  function openQuoteModal(quoteId) {
+  function openBillingQuoteDetail(quoteId) {
+    openQuoteModal(quoteId, { billingView: true });
+  }
+
+  function openBillingInvoiceDetail(invoiceId) {
+    openServiceInvoiceDetailModal(invoiceId, { billingView: true });
+  }
+
+  function openQuoteModal(quoteId, options = {}) {
     const resolvedQuoteId = Number(quoteId || 0);
     if (!resolvedQuoteId) return;
+    const billingView = Boolean(options.billingView);
     openModal({
       key: `service-quote-${resolvedQuoteId}`,
       entityType: 'service-quote',
@@ -5410,7 +5442,7 @@
       title: 'Cenová nabídka',
       description: 'Zákaznický výstup navázaný na servisní záznam a zakázku.',
       size: 'wide',
-      context: { quoteId: resolvedQuoteId },
+      context: { quoteId: resolvedQuoteId, billingView },
       actions: {
         save: async () => {
           const items = quoteItemsFromDom();
@@ -5432,7 +5464,11 @@
       renderContent: (modal) => {
         const detail = modal.data || {};
         const items = Array.isArray(detail?.items) ? detail.items : [];
+        const billingView = Boolean(modal?.context?.billingView);
+        const detailTestId = billingView ? 'service-billing-quote-detail' : 'service-quote-detail';
         return `
+          <div data-testid="${detailTestId}">
+          <p class="service-shell-list-note" data-testid="service-billing-limited-notice">Obchodní doklady jsou viditelné pouze servisu — majitel je v historii vozidla neuvidí.</p>
           <section class="service-shell-mobile-form-top">
             <div class="service-shell-mobile-kicker">Výstup pro zákazníka</div>
             <strong>${escape(detail?.vehicle_label || 'Vozidlo')}</strong>
@@ -5481,13 +5517,15 @@
             <label for="serviceShellQuoteTotal">Celková cena</label>
             <input id="serviceShellQuoteTotal" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(String(detail?.total_price ?? 0))}">
           </div>
+          <p class="service-shell-list-note service-work-order-billing-error hidden" id="serviceBillingQuoteError" data-testid="service-billing-error"></p>
+          </div>
         `;
       },
       renderFooter: (modal) => `
         <div class="service-shell-modal-footer ${isMobileViewport() ? 'service-shell-mobile-action-bar' : ''}">
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zpět</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.appendQuoteItemRow()">Přidat položku</button>
-          <button type="button" class="btn btn-secondary" onclick="window.serviceShell.createInvoiceFromQuote(${resolvedQuoteId})">Vytvořit fakturu</button>
+          <button type="button" class="btn btn-secondary" data-testid="service-billing-create-invoice-from-quote-button" onclick="window.serviceShell.createInvoiceFromQuote(${resolvedQuoteId})">Vytvořit fakturu</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.shareQuotePdf(${resolvedQuoteId})">Sdílet / stáhnout PDF</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.copyQuotePublicLink(${resolvedQuoteId})">Kopírovat veřejný odkaz</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openQuotePublicLink(${resolvedQuoteId})">Otevřít veřejný odkaz</button>
@@ -5722,9 +5760,10 @@
     window.open(`${window.location.origin}${path}`, '_blank', 'noopener');
   }
 
-  function openServiceInvoiceDetailModal(invoiceId) {
+  function openServiceInvoiceDetailModal(invoiceId, options = {}) {
     const id = Number(invoiceId || 0);
     if (!id) return;
+    const billingView = Boolean(options.billingView);
     openModal({
       key: `service-invoice-${id}`,
       entityType: 'service-invoice',
@@ -5732,6 +5771,7 @@
       title: 'Servisní faktura',
       description: 'Uložte koncept, upravte doklad a vystavte — PDF odpovídá údajům z editoru.',
       size: 'wide',
+      context: { invoiceId: id, billingView },
       actions: {
         save: async () => {
           const inv = state.modal?.data || {};
@@ -5766,7 +5806,11 @@
             }).then(() => window.serviceShell.updateInvoiceDraftTotals('serviceShellInvoice')).catch((err) => console.warn('[SERVICE_SHELL] invoice vehicle select load failed:', err));
           }, 0);
         }
+        const detailTestId = modal?.context?.billingView ? 'service-billing-invoice-detail' : 'service-invoice-detail';
         return `
+          <div data-testid="${detailTestId}">
+          <p class="service-shell-list-note" data-testid="service-billing-limited-notice">Obchodní doklady jsou viditelné pouze servisu — majitel je v historii vozidla neuvidí.</p>
+          ${inv?.work_order_id ? `<p class="service-shell-list-note">Zakázka #${escape(String(inv.work_order_id))}</p>` : ''}
           <section class="service-shell-invoice-overview">
             <div>
               <span class="service-shell-mobile-kicker">Číslo</span>
@@ -5819,6 +5863,7 @@
               </div>
             </section>
           `}
+          </div>
         `;
       },
       renderFooter: (modal) => {
@@ -5830,7 +5875,7 @@
         <div class="service-shell-modal-footer">
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zavřít</button>
           ${showIssue ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.appendInvoiceLineRow()">Přidat položku</button>` : ''}
-          <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openServiceInvoicePdf(${id})">PDF</button>
+          <button type="button" class="btn btn-secondary" data-testid="service-billing-invoice-pdf-button" onclick="window.serviceShell.openServiceInvoicePdf(${id})">PDF</button>
           ${showIssue ? `<button type="button" class="btn btn-primary" onclick="window.serviceShell.runModalAction('save')">${modal.saving ? 'Ukládám…' : 'Uložit draft'}</button>` : ''}
           ${showIssue ? `<button type="button" class="btn btn-primary" onclick="window.serviceShell.issueServiceInvoiceFromModal(${id})">Vystavit</button>` : ''}
           ${showCancel ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.cancelServiceInvoiceFromModal(${id})">Zrušit</button>` : ''}
@@ -7808,6 +7853,7 @@
     actionLabel = 'Otevřít',
     moreHtml = '',
     cardClass = '',
+    testId = '',
   } = {}) {
     const safeAction = String(action || '').trim().replace(/"/g, '&quot;');
     const extraCardClass = cardClass === 'service-shell-list-card--highlight' ? ' service-shell-list-card--highlight' : '';
@@ -7815,8 +7861,9 @@
       ? `tabindex="0" role="button" onclick="${safeAction}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); ${safeAction} }"`
       : '';
     const stopPrefix = safeAction ? 'event.stopPropagation(); ' : '';
+    const testAttr = testId ? ` data-testid="${escape(testId)}"` : '';
     return `
-      <article class="service-shell-list-card${extraCardClass}" ${clickable}>
+      <article class="service-shell-list-card${extraCardClass}"${testAttr} ${clickable}>
         <div class="service-shell-list-card-top">
           <div>
             ${kicker ? `<p class="service-shell-mobile-kicker">${escape(kicker)}</p>` : ''}
@@ -8600,9 +8647,10 @@
           ['Zakázka', quote?.work_order_id ? `#${quote.work_order_id}` : '—'],
           ['Vytvořeno', quote?.created_at ? formatDateTime(quote.created_at) : '-'],
         ],
-        action: `window.serviceShell.openQuoteModal(${Number(quote?.quote_id || 0)})`,
+        action: `window.serviceShell.openBillingQuoteDetail(${Number(quote?.quote_id || 0)})`,
         actionLabel: 'Detail',
-        moreHtml: `<details class="service-shell-more-actions" onclick="event.stopPropagation()"><summary aria-label="Více akcí">Více</summary><button type="button" onclick="window.serviceShell.shareQuotePdf(${Number(quote?.quote_id || 0)})">PDF</button></details>`,
+        testId: 'service-billing-quote-row',
+        moreHtml: `<details class="service-shell-more-actions" onclick="event.stopPropagation()"><summary aria-label="Více akcí">Více</summary><button type="button" data-testid="service-billing-create-invoice-from-quote-button" onclick="event.stopPropagation(); window.serviceShell.createInvoiceFromQuote(${Number(quote?.quote_id || 0)})">Faktura</button><button type="button" onclick="event.stopPropagation(); window.serviceShell.shareQuotePdf(${Number(quote?.quote_id || 0)})">PDF nabídky</button></details>`,
       })).join('')
       : '';
     const invoiceCards = invoices.length
@@ -8617,9 +8665,10 @@
           ['Zakázka', inv?.work_order_id ? `#${inv.work_order_id}` : '—'],
           ['Splatnost', inv?.due_at ? formatDate(inv.due_at) : '-'],
         ],
-        action: `window.serviceShell.openServiceInvoiceDetailModal(${Number(inv?.id || 0)})`,
+        action: `window.serviceShell.openBillingInvoiceDetail(${Number(inv?.id || 0)})`,
         actionLabel: 'Detail',
-        moreHtml: `<details class="service-shell-more-actions" onclick="event.stopPropagation()"><summary aria-label="Více akcí">Více</summary><button type="button" onclick="window.serviceShell.openServiceInvoicePdf(${Number(inv?.id || 0)})">PDF</button></details>`,
+        testId: 'service-billing-invoice-row',
+        moreHtml: `<details class="service-shell-more-actions" onclick="event.stopPropagation()"><summary aria-label="Více akcí">Více</summary><button type="button" data-testid="service-billing-invoice-pdf-button" onclick="event.stopPropagation(); window.serviceShell.openServiceInvoicePdf(${Number(inv?.id || 0)})">PDF</button></details>`,
       })).join('')
       : '';
     const stats = `
@@ -8637,8 +8686,9 @@
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.load(true)">Obnovit</button>
           </div>
         </div>
+        <p class="service-shell-list-note" data-testid="service-billing-limited-notice">Obchodní doklady (nabídky, faktury, PDF) jsou dostupné pouze servisnímu účtu a nejsou součástí historie majitele vozidla.</p>
         <h4 class="service-shell-subsection-title">Nabídky</h4>
-        <div class="service-shell-card-grid">${quoteCards || '<div class="service-shell-empty">Zatím bez nabídek.</div>'}</div>
+        <div class="service-shell-card-grid" data-testid="service-billing-quotes-list">${quoteCards || '<div class="service-shell-empty">Zatím bez nabídek.</div>'}</div>
         <h4 class="service-shell-subsection-title">Faktury</h4>
         <div class="service-shell-invoice-toolbar">
           <div class="service-shell-segmented">
@@ -8651,7 +8701,7 @@
           </div>
           <input class="service-shell-search" type="search" placeholder="Hledat číslo, klienta, vozidlo" value="${escape(state.invoiceSearchTerm)}" oninput="window.serviceShell.setInvoiceSearchTerm(this.value)">
         </div>
-        <div class="service-shell-card-grid">${invoiceCards || '<div class="service-shell-empty">Žádné faktury neodpovídají filtru.</div>'}</div>
+        <div class="service-shell-card-grid" data-testid="service-billing-invoices-list">${invoiceCards || '<div class="service-shell-empty">Žádné faktury neodpovídají filtru.</div>'}</div>
       </section>
     `;
     const side = `
@@ -9164,6 +9214,8 @@
     openServiceRecordModal,
     submitServiceRecordModal,
     openQuoteModal,
+    openBillingQuoteDetail,
+    openBillingInvoiceDetail,
     createQuoteFromRecord,
     createInvoiceFromQuote,
     shareQuotePdf,

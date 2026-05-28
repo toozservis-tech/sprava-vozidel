@@ -143,6 +143,38 @@ def _linked_quote(db: Session, *, work_order_id: int, service_customer_id: int) 
     )
 
 
+def quote_items_to_invoice_lines(
+    items: list[dict[str, object]],
+    *,
+    default_tax_rate: float = 21,
+) -> list[ServiceInvoiceLineIn]:
+    lines: list[ServiceInvoiceLineIn] = []
+    for item in items:
+        quantity = float(item.get("quantity") or 0)
+        if quantity <= 0:
+            quantity = 1.0
+        unit_price = float(item.get("unit_price") or 0)
+        lines.append(
+            ServiceInvoiceLineIn(
+                description=str(item.get("name") or "Položka")[:512],
+                quantity=quantity,
+                unit="ks",
+                unit_price=unit_price,
+                tax_rate=float(default_tax_rate),
+            )
+        )
+    return lines
+
+
+def _invoice_for_work_order(
+    db: Session,
+    *,
+    work_order_id: int,
+    service_customer_id: int,
+) -> Optional[ServiceInvoice]:
+    return _linked_invoice(db, work_order_id=work_order_id, service_customer_id=service_customer_id)
+
+
 def _linked_invoice(db: Session, *, work_order_id: int, service_customer_id: int) -> Optional[ServiceInvoice]:
     return (
         db.query(ServiceInvoice)
@@ -194,7 +226,7 @@ def _resolve_billing_customer_id(
             status_code=422,
             detail={
                 "code": "unowned_requires_billing_customer",
-                "message": "U nepřiřazeného vozidla zadejte billing_customer_id (propojený zákazník servisu).",
+                "message": "Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt.",
             },
         )
     _ensure_invoice_customer(db, current_user=current_user, customer_id=int(billing_customer_id))

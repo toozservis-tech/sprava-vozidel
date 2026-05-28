@@ -342,4 +342,103 @@ test.describe('Service shell work orders route', () => {
     await createQuote.click();
     await expect(page.locator('[data-testid="service-work-order-quote-status"]')).not.toBeVisible({ timeout: 5000 });
   });
+
+  test('service_billing_quote_detail_or_limited', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    await expect(page.locator('[data-testid="service-billing-section"]')).toBeVisible({ timeout: 30_000 });
+    const quoteRow = page.locator('[data-testid="service-billing-quote-row"]').first();
+    if ((await quoteRow.count()) === 0) {
+      const limited = page.locator('[data-testid="service-billing-limited-notice"]');
+      if ((await limited.count()) > 0) {
+        await expect(limited).toBeVisible();
+      }
+      return;
+    }
+    await quoteRow.click();
+    await expect(page.locator('[data-testid="service-billing-quote-detail"]')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('service_billing_invoice_detail_or_limited', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    const invoiceRow = page.locator('[data-testid="service-billing-invoice-row"]').first();
+    if ((await invoiceRow.count()) === 0) {
+      const limited = page.locator('[data-testid="service-billing-limited-notice"]');
+      if ((await limited.count()) > 0) {
+        await expect(limited).toBeVisible();
+      }
+      return;
+    }
+    await invoiceRow.click();
+    await expect(page.locator('[data-testid="service-billing-invoice-detail"]')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('service_billing_create_invoice_from_quote_or_limited', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    const quoteRow = page.locator('[data-testid="service-billing-quote-row"]').first();
+    if ((await quoteRow.count()) === 0) {
+      test.skip(true, 'Žádná nabídka v billing seznamu.');
+    }
+    await quoteRow.click();
+    const fromQuote = page.locator('[data-testid="service-billing-create-invoice-from-quote-button"]');
+    if ((await fromQuote.count()) === 0) {
+      const limited = page.locator('[data-testid="service-billing-limited-notice"]');
+      if ((await limited.count()) > 0) {
+        await expect(limited).toBeVisible();
+      }
+      return;
+    }
+    await expect(fromQuote).toBeVisible();
+    if (process.env.E2E_ALLOW_MUTATIONS !== '1') {
+      return;
+    }
+    await fromQuote.click();
+    await expect(
+      page.locator('[data-testid="service-billing-invoice-detail"], [data-testid="service-billing-error"]'),
+    ).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('service_billing_invoice_pdf_button_or_limited', async ({ page }) => {
+    const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+    const slug = slugMatch?.[1] || 'e2e-fixed-service';
+    await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+    await waitForServiceShellReady(page);
+    const invoiceRow = page.locator('[data-testid="service-billing-invoice-row"]').first();
+    if ((await invoiceRow.count()) === 0) {
+      test.skip(true, 'Žádná faktura v billing seznamu.');
+    }
+    await invoiceRow.click();
+    const pdfBtn = page.locator('[data-testid="service-billing-invoice-pdf-button"]');
+    if ((await pdfBtn.count()) === 0) {
+      const limited = page.locator('[data-testid="service-billing-limited-notice"]');
+      if ((await limited.count()) > 0) {
+        await expect(limited).toBeVisible();
+      }
+      return;
+    }
+    await expect(pdfBtn).toBeVisible();
+  });
+
+  test('owner_safe_history_no_invoice_quote_prices', async ({ page }) => {
+    await openWorkOrders(page);
+    const historyNav = page.locator('[data-testid="service-nav-history"], a:has-text("Historie")').first();
+    if ((await historyNav.count()) === 0) {
+      test.skip(true, 'Historie vozidla není v navigaci dostupná.');
+    }
+    await historyNav.click();
+    await waitForServiceShellReady(page);
+    const body = await page.locator('body').innerText();
+    const lower = body.toLowerCase();
+    for (const token of ['invoice_id', 'quote_id', 'pdf_url', 'unit_price', 'faktura č.']) {
+      expect(lower).not.toContain(token);
+    }
+  });
 });

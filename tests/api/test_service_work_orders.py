@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
@@ -37,7 +38,11 @@ from src.modules.vehicle_hub.routers_v1.work_order_photos_api import (
     update_work_order_photo_visibility,
     upload_work_order_photo,
 )
-from src.modules.vehicle_hub.routers_v1.service_invoices import list_service_invoices
+from src.modules.vehicle_hub.routers_v1.service_invoices import (
+    create_invoice_from_quote,
+    get_service_invoice_pdf,
+    list_service_invoices,
+)
 from src.modules.vehicle_hub.routers_v1.work_order_billing_api import (
     WorkOrderInvoiceCreateRequest,
     create_work_order_invoice,
@@ -1366,6 +1371,323 @@ def test_service_work_order_items_to_quote_items_maps_prices(tmp_path: Path) -> 
         rows = db.query(ServiceWorkOrderItem).filter(ServiceWorkOrderItem.work_order_id == wid).all()
         items = work_order_items_to_quote_items(rows)
         assert items[0]["total_price"] == 500
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_quote_detail(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Detail práce", hours=1, unit_price_without_vat=100),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        detail = dashboard_router.get_service_quote_detail(
+            int(quote["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert int(detail["id"]) == int(quote["id"])
+        assert len(detail["items"]) >= 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_invoice_detail(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1.service_invoices import get_service_invoice
+
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_part(
+            wid,
+            ServiceWorkOrderPartCreateRequest(name="Olej", quantity=1, unit="l", unit_price_without_vat=200),
+            current_user=_service_user(service),
+            db=db,
+        )
+        invoice = create_work_order_invoice(
+            wid,
+            WorkOrderInvoiceCreateRequest(),
+            current_user=_service_user(service),
+            db=db,
+        )
+        detail = get_service_invoice(
+            int(invoice["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert int(detail["id"]) == int(invoice["id"])
+        assert len(detail["lines"]) >= 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_create_invoice_from_quote(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1.service_invoices import InvoiceFromQuoteRequest
+
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Práce z nabídky", hours=2, unit_price_without_vat=400),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        invoice = create_invoice_from_quote(
+            int(quote["id"]),
+            InvoiceFromQuoteRequest(),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert int(invoice["work_order_id"]) == wid
+        assert float(invoice["total"]) > 0
+        assert len(invoice["lines"]) >= 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_create_invoice_from_quote_duplicate_guard(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1.service_invoices import InvoiceFromQuoteRequest
+
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Práce", hours=1, unit_price_without_vat=100),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        create_invoice_from_quote(
+            int(quote["id"]),
+            InvoiceFromQuoteRequest(),
+            current_user=_service_user(service),
+            db=db,
+        )
+        with pytest.raises(HTTPException) as exc:
+            create_invoice_from_quote(
+                int(quote["id"]),
+                InvoiceFromQuoteRequest(),
+                current_user=_service_user(service),
+                db=db,
+            )
+        assert exc.value.status_code == 409
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_create_invoice_from_quote_owned_without_access_forbidden(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1.service_invoices import InvoiceFromQuoteRequest
+
+    engine, db, owner, service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Práce", hours=1),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        with pytest.raises(HTTPException) as exc:
+            create_invoice_from_quote(
+                int(quote["id"]),
+                InvoiceFromQuoteRequest(),
+                current_user=_service_user(foreign_service),
+                db=db,
+            )
+        assert exc.value.status_code in {403, 404}
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_create_invoice_from_quote_forbidden_cross_service(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1.service_invoices import InvoiceFromQuoteRequest
+
+    engine, db, owner, service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Práce", hours=1),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        with pytest.raises(HTTPException) as exc:
+            create_invoice_from_quote(
+                int(quote["id"]),
+                InvoiceFromQuoteRequest(),
+                current_user=_service_user(foreign_service),
+                db=db,
+            )
+        assert exc.value.status_code in {403, 404}
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_create_invoice_from_quote_unowned_without_billing_customer_returns_422(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1.service_invoices import InvoiceFromQuoteRequest
+
+    engine, db, _owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        vehicle = _seed_unowned_vehicle(db, service, vin="TMBINVFROMQUOTE12345")
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=service.id,
+                title="Unowned quote invoice",
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Práce", hours=1, unit_price_without_vat=50),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        with pytest.raises(HTTPException) as exc:
+            create_invoice_from_quote(
+                int(quote["id"]),
+                InvoiceFromQuoteRequest(),
+                current_user=_service_user(service),
+                db=db,
+            )
+        assert exc.value.status_code == 422
+        detail = exc.value.detail
+        if isinstance(detail, dict):
+            assert "fakturační kontakt" in str(detail.get("message", "")).lower()
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_create_invoice_from_quote_unowned_does_not_create_owner(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1.service_invoices import InvoiceFromQuoteRequest
+
+    engine, db, _owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        vehicle = _seed_unowned_vehicle(db, service, vin="TMBINVNOOWNER1234567")
+        before_owners = db.query(VehicleOwnership).count()
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=service.id,
+                title="No owner from quote",
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Práce", hours=1, unit_price_without_vat=50),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        with pytest.raises(HTTPException):
+            create_invoice_from_quote(
+                int(quote["id"]),
+                InvoiceFromQuoteRequest(),
+                current_user=_service_user(service),
+                db=db,
+            )
+        assert db.query(VehicleOwnership).count() == before_owners
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_invoice_pdf_access_scoped_to_service(tmp_path: Path) -> None:
+    from fastapi.responses import Response
+
+    engine, db, owner, service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="PDF", hours=1, unit_price_without_vat=100),
+            current_user=_service_user(service),
+            db=db,
+        )
+        invoice = create_work_order_invoice(
+            wid,
+            WorkOrderInvoiceCreateRequest(),
+            current_user=_service_user(service),
+            db=db,
+        )
+        resp = get_service_invoice_pdf(
+            int(invoice["id"]),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert isinstance(resp, Response)
+        assert resp.media_type == "application/pdf"
+        with pytest.raises(HTTPException) as exc:
+            get_service_invoice_pdf(
+                int(invoice["id"]),
+                current_user=_service_user(foreign_service),
+                db=db,
+            )
+        assert exc.value.status_code == 404
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_owner_safe_history_no_quote_invoice_pdf_prices(tmp_path: Path) -> None:
+    engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
+    try:
+        created = _create_basic_work_order(db, owner, service, vehicle)
+        wid = int(created["id"])
+        add_work_order_labor(
+            wid,
+            ServiceWorkOrderLaborCreateRequest(name="Safe", hours=1, unit_price_without_vat=999),
+            current_user=_service_user(service),
+            db=db,
+        )
+        quote = create_work_order_quote(wid, current_user=_service_user(service), db=db)
+        create_work_order_invoice(wid, WorkOrderInvoiceCreateRequest(), current_user=_service_user(service), db=db)
+        history = build_owner_safe_service_history(db, vehicle_id=int(vehicle.id), owner_customer_id=int(owner.id))
+        blob = json.dumps(history, ensure_ascii=False).lower()
+        for forbidden in (
+            "invoice_id",
+            "quote_id",
+            "invoice_number",
+            "total_price",
+            "pdf_url",
+            "unit_price",
+            "unit_price_without_vat",
+            "vat",
+            "billing",
+        ):
+            assert forbidden not in blob
+        assert "999" not in blob
     finally:
         db.close()
         engine.dispose()
