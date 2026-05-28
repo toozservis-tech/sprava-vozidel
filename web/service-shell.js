@@ -239,6 +239,7 @@
     intakeMutationLoading: false,
     intakeStartResult: null,
     intakeLimitedNotice: '',
+    workOrderLimitedNotice: '',
     searchResultsOpen: false,
     profile: {},
     partnerPublicProfile: {},
@@ -628,11 +629,15 @@
 
   function statusMeta(status) {
     const key = String(status || '').trim().toLowerCase();
-    if (key === 'awaiting_client_approval') return { label: 'Čeká', cls: 'awaiting' };
+    if (key === 'awaiting_client_approval') return { label: 'Čeká na schválení', cls: 'awaiting' };
+    if (key === 'approved') return { label: 'Přijato', cls: 'in_progress' };
+    if (key === 'in_progress') return { label: 'Práce probíhá', cls: 'in_progress' };
     if (key === 'completed') return { label: 'Hotovo', cls: 'completed' };
     if (key === 'issue') return { label: 'Problém', cls: 'issue' };
-    if (key === 'approved') return { label: 'Schváleno', cls: 'in_progress' };
-    return { label: 'Rozpracováno', cls: 'in_progress' };
+    if (key === 'invoiced') return { label: 'Fakturováno', cls: 'completed' };
+    if (key === 'closed') return { label: 'Uzavřeno', cls: 'completed' };
+    if (key === 'cancelled') return { label: 'Zrušeno', cls: 'issue' };
+    return { label: 'Nová', cls: 'awaiting' };
   }
 
   function reservationStatusKey(status) {
@@ -1742,62 +1747,52 @@
         throw new Error('window.apiCall není k dispozici — zkontrolujte načtení sdílených skriptů.');
       }
 
-      const requests = {
-        me: window.apiCall('/api/me', 'GET').catch((err) => {
+      const requestFactories = {
+        me: () => window.apiCall('/api/me', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] /api/me:', err?.message || err);
           return {};
         }),
-        summary: window.apiCall('/api/service/dashboard/summary', 'GET'),
-        dashboardOverview: window.apiCall('/api/service/dashboard/overview', 'GET').catch((err) => {
+        summary: () => window.apiCall('/api/service/dashboard/summary', 'GET'),
+        dashboardOverview: () => window.apiCall('/api/service/dashboard/overview', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] dashboard overview fallback:', err?.message || err);
           return null;
         }),
-        dashboardWorkOrders: window.apiCall('/api/service/dashboard/work-orders?status=open&limit=10', 'GET').catch((err) => {
+        dashboardWorkOrders: () => window.apiCall('/api/service/dashboard/work-orders?status=open&limit=10', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] dashboard work-orders fallback:', err?.message || err);
           return { items: [] };
         }),
-        pendingAuthorizations: window.apiCall('/api/service/dashboard/pending-authorizations', 'GET').catch((err) => {
+        pendingAuthorizations: () => window.apiCall('/api/service/dashboard/pending-authorizations', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] pending authorizations fallback:', err?.message || err);
           return { items: [] };
         }),
-        todayReservations: window.apiCall('/api/service/dashboard/today-reservations', 'GET').catch((err) => {
+        todayReservations: () => window.apiCall('/api/service/dashboard/today-reservations', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] today reservations fallback:', err?.message || err);
           return { items: [] };
         }),
-        dashboardRisks: window.apiCall('/api/service/dashboard/risks', 'GET').catch((err) => {
+        dashboardRisks: () => window.apiCall('/api/service/dashboard/risks', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] risks fallback:', err?.message || err);
           return { items: [] };
         }),
-        workOrders: window.apiCall('/api/service/work-orders', 'GET'),
-        performance: window.apiCall('/api/service/technicians/performance', 'GET'),
-        queue: window.apiCall('/api/service/dashboard/queue', 'GET'),
-        customers: window.apiCall('/api/v1/services/workspace/customers', 'GET'),
-        vehicles: window.apiCall('/api/v1/services/workspace/approved-vehicles', 'GET'),
-        reservations: window.apiCall('/api/v1/reservations/service', 'GET'),
-        reminders: window.apiCall('/api/v1/services/workspace/reminders?include_completed=true&limit=500', 'GET'),
-        documents: window.apiCall('/api/v1/services/workspace/documents?limit=50', 'GET'),
-        invoices: window.apiCall('/api/service/invoices', 'GET').catch((err) => {
+        workOrders: () => window.apiCall('/api/service/work-orders', 'GET'),
+        performance: () => window.apiCall('/api/service/technicians/performance', 'GET'),
+        queue: () => window.apiCall('/api/service/dashboard/queue', 'GET'),
+        customers: () => window.apiCall('/api/v1/services/workspace/customers', 'GET'),
+        vehicles: () => window.apiCall('/api/v1/services/workspace/approved-vehicles', 'GET'),
+        reservations: () => window.apiCall('/api/v1/reservations/service', 'GET'),
+        reminders: () => window.apiCall('/api/v1/services/workspace/reminders?include_completed=true&limit=500', 'GET'),
+        documents: () => window.apiCall('/api/v1/services/workspace/documents?limit=50', 'GET'),
+        invoices: () => window.apiCall('/api/service/invoices', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] invoices endpoint:', err?.message || err);
           return { items: [] };
         }),
-        profile: window.apiCall('/user/me', 'GET'),
-        partnerProfile: window.apiCall('/api/v1/services/workspace/partner-public-profile', 'GET').catch((err) => {
+        profile: () => window.apiCall('/user/me', 'GET'),
+        partnerProfile: () => window.apiCall('/api/v1/services/workspace/partner-public-profile', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] partner-public-profile:', err?.message || err);
           return {};
         }),
       };
 
-      const keys = Object.keys(requests);
-      const results = await Promise.allSettled(keys.map((key) => requests[key]));
-      state.errors = [];
-
-      results.forEach((result, index) => {
-        const key = keys[index];
-        if (result.status !== 'fulfilled') {
-          state.errors.push(`${key}: ${result.reason?.message || 'chyba načtení'}`);
-          return;
-        }
-        const payload = result.value;
+      const applyPayload = (key, payload) => {
         if (key === 'me' && payload && typeof payload === 'object') state.me = payload;
         if (key === 'summary') state.summary = payload || null;
         if (key === 'dashboardOverview') state.dashboardOverview = payload || null;
@@ -1816,22 +1811,80 @@
         if (key === 'invoices') state.invoices = Array.isArray(payload?.items) ? payload.items : [];
         if (key === 'profile') state.profile = payload || {};
         if (key === 'partnerProfile') state.partnerPublicProfile = payload && typeof payload === 'object' ? payload : {};
-      });
+      };
 
-      const perf = Array.isArray(state.performance) ? state.performance : [];
-      state.technicians = perf
-        .map((item) => ({
-          technician_id: Number(item?.technician_id || 0),
-          name: item?.name || `Technik #${Number(item?.technician_id || 0)}`,
-        }))
-        .filter((item) => item.technician_id > 0);
+      const applyTechnicians = () => {
+        const perf = Array.isArray(state.performance) ? state.performance : [];
+        state.technicians = perf
+          .map((item) => ({
+            technician_id: Number(item?.technician_id || 0),
+            name: item?.name || `Technik #${Number(item?.technician_id || 0)}`,
+          }))
+          .filter((item) => item.technician_id > 0);
 
-      if (!state.technicians.length && window.currentUser?.id) {
-        state.technicians = [{
-          technician_id: Number(window.currentUser.id),
-          name: window.currentUser?.name || window.currentUser?.email || 'Hlavní technik',
-        }];
-      }
+        if (!state.technicians.length && window.currentUser?.id) {
+          state.technicians = [{
+            technician_id: Number(window.currentUser.id),
+            name: window.currentUser?.name || window.currentUser?.email || 'Hlavní technik',
+          }];
+        }
+      };
+
+      const runRequestBatch = async (keys, collectErrors = true) => {
+        const results = await Promise.allSettled(keys.map((key) => requestFactories[key]()));
+        results.forEach((result, index) => {
+          const key = keys[index];
+          if (result.status !== 'fulfilled') {
+            if (collectErrors) state.errors.push(`${key}: ${result.reason?.message || 'chyba načtení'}`);
+            return;
+          }
+          applyPayload(key, result.value);
+        });
+        applyTechnicians();
+      };
+
+      const dashboardKeys = [
+        'me',
+        'summary',
+        'dashboardOverview',
+        'dashboardWorkOrders',
+        'pendingAuthorizations',
+        'todayReservations',
+        'dashboardRisks',
+      ];
+      const sectionKeyMap = {
+        'work-orders': ['workOrders', 'queue', 'performance'],
+        vehicles: ['vehicles', 'customers'],
+        clients: ['customers', 'vehicles'],
+        reservations: ['reservations'],
+        reminders: ['reminders'],
+        documents: ['documents'],
+        invoices: ['invoices', 'customers', 'vehicles'],
+        history: ['vehicles', 'customers'],
+        photos: ['vehicles', 'customers'],
+        intake: ['customers', 'vehicles'],
+        team: ['performance'],
+        settings: ['profile', 'partnerProfile'],
+      };
+      const primaryKeys = Array.from(new Set([
+        ...dashboardKeys,
+        ...(sectionKeyMap[state.activeSection] || []),
+      ]));
+
+      state.errors = [];
+      await runRequestBatch(primaryKeys, true);
+
+      const secondaryKeys = Object.keys(requestFactories).filter((key) => !primaryKeys.includes(key));
+      window.setTimeout(() => {
+        runRequestBatch(secondaryKeys, false)
+          .then(() => {
+            state.lastLoadedAt = Date.now();
+            render();
+          })
+          .catch((err) => {
+            console.warn('[SERVICE_SHELL] background load failed:', err?.message || err);
+          });
+      }, silent ? 0 : 120);
 
       window.serviceWorkspaceState = window.serviceWorkspaceState || {};
       window.serviceWorkspaceState.customerVehicles = {};
@@ -3573,7 +3626,7 @@
         const detail = modal.data || {};
         const quote = detail?.quote_summary || null;
         return `
-          <div class="service-shell-modal-summary">
+          <div class="service-shell-modal-summary" data-testid="service-work-order-detail">
             <span>${escape(detail?.customer_name || '-')}</span>
             <span>${escape(detail?.vehicle_label || '-')}</span>
           </div>
@@ -3581,7 +3634,7 @@
             <div class="service-dashboard-modal-grid cols-2">
               <div class="form-group">
                 <label for="serviceShellDetailStatus">Stav</label>
-                <select id="serviceShellDetailStatus">
+                <select id="serviceShellDetailStatus" data-testid="service-work-order-status">
                   <option value="awaiting_client_approval" ${detail?.status === 'awaiting_client_approval' ? 'selected' : ''}>Čeká na schválení</option>
                   <option value="approved" ${detail?.status === 'approved' ? 'selected' : ''}>Schváleno</option>
                   <option value="in_progress" ${detail?.status === 'in_progress' ? 'selected' : ''}>Rozpracováno</option>
@@ -3645,6 +3698,16 @@
                   : 'Bez auditních záznamů.'}
               </div>
             </div>
+            <div class="service-shell-modal-actions">
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-labor-button" disabled title="Evidence práce bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Evidence práce na zakázce bude doplněna v další fázi.')">Přidat práci</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-part-button" disabled title="Evidence dílů bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Evidence dílů na zakázce bude doplněna v další fázi.')">Přidat díl</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-time-button" disabled title="Evidence času mechanika bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Evidence času mechanika bude doplněna v další fázi.')">Přidat čas</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-photo-button" disabled title="Fotodokumentace zakázky bude doplněna v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Fotodokumentace zakázky bude doplněna v další fázi.')">Přidat foto</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-quote-button" ${Number(detail?.vehicle_id || 0) <= 0 ? 'disabled' : ''} onclick="window.serviceShell.openCreateQuoteModal(${Number(detail?.vehicle_id || 0)}, ${Number(detail?.owner_id || 0)}, ${id})">Vytvořit nabídku</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-invoice-button" ${Number(detail?.vehicle_id || 0) <= 0 ? 'disabled' : ''} onclick="window.serviceShell.navigate('billing')">Vytvořit fakturu</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-button" onclick="document.getElementById('serviceShellDetailStatus').value='completed'; window.serviceShell.submitWorkOrderDetailUpdate(${id})">Dokončit zakázku</button>
+              <button type="button" class="btn btn-secondary" data-testid="service-work-order-create-record-button" disabled title="Servisní záznam ze zakázky bude doplněn v další fázi." onclick="window.serviceShell.setWorkOrderLimitedNotice('Servisní záznam ze zakázky bude doplněn v další fázi.')">Vytvořit servisní záznam</button>
+            </div>
           </form>
         `;
       },
@@ -3663,6 +3726,19 @@
     if (isModalOpen(`work-order-detail-${Number(workOrderId || 0)}`)) {
       return runModalAction('save');
     }
+  }
+
+  function setWorkOrderLimitedNotice(message) {
+    state.workOrderLimitedNotice = String(message || '').trim();
+    render();
+  }
+
+  function openWorkOrderVehicleContext(vehicleId) {
+    const id = Number(vehicleId || 0);
+    if (id > 0) {
+      state.searchTerm = String(id);
+    }
+    navigate('vehicles');
   }
 
   async function openAddVehicleModal(customerId = null, defaults = {}) {
@@ -7357,20 +7433,21 @@
     return items.map((item) => {
       const meta = statusMeta(item?.status);
       const action = `window.serviceShell.openWorkOrderDetailModal(${Number(item?.id || 0)})`;
-      return listCard({
-        kicker: vehiclePlate(item),
-        title: vehicleTitle(item),
-        badge: meta.label,
-        badgeClass: meta.cls,
-        rows: [
-          ['VIN', vehicleVin(item)],
-          ['Termín', item?.due_date ? formatDate(item.due_date) : 'Bez termínu'],
-          ['Zakázka', item?.title || sourceLabel(item?.source_type || item?.source || item?.source_label)],
-          ['Technik', item?.technician_name || '-'],
-        ],
-        action,
-        actionLabel: 'Detail',
-      });
+      return `
+        <article class="service-state-card service-work-order-card" data-testid="service-work-order-row" role="button" tabindex="0" onclick="${action}" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); ${action}; }">
+          <div class="service-shell-list-row">
+            <span class="service-shell-list-title">${escape(vehiclePlate(item))}</span>
+            <span class="service-shell-badge ${escape(meta.cls)}" data-testid="service-work-order-status">${escape(meta.label)}</span>
+          </div>
+          <h4 class="service-shell-card-title">${escape(vehicleTitle(item))}</h4>
+          <div class="service-shell-list">
+            <div class="service-shell-list-row"><span class="service-shell-list-title">VIN</span><span class="service-shell-list-value">${escape(vehicleVin(item))}</span></div>
+            <div class="service-shell-list-row"><span class="service-shell-list-title">Termín</span><span class="service-shell-list-value">${escape(item?.due_date ? formatDate(item.due_date) : 'Bez termínu')}</span></div>
+            <div class="service-shell-list-row"><span class="service-shell-list-title">Zakázka</span><span class="service-shell-list-value">${escape(item?.title || sourceLabel(item?.source_type || item?.source || item?.source_label))}</span></div>
+            <div class="service-shell-list-row"><span class="service-shell-list-title">Technik</span><span class="service-shell-list-value">${escape(item?.technician_name || '-')}</span></div>
+          </div>
+        </article>
+      `;
     }).join('');
   }
 
@@ -7550,27 +7627,33 @@
     }
 
     const items = filteredWorkOrders();
+    const cards = workOrderCards(items);
+    const emptyCard = '<article class="service-state-card" data-testid="service-work-orders-empty">Žádné zakázky neodpovídají aktuálním filtrům.</article>';
     return `
       ${renderFilterSheet()}
-      ${renderCardList({
-        head: `
+      <section class="service-state-card">
         <div class="service-shell-card-head service-shell-list-head">
           <div>
             <h3 class="service-shell-card-title">${escape(title)}</h3>
             <p class="service-shell-subtitle">${escape(subtitle)}</p>
           </div>
           <div class="service-shell-card-head-actions">
-            <button type="button" class="service-shell-filter-chip service-shell-filter-open-btn" onclick="window.serviceShell.openFilterSheet()">Filtr</button>
+            <button type="button" class="service-shell-primary-btn" data-testid="service-work-orders-new-button" onclick="window.serviceShell.openCreateWorkOrderModal()">Nová zakázka</button>
+            <button type="button" class="service-shell-filter-chip service-shell-filter-open-btn" data-testid="service-work-orders-filter" onclick="window.serviceShell.openFilterSheet()">Filtr</button>
             <details class="service-shell-more-actions">
               <summary aria-label="Více akcí">Více</summary>
               <button type="button" onclick="window.serviceShell.load(true)">Obnovit</button>
             </details>
           </div>
         </div>
-        `,
-        cards: workOrderCards(items),
-        empty: 'Žádné zakázky neodpovídají aktuálním filtrům.',
-      })}
+        <label>
+          <span class="sr-only">Vyhledávání zakázek</span>
+          <input data-testid="service-work-orders-search" class="service-shell-search" type="search" placeholder="VIN, SPZ, zákazník, číslo zakázky" value="${escape(state.searchTerm)}" oninput="window.serviceShell.setSearchTerm(this.value)">
+        </label>
+        <div data-testid="service-work-orders-list" class="service-shell-card-grid">
+          ${cards || emptyCard}
+        </div>
+      </section>
     `;
   }
 
@@ -7977,6 +8060,7 @@
 
   function workOrdersSection() {
     const summary = dashboardSummary();
+    const firstError = Array.isArray(state.errors) && state.errors.length ? String(state.errors[0] || '').trim() : '';
     const stats = `
       <article class="service-shell-mini-card summary-card"><h3>Aktivní</h3><div class="service-shell-stat-value">${summary.active_jobs}</div><p class="service-shell-muted">Schválené a rozpracované</p></article>
       <article class="service-shell-mini-card summary-card"><h3>Po termínu</h3><div class="service-shell-stat-value">${summary.overdue}</div><p class="service-shell-muted">Vyžaduje zásah</p></article>
@@ -7985,7 +8069,7 @@
       title: 'Zakázky',
       subtitle: 'Hlavní pracovní fronta příchozích servisních objednávek se stavem, termíny a odpovědností.',
       stats,
-      main: `<span class="service-legacy-text-hook">Aktivní zakázky</span>${workOrdersTableCard('Aktivní zakázky', 'Produkční příchozí objednávky a zakázky v jednotném servisním rozhraní.')}`,
+      main: `<section data-testid="service-work-orders-section"><span class="service-legacy-text-hook">Aktivní zakázky</span>${firstError ? `<article class="service-state-card service-state-danger" data-testid="service-work-orders-error">${escape(firstError)}</article>` : ''}${workOrdersTableCard('Aktivní zakázky', 'Produkční příchozí objednávky a zakázky v jednotném servisním rozhraní.')}${state.workOrderLimitedNotice ? `<article class="service-state-card service-state-note">${escape(state.workOrderLimitedNotice)}</article>` : ''}</section>`,
       side: rightPanel(),
     });
   }
@@ -8586,6 +8670,8 @@
     submitCreateWorkOrderModal,
     openWorkOrderDetailModal,
     submitWorkOrderDetailUpdate,
+    setWorkOrderLimitedNotice,
+    openWorkOrderVehicleContext,
     openAddVehicleModal,
     submitAddVehicleModal,
     appendWorkItemDraft,

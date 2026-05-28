@@ -370,6 +370,15 @@ body.service-shell-app.service-shell-theme-light {
   display: grid;
 }
 
+.service-work-order-card {
+  border-radius: 20px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.service-work-order-card .service-shell-card-title {
+  margin: 6px 0 10px;
+}
+
 .service-work-row {
   display: grid;
   grid-template-columns: 86px minmax(230px, 1fr) 132px 82px 70px 88px 128px 18px;
