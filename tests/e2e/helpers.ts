@@ -85,6 +85,14 @@ type LoginApiResponse = {
   user?: Record<string, unknown>;
 };
 
+type CachedSession = {
+  loginBody: LoginApiResponse;
+  appPath: string;
+};
+
+const serviceSessionCache = new Map<string, CachedSession>();
+const userSessionCache = new Map<string, CachedSession>();
+
 async function postLogin(
   page: Page,
   email: string,
@@ -292,12 +300,22 @@ export async function loginUser(page: Page, email?: string, password?: string): 
   const credentials = getTestCredentials();
   const targetEmail = email || credentials.email;
   const targetPassword = password || credentials.password;
+  const cacheKey = `${targetEmail.trim().toLowerCase()}::${targetPassword}`;
+  await page.context().clearCookies();
+  const cached = userSessionCache.get(cacheKey);
+  if (cached?.loginBody?.access_token && cached.appPath) {
+    await seedBrowserAuthSession(page, cached.loginBody);
+    await page.goto(cached.appPath, { waitUntil: 'domcontentloaded', timeout: AUTH_PAGE_GOTO_TIMEOUT_MS });
+    await waitForUserShellReady(page);
+    return;
+  }
   const loginBody = await postLogin(page, targetEmail, targetPassword, 'user');
   if (!loginBody.access_token) {
     throw new Error('loginUser: /user/login nevrátil access_token');
   }
   await seedBrowserAuthSession(page, loginBody);
   const appPath = await resolveDefaultAppPath(page, loginBody.access_token);
+  userSessionCache.set(cacheKey, { loginBody, appPath });
   await page.goto(appPath, { waitUntil: 'domcontentloaded', timeout: AUTH_PAGE_GOTO_TIMEOUT_MS });
   await waitForUserShellReady(page);
 }
@@ -313,13 +331,22 @@ export async function loginServiceUser(page: Page, email?: string, password?: st
   }
   const targetEmail = email || credentials.email;
   const targetPassword = password || credentials.password;
+  const cacheKey = `${targetEmail.trim().toLowerCase()}::${targetPassword}`;
   await page.context().clearCookies();
+  const cached = serviceSessionCache.get(cacheKey);
+  if (cached?.loginBody?.access_token && cached.appPath) {
+    await seedBrowserAuthSession(page, cached.loginBody);
+    await page.goto(cached.appPath, { waitUntil: 'domcontentloaded', timeout: AUTH_PAGE_GOTO_TIMEOUT_MS });
+    await waitForServiceShellReady(page);
+    return;
+  }
   const loginBody = await postLogin(page, targetEmail, targetPassword, 'service');
   if (!loginBody.access_token) {
     throw new Error('loginServiceUser: /user/login nevrátil access_token');
   }
   await seedBrowserAuthSession(page, loginBody);
   const appPath = await resolveDefaultAppPath(page, loginBody.access_token);
+  serviceSessionCache.set(cacheKey, { loginBody, appPath });
   await page.goto(appPath, { waitUntil: 'domcontentloaded', timeout: AUTH_PAGE_GOTO_TIMEOUT_MS });
   await waitForServiceShellReady(page);
 }

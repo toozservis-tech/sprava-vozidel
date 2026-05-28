@@ -3736,3 +3736,23 @@ body.service-shell-app .service-nav {
   background: rgba(37, 99, 235, 0.1);
   color: var(--service-primary-strong, #1d4ed8);
 }
+
+/* Fáze 3/4: intake workflow */
+.service-intake-lookup-card,
+.service-intake-safe-preview-card,
+.service-intake-access-card,
+.service-intake-odometer-card,
+.service-intake-technician-note,
+.service-intake-next-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.service-intake-checklist {
+  display: grid;
+  gap: 8px;
+}
+
+.service-intake-photo-state {
+  margin-top: 8px;
+}
