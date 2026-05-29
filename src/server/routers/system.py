@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func
 
 from src.core.auth import get_current_user_email
@@ -270,9 +270,14 @@ def public_file_list(path: str = ""):
     return HTMLResponse(content=html)
 
 
-@router.get("/")
+@router.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 def root():
     return RedirectResponse(url="/web/index.html", status_code=302)
+
+
+@router.head("/health", include_in_schema=False)
+def health_check_head():
+    return Response(status_code=200)
 
 
 def _shell_index_canonical_path() -> Path:
