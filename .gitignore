@@ -40,4 +40,8 @@ private_key.pem
 tests/e2e/playwright-report/
 tests/e2e/.pw-*-report/
 tests/e2e/.playwright-browsers/
+tests/e2e/test-results/
 artifacts/qa/playwright-report/
+
+# Local agent backup patches (not for version control)
+.agent_backups/
