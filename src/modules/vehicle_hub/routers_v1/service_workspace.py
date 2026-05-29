@@ -147,6 +147,7 @@ class ServiceProvisionUnownedVehicleRequestV1(BaseModel):
     brand: str = Field(..., min_length=1, max_length=80)
     model: str = Field(..., min_length=1, max_length=120)
     year: Optional[int] = Field(default=None, ge=1886, le=2100)
+    fuel: Optional[str] = Field(default=None, max_length=64)
     mileage: Optional[int] = Field(default=None, ge=0)
     intake_note: Optional[str] = Field(default=None, max_length=2000)
     source: Optional[str] = Field(default=None, max_length=64)
@@ -803,6 +804,7 @@ def _build_vehicle_detail_payload(
             "brand": vehicle.brand,
             "model": vehicle.model,
             "year": vehicle.year,
+            "fuel": vehicle.fuel,
             "engine": vehicle.engine,
             "plate": vehicle.plate if disclosure == "full" else None,
             "plate_masked": masked_plate(vehicle.plate),
@@ -2717,6 +2719,7 @@ def _safe_vehicle_preview(vehicle: VehicleModel) -> dict[str, Any]:
         "brand": getattr(vehicle, "brand", None),
         "model": getattr(vehicle, "model", None),
         "year": getattr(vehicle, "year", None),
+        "fuel": getattr(vehicle, "fuel", None),
         "vin_masked": masked_vin(getattr(vehicle, "vin", None) or getattr(vehicle, "normalized_vin", None)),
         "plate_masked": masked_plate(getattr(vehicle, "plate", None) or getattr(vehicle, "normalized_plate", None)),
         "in_system": True,
@@ -2970,6 +2973,7 @@ def provision_unowned_service_vehicle(
         brand=payload.brand.strip(),
         model=payload.model.strip(),
         year=payload.year,
+        fuel=(payload.fuel or "").strip() or None,
         vin=vin_norm or None,
         plate=payload.plate.strip().upper() if payload.plate else None,
         current_mileage_km=payload.mileage,

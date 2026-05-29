@@ -206,6 +206,30 @@ def test_service_intake_create_unowned_no_ownership_created(db):
     assert db.query(VehicleOwnership).filter(VehicleOwnership.vehicle_id == vehicle_id).count() == 0
 
 
+def test_service_intake_provision_unowned_with_fuel(db):
+    tenant = _tenant(db, "create-unowned-fuel")
+    service = _customer(db, tenant, "service-create-unowned-fuel@example.test", role="service")
+    created = service_workspace.provision_unowned_service_vehicle(
+        service_workspace.ServiceProvisionUnownedVehicleRequestV1(
+            vin="TMBJH7NP9N7047777",
+            plate="7AB7777",
+            brand="Skoda",
+            model="Octavia",
+            fuel="Nafta",
+            source="service_intake",
+            context="intake_route",
+        ),
+        request=None,
+        current_user=service,
+        db=db,
+    )
+    vehicle_id = int(created["vehicle_id"])
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    assert vehicle is not None
+    assert vehicle.fuel == "Nafta"
+    assert created["vehicle_preview"].get("fuel") == "Nafta"
+
+
 def test_service_intake_duplicate_vin_blocked(db):
     tenant = _tenant(db, "duplicate-vin")
     service = _customer(db, tenant, "service-duplicate-vin@example.test", role="service")

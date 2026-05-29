@@ -151,8 +151,12 @@ test.describe('Service shell intake route', () => {
     await openIntake(page);
     await page.locator('[data-testid="service-intake-vin-input"]').fill('WAUZZZ8K9AA000001');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
-    await page.locator('[data-testid="service-intake-request-access-button"]').click();
-    await expect(page.locator('[data-testid="service-intake-access-state"]')).toContainText(/čeká na autorizaci/i);
+    await expect(page.locator('[data-testid="service-intake-request-access-button"]')).toBeVisible();
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/access-requests') && response.status() === 200),
+      page.locator('[data-testid="service-intake-request-access-button"]').click(),
+    ]);
+    await expect(page.locator('[data-testid="service-intake-access-state"]')).toContainText(/čeká na autorizaci/i, { timeout: 20_000 });
   });
 
   test('service_intake_not_found_shows_create_unowned', async ({ page }) => {
@@ -166,7 +170,44 @@ test.describe('Service shell intake route', () => {
     await openIntake(page);
     await page.locator('[data-testid="service-intake-plate-input"]').fill('4AB0000');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
-    await expect(page.locator('[data-testid="service-intake-create-unowned-button"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-not-found-message"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-add-vehicle-button"]')).toBeVisible();
+  });
+
+  test('service_lookup_keeps_focus_while_typing', async ({ page }) => {
+    await page.route(intakeLookupPath, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 8000));
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ found: false, status: 'not_found', can_create_unowned_vehicle: true }),
+      });
+    });
+    await openIntake(page);
+    const plateInput = page.locator('[data-testid="service-intake-plate-input"]');
+    await plateInput.click();
+    const chars = '1AB2345'.split('');
+    for (const ch of chars) {
+      await plateInput.press(ch);
+      await expect(plateInput).toBeFocused();
+    }
+  });
+
+  test('service_lookup_not_found_opens_create_vehicle', async ({ page }) => {
+    await page.route(intakeLookupPath, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ found: false, status: 'not_found', can_create_unowned_vehicle: true }),
+      });
+    });
+    await openIntake(page);
+    await page.locator('[data-testid="service-intake-plate-input"]').fill('9ZZ9999');
+    await page.locator('[data-testid="service-intake-lookup-button"]').click();
+    await expect(page.locator('[data-testid="service-intake-not-found-message"]')).toBeVisible();
+    await page.locator('[data-testid="service-intake-add-vehicle-button"]').click();
+    await expect(page.locator('[data-testid="service-intake-create-vehicle-panel"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-create-plate"]')).toHaveValue(/9ZZ/i);
   });
 
   test('service_intake_create_unowned_vehicle', async ({ page }) => {
@@ -194,9 +235,10 @@ test.describe('Service shell intake route', () => {
     await openIntake(page);
     await page.locator('[data-testid="service-intake-vin-input"]').fill('TMBJH7NP9N7041026');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
-    await page.locator('[data-testid="service-intake-section"]').getByLabel('Značka').fill('Skoda');
-    await page.locator('[data-testid="service-intake-section"]').getByLabel('Model').fill('Fabia');
-    await page.locator('[data-testid="service-intake-create-unowned-button"]').click();
+    await page.locator('[data-testid="service-intake-add-vehicle-button"]').click();
+    await page.locator('[data-testid="service-intake-create-brand"]').fill('Skoda');
+    await page.locator('[data-testid="service-intake-create-model"]').fill('Fabia');
+    await page.locator('[data-testid="service-intake-save-vehicle-button"]').click();
     await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(/bez vlastnické vazby/i);
   });
 
@@ -221,9 +263,10 @@ test.describe('Service shell intake route', () => {
     await openIntake(page);
     await page.locator('[data-testid="service-intake-vin-input"]').fill(uniqueVin);
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
-    await page.locator('[data-testid="service-intake-section"]').getByLabel('Značka').fill('Skoda');
-    await page.locator('[data-testid="service-intake-section"]').getByLabel('Model').fill('Fabia');
-    await page.locator('[data-testid="service-intake-create-unowned-button"]').click();
+    await page.locator('[data-testid="service-intake-add-vehicle-button"]').click();
+    await page.locator('[data-testid="service-intake-create-brand"]').fill('Skoda');
+    await page.locator('[data-testid="service-intake-create-model"]').fill('Fabia');
+    await page.locator('[data-testid="service-intake-save-vehicle-button"]').click();
     await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(/bez vlastnické vazby/i, {
       timeout: 30_000,
     });
