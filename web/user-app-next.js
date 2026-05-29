@@ -252,6 +252,10 @@
   }
 
   function getActiveView() {
+    if (isServiceMode()) {
+      STATE.viewOverride = null;
+      return null;
+    }
     if (STATE.viewOverride) return STATE.viewOverride;
     if (!document.body.classList.contains('route-app-view') || !isAuthed() || isServiceMode()) {
       return null;
@@ -5901,6 +5905,11 @@
     if (typeof originalSwitchTab === 'function') {
       window.switchTab = function () {
         const tabName = String(arguments[0] || '');
+        if (isServiceMode()) {
+          STATE.viewOverride = null;
+          setActiveClass(false);
+          return originalSwitchTab.apply(this, arguments);
+        }
         if (CANVAS_TAB_TO_VIEW[tabName]) {
           STATE.viewOverride = CANVAS_TAB_TO_VIEW[tabName];
         } else if (tabName === 'serviceHistory') {
