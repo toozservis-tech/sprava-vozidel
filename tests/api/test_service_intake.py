@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 
 import pytest
 from fastapi import HTTPException
@@ -11,10 +12,14 @@ from src.modules.vehicle_hub.database import Base
 from src.modules.vehicle_hub.models import (
     Customer,
     ServiceAccessRequest,
+    ServiceRecord,
+    ServiceWorkAccess,
     Tenant,
     Vehicle,
     VehicleOwnership,
+    VehicleServiceLink,
 )
+from src.modules.vehicle_hub.routers_v1 import service_dashboard as dashboard_router
 from src.modules.vehicle_hub.routers_v1 import service_workspace
 
 
@@ -310,3 +315,188 @@ def test_service_intake_plate_only_candidate_no_auto_merge(db):
         )
     assert err.value.status_code == 409
     assert err.value.detail["code"] == "plate_candidate_requires_review"
+
+
+def test_service_can_work_without_owner_approval_from_intake(db):
+    tenant = _tenant(db, "intake-work-access")
+    owner = _customer(db, tenant, "owner-intake-wa@example.test")
+    service = _customer(db, tenant, "service-intake-wa@example.test", role="service")
+    vehicle = _vehicle(db, tenant, owner, vin="TMBJH7NP9N7049001", plate="9AB9001")
+
+    lookup = service_workspace.central_service_vehicle_lookup(
+        service_workspace.CentralVehicleLookupRequestV1(
+            vin=vehicle.vin,
+            source="service_intake",
+            context="intake_route",
+        ),
+        request=None,
+        current_user=service,
+        db=db,
+    )
+    assert lookup["status"] == "found_access_required"
+
+    before_links = db.query(VehicleServiceLink).filter(
+        VehicleServiceLink.service_customer_id == service.id,
+        VehicleServiceLink.vehicle_id == vehicle.id,
+    ).count()
+    before_ownership = db.query(VehicleOwnership).filter(VehicleOwnership.vehicle_id == vehicle.id).count()
+
+    result = service_workspace.create_service_vehicle_work_access(
+        vehicle_id=int(vehicle.id),
+        payload=service_workspace.ServiceWorkAccessRequestV1(reason="Intake zásah", source="intake"),
+        current_user=service,
+        db=db,
+    )
+    assert result["status"] == "work_access"
+    assert db.query(VehicleServiceLink).filter(
+        VehicleServiceLink.service_customer_id == service.id,
+        VehicleServiceLink.vehicle_id == vehicle.id,
+    ).count() == before_links
+    assert db.query(VehicleOwnership).filter(VehicleOwnership.vehicle_id == vehicle.id).count() == before_ownership
+    assert db.query(ServiceWorkAccess).filter(
+        ServiceWorkAccess.service_customer_id == service.id,
+        ServiceWorkAccess.vehicle_id == vehicle.id,
+        ServiceWorkAccess.status == "active",
+    ).count() == 1
+
+
+def test_service_pending_approval_can_still_create_work_order(db):
+    tenant = _tenant(db, "intake-pending-wo")
+    owner = _customer(db, tenant, "owner-intake-pending@example.test")
+    service = _customer(db, tenant, "service-intake-pending@example.test", role="service")
+    vehicle = _vehicle(db, tenant, owner, vin="TMBJH7NP9N7049002", plate="9AB9002")
+    db.add(
+        ServiceAccessRequest(
+            tenant_id=tenant.id,
+            service_customer_id=service.id,
+            owner_customer_id=owner.id,
+            vehicle_id=vehicle.id,
+            requested_scope="history_read_create_record",
+            status="pending",
+            request_message="pending from intake",
+        )
+    )
+    db.flush()
+
+    service_workspace.create_service_vehicle_work_access(
+        vehicle_id=int(vehicle.id),
+        payload=service_workspace.ServiceWorkAccessRequestV1(reason="Pending but work", source="intake"),
+        current_user=service,
+        db=db,
+    )
+    created = dashboard_router.create_service_work_order(
+        payload=dashboard_router.ServiceWorkOrderCreateRequest(
+            vehicle_id=vehicle.id,
+            technician_id=service.id,
+            title="Zakázka při pending",
+            status="awaiting_client_approval",
+        ),
+        current_user=service,
+        db=db,
+    )
+    assert created["access_status"] == "work_access"
+    assert created["vehicle_id"] == vehicle.id
+
+
+def test_service_existing_unowned_vehicle_no_duplicate(db):
+    tenant = _tenant(db, "intake-dup-unowned")
+    service = _customer(db, tenant, "service-intake-dup@example.test", role="service")
+    vin = "TMBJH7NP9N7049003"
+    plate = "9AB9003"
+    service_workspace.provision_unowned_service_vehicle(
+        service_workspace.ServiceProvisionUnownedVehicleRequestV1(
+            vin=vin,
+            plate=plate,
+            brand="Skoda",
+            model="Fabia",
+            source="service_intake",
+            context="intake_route",
+        ),
+        request=None,
+        current_user=service,
+        db=db,
+    )
+    with pytest.raises(HTTPException) as err:
+        service_workspace.provision_unowned_service_vehicle(
+            service_workspace.ServiceProvisionUnownedVehicleRequestV1(
+                vin=vin,
+                plate=plate,
+                brand="Skoda",
+                model="Fabia",
+                source="service_intake",
+                context="intake_route",
+            ),
+            request=None,
+            current_user=service,
+            db=db,
+        )
+    assert err.value.status_code == 409
+    lookup = service_workspace.central_service_vehicle_lookup(
+        service_workspace.CentralVehicleLookupRequestV1(
+            vin=vin,
+            source="service_intake",
+            context="intake_route",
+        ),
+        request=None,
+        current_user=service,
+        db=db,
+    )
+    assert lookup["status"] == "found_service_unowned"
+    assert lookup.get("can_create_work_order") is True
+
+
+def test_service_safe_history_anonymized_without_approval(db):
+    tenant = _tenant(db, "intake-safe-history")
+    owner = _customer(db, tenant, "owner-intake-safe@example.test")
+    service = _customer(db, tenant, "service-intake-safe@example.test", role="service")
+    other_service = _customer(db, tenant, "other-service-safe@example.test", role="service")
+    vehicle = _vehicle(db, tenant, owner, vin="TMBJH7NP9N7049004", plate="9AB9004")
+
+    db.add(
+        ServiceRecord(
+            tenant_id=tenant.id,
+            vehicle_id=vehicle.id,
+            user_id=other_service.id,
+            service_id=other_service.id,
+            created_by_service_customer_id=other_service.id,
+            performed_at=datetime.utcnow(),
+            mileage=100000,
+            description="Servis s cenou 5000 Kč",
+            price=5000,
+            total_price=5000,
+            category="Údržba",
+            service_type="maintenance",
+            visibility_scope="owner_visible_no_prices",
+        )
+    )
+    db.flush()
+
+    lookup = service_workspace.central_service_vehicle_lookup(
+        service_workspace.CentralVehicleLookupRequestV1(
+            vin=vehicle.vin,
+            source="service_intake",
+            context="intake_route",
+        ),
+        request=None,
+        current_user=service,
+        db=db,
+    )
+    assert lookup["owner_data"] is None
+    assert lookup["prices"] is None
+    assert lookup["invoices"] is None
+
+    service_workspace.create_service_vehicle_work_access(
+        vehicle_id=int(vehicle.id),
+        payload=service_workspace.ServiceWorkAccessRequestV1(reason="Safe history", source="intake"),
+        current_user=service,
+        db=db,
+    )
+    history = service_workspace.get_service_vehicle_safe_technical_history(
+        vehicle_id=int(vehicle.id),
+        current_user=service,
+        db=db,
+    )
+    blob = json.dumps(history, ensure_ascii=False).lower()
+    assert "5000" not in blob
+    assert "kč" not in blob
+    assert owner.email.lower() not in blob

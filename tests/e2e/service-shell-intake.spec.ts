@@ -9,6 +9,7 @@ import {
 const intakeLookupPath = '**/api/v1/services/workspace/vehicles/lookup';
 const intakeAccessRequestPath = '**/api/v1/services/workspace/access-requests';
 const intakeProvisionPath = '**/api/v1/services/workspace/vehicles/provision-unowned';
+const intakeWorkAccessPath = '**/api/v1/services/workspace/vehicles/*/work-access';
 
 async function openIntake(page: Parameters<typeof test>[0]['page']) {
   const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
@@ -95,7 +96,8 @@ test.describe('Service shell intake route', () => {
     await page.locator('[data-testid="service-intake-vin-input"]').fill('TMBJH7NP9N7041234');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
     await expect(page.locator('[data-testid="service-intake-safe-preview"]')).toContainText(/Skoda Octavia/i);
-    await expect(page.locator('[data-testid="service-intake-access-state"]')).toContainText(/autorizaci majitele/i);
+    await expect(page.locator('[data-testid="service-intake-access-not-requested"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-access-state"]')).toContainText(/přístup vyžaduje rozhodnutí/i);
   });
 
   test('service_intake_lookup_existing_vehicle_no_pii', async ({ page }) => {
@@ -130,7 +132,7 @@ test.describe('Service shell intake route', () => {
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
     const root = page.locator('[data-testid="service-intake-section"]');
     const safePreview = page.locator('[data-testid="service-intake-safe-preview"]');
-    await expect(root).toContainText(/čeká na autorizaci/i);
+    await expect(root).toContainText(/čeká na schválení majitele/i);
     await expect(safePreview).toBeVisible();
     await expect(safePreview).not.toContainText('@');
     await expect(safePreview).not.toContainText(/faktur|cena|kč|pdf|dokument/i);
@@ -170,7 +172,7 @@ test.describe('Service shell intake route', () => {
       page.waitForResponse((response) => response.url().includes('/access-requests') && response.status() === 200),
       page.locator('[data-testid="service-intake-request-access-button"]').click(),
     ]);
-    await expect(page.locator('[data-testid="service-intake-access-state"]')).toContainText(/čeká na autorizaci/i, { timeout: 20_000 });
+    await expect(page.locator('[data-testid="service-intake-access-state"]')).toContainText(/čeká na schválení majitele/i, { timeout: 20_000 });
   });
 
   test('service_intake_not_found_shows_create_unowned', async ({ page }) => {
@@ -260,6 +262,111 @@ test.describe('Service shell intake route', () => {
     await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(/bez vlastnické vazby/i);
   });
 
+  test('service_intake_work_access_enables_work_order', async ({ page }) => {
+    await page.route(intakeLookupPath, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          found: true,
+          status: 'found_access_required',
+          vehicle_preview: {
+            vehicle_id: 501,
+            brand: 'Skoda',
+            model: 'Octavia',
+            vin_masked: 'TMB***5010',
+            plate_masked: '5AB***01',
+          },
+          access: { status: 'not_requested', can_request_access: true },
+          can_create_work_order: false,
+          owner_data: null,
+        }),
+      });
+    });
+    await page.route(intakeWorkAccessPath, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          status: 'work_access',
+          vehicle_preview: {
+            vehicle_id: 501,
+            brand: 'Skoda',
+            model: 'Octavia',
+            vin_masked: 'TMB***5010',
+            plate_masked: '5AB***01',
+          },
+        }),
+      });
+    });
+    await openIntake(page);
+    await page.locator('[data-testid="service-intake-vin-input"]').fill('TMBJH7NP9N7050101');
+    await page.locator('[data-testid="service-intake-lookup-button"]').click();
+    await expect(page.locator('[data-testid="service-intake-access-not-requested"]')).toBeVisible();
+    await page.locator('[data-testid="service-intake-work-access-button"]').click();
+    await expect(page.locator('[data-testid="service-intake-access-work-access"]')).toContainText(/Jednorázový servisní zásah/i);
+    await expect(page.locator('[data-testid="service-intake-create-work-order-button"]')).toBeEnabled();
+  });
+
+  test('service_intake_rejected_shows_both_ctas', async ({ page }) => {
+    await page.route(intakeLookupPath, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          found: true,
+          status: 'found_access_required',
+          vehicle_preview: {
+            vehicle_id: 502,
+            brand: 'VW',
+            model: 'Golf',
+            vin_masked: 'WVW***5020',
+            plate_masked: '5AB***02',
+          },
+          access: { status: 'rejected', can_request_access: true },
+          can_create_work_order: false,
+          owner_data: null,
+        }),
+      });
+    });
+    await openIntake(page);
+    await page.locator('[data-testid="service-intake-plate-input"]').fill('5AB5002');
+    await page.locator('[data-testid="service-intake-lookup-button"]').click();
+    await expect(page.locator('[data-testid="service-intake-access-rejected"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-work-access-button"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-request-access-button"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="service-intake-create-work-order-button"]')).toBeDisabled();
+  });
+
+  test('service_intake_unowned_vehicle_work_order_enabled', async ({ page }) => {
+    await page.route(intakeLookupPath, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          found: true,
+          status: 'found_service_unowned',
+          vehicle_preview: {
+            vehicle_id: 503,
+            brand: 'Skoda',
+            model: 'Fabia',
+            vin_masked: 'TMB***5030',
+            plate_masked: '5AB***03',
+          },
+          access: { status: 'work_access', can_request_access: false },
+          can_create_work_order: true,
+          owner_data: null,
+        }),
+      });
+    });
+    await openIntake(page);
+    await page.locator('[data-testid="service-intake-vin-input"]').fill('TMBJH7NP9N7050303');
+    await page.locator('[data-testid="service-intake-lookup-button"]').click();
+    await expect(page.locator('[data-testid="service-intake-access-work-access"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-work-access-button"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-create-work-order-button"]')).toBeEnabled();
+  });
+
   test('service_intake_ocr_disabled_without_backend', async ({ page }) => {
     await openIntake(page);
     const ocr = page.locator('[data-testid="service-intake-ocr-button"]');
@@ -269,10 +376,9 @@ test.describe('Service shell intake route', () => {
 
   test('service_intake_crosslink_to_work_orders_or_disabled_notice', async ({ page }) => {
     await openIntake(page);
-    await page.locator('[data-testid="service-intake-create-work-order-button"]').click();
-    await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(
-      /Převod příjmu na zakázku bude doplněn|Nejprve načtěte|Zakázka byla vytvořena/i,
-    );
+    const woBtn = page.locator('[data-testid="service-intake-create-work-order-button"]');
+    await expect(woBtn).toBeDisabled();
+    await expect(woBtn).toHaveAttribute('title', /jednorázový servisní zásah/i);
   });
 
   test('service_intake_create_work_order_for_unowned_vehicle', async ({ page }) => {

@@ -3248,7 +3248,7 @@
       status,
       can_open_detail: Boolean(response.can_open_detail),
       can_request_access: Boolean(access.can_request_access),
-      can_create_work_order: Boolean(response.can_open_detail),
+      can_create_work_order: Boolean(response.can_create_work_order),
       blocking_reason: status === 'found_access_required'
         ? 'Vozidlo je v systému. Detail je zamčený, dokud majitel nepovolí přístup.'
         : status === 'found_service_unowned'
@@ -7151,11 +7151,21 @@
     const response = state.intakeLookupResponse || null;
     const preview = response?.vehicle_preview || null;
     const access = response?.access || {};
+    const legacy = state.intakeLookupLegacyCandidate || {};
+    const vehicleId = Number(preview?.vehicle_id || legacy?.vehicle_id || 0);
+    const ownerId = Number(legacy?.owner_customer_id || 0);
     const accessStatus = String(access.status || '').toLowerCase();
     const lookupStatus = String(response?.status || '').toLowerCase();
     const canCreateUnowned = response?.found === false && response?.status === 'not_found';
     const canRequestAccess = Boolean(preview?.vehicle_id && access?.can_request_access);
-    const canWorkAccess = accessStatus === 'work_access' || Boolean(response?.can_create_work_order);
+    const canWorkWithoutOwner = accessStatus === 'work_access'
+      || lookupStatus === 'found_service_unowned'
+      || Boolean(response?.can_create_work_order);
+    const canWorkAccess = canWorkWithoutOwner;
+    const canCreateWorkAccess = Boolean(preview?.vehicle_id) && !['approved', 'work_access'].includes(accessStatus);
+    const showWorkAccess = canCreateWorkAccess;
+    const showRequestAccess = canRequestAccess;
+    const canCreateWorkOrder = Boolean(vehicleId) && (Boolean(ownerId) || canWorkWithoutOwner || accessStatus === 'approved');
     const canStart = accessStatus === 'approved' || canWorkAccess;
     const hasLookup = Boolean(response || state.intakeLookupError || state.intakeLookupLoading);
     const badgeTone = accessStatus === 'approved'
@@ -7183,9 +7193,16 @@
       access,
       accessStatus,
       lookupStatus,
+      vehicleId,
+      ownerId,
       canCreateUnowned,
       canRequestAccess,
       canWorkAccess,
+      canWorkWithoutOwner,
+      canCreateWorkAccess,
+      showWorkAccess,
+      showRequestAccess,
+      canCreateWorkOrder,
       canStart,
       hasLookup,
       badgeTone,
@@ -7216,19 +7233,35 @@
   }
 
   function renderIntakeAccessPanelHtml(ctx) {
-    const { accessStatus, canRequestAccess, canWorkAccess, preview, badgeLabel, badgeTone } = ctx;
-    const canCreateWorkAccess = Boolean(preview?.vehicle_id) && !['approved', 'work_access'].includes(accessStatus);
+    const {
+      accessStatus,
+      showRequestAccess,
+      showWorkAccess,
+      canWorkAccess,
+      preview,
+      badgeLabel,
+      badgeTone,
+    } = ctx;
+    const accessScenarioTestId = accessStatus === 'work_access'
+      ? 'service-intake-access-work-access'
+      : accessStatus === 'pending'
+        ? 'service-intake-access-pending'
+        : ['rejected', 'revoked'].includes(accessStatus)
+          ? 'service-intake-access-rejected'
+          : 'service-intake-access-not-requested';
     return `
-      <h3>Stav přístupu</h3>
-      <p>${ServiceStatusBadge(badgeLabel, badgeTone)}</p>
-      ${accessStatus === 'approved' ? '<p>Detail vozidla je dostupný v rozsahu schváleného propojení.</p>' : ''}
-      ${canWorkAccess ? '<p>Servis může vytvořit vlastní zakázku a záznam bez přístupu k soukromým datům majitele.</p>' : ''}
-      ${accessStatus === 'pending' ? '<p>Propojení čeká na vyjádření majitele. Vlastní jednorázový zásah je možné vést odděleně.</p>' : ''}
-      ${['rejected', 'revoked'].includes(accessStatus) ? '<p>Dlouhodobé propojení bylo zamítnuto nebo odebráno. Vlastní zásah zůstává oddělený.</p>' : ''}
-      <div class="service-action-bar">
-        ${canCreateWorkAccess ? `<button type="button" class="service-shell-primary-btn" data-testid="service-intake-work-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createWorkAccessFromIntake()">${state.intakeMutationLoading ? 'Ukládám…' : 'Pracovat bez propojení'}</button>` : ''}
-        ${canRequestAccess ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-request-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.requestVehicleAccessFromIntake()">${state.intakeMutationLoading ? 'Odesílám…' : 'Vyžádat propojení s majitelem'}</button>` : ''}
-        ${preview?.vehicle_id && (canWorkAccess || accessStatus === 'approved') ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-safe-history-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.loadSafeHistoryFromIntake()">Zobrazit bezpečnou historii</button>` : ''}
+      <div class="service-intake-access-panel" data-testid="${accessScenarioTestId}">
+        <h3>Stav přístupu</h3>
+        <p>${ServiceStatusBadge(badgeLabel, badgeTone)}</p>
+        ${accessStatus === 'approved' ? '<p>Detail vozidla je dostupný v rozsahu schváleného propojení.</p>' : ''}
+        ${canWorkAccess ? '<p>Servis může vytvořit vlastní zakázku a záznam bez přístupu k soukromým datům majitele.</p>' : ''}
+        ${accessStatus === 'pending' ? '<p>Propojení čeká na vyjádření majitele. Vlastní jednorázový zásah je možné vést odděleně.</p>' : ''}
+        ${['rejected', 'revoked'].includes(accessStatus) ? '<p>Dlouhodobé propojení bylo zamítnuto nebo odebráno. Vlastní zásah zůstává oddělený.</p>' : ''}
+        <div class="service-action-bar">
+          ${showWorkAccess ? `<button type="button" class="service-shell-primary-btn" data-testid="service-intake-work-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createWorkAccessFromIntake()">${state.intakeMutationLoading ? 'Ukládám…' : 'Pracovat bez propojení'}</button>` : ''}
+          ${showRequestAccess ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-request-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.requestVehicleAccessFromIntake()">${state.intakeMutationLoading ? 'Odesílám…' : 'Vyžádat propojení s majitelem'}</button>` : ''}
+          ${preview?.vehicle_id && (canWorkAccess || accessStatus === 'approved') ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-safe-history-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.loadSafeHistoryFromIntake()">Zobrazit bezpečnou historii</button>` : ''}
+        </div>
       </div>
     `;
   }
@@ -7281,10 +7314,18 @@
   }
 
   function renderIntakeWorkflowActionsHtml(ctx) {
-    const { canStart } = ctx;
+    const { canStart, canCreateWorkOrder, accessStatus } = ctx;
+    const woDisabled = !canCreateWorkOrder || state.intakeMutationLoading;
+    const woTitle = woDisabled && !state.intakeMutationLoading
+      ? (accessStatus === 'pending'
+        ? 'Nejdřív založte jednorázový servisní zásah — propojení čeká na majitele.'
+        : ['rejected', 'revoked'].includes(accessStatus)
+          ? 'Nejdřív založte jednorázový servisní zásah — dlouhodobé propojení bylo zamítnuto.'
+          : 'Nejdřív založte jednorázový servisní zásah nebo vyžádejte propojení s majitelem.')
+      : '';
     return `
       <button type="button" class="service-shell-primary-btn" data-testid="service-intake-start-button" ${!canStart || state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.startServiceIntake()">${state.intakeMutationLoading ? 'Ukládám…' : 'Zahájit příjem'}</button>
-      <button type="button" class="btn btn-secondary" data-testid="service-intake-create-work-order-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createWorkOrderFromIntake()">Vytvořit zakázku</button>
+      <button type="button" class="btn btn-secondary" data-testid="service-intake-create-work-order-button" ${woDisabled ? 'disabled' : ''} title="${escape(woTitle)}" onclick="window.serviceShell.createWorkOrderFromIntake()">Vytvořit zakázku</button>
     `;
   }
 
@@ -7484,7 +7525,7 @@
     } catch (error) {
       const detail = error?.payload?.detail;
       if (error?.status === 409 && detail?.code === 'vehicle_exists') {
-        state.intakeLookupError = 'Vozidlo s tímto VIN už existuje. Otevřete jeho safe preview a pokračujte podle stavu přístupu.';
+        state.intakeLookupError = 'Vozidlo už existuje — načtěte lookup';
       } else if (error?.status === 409 && detail?.code === 'plate_candidate_requires_review') {
         state.intakeLookupError = 'SPZ má kandidáta v systému. Doplňte VIN nebo pokračujte ručním ověřením bez auto-merge.';
       } else {

@@ -189,6 +189,81 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await expect(fuel).toHaveValue('Nafta');
     });
 
+    test('mobile_intake_work_without_approval', async ({ page }) => {
+      await page.route(intakeLookupPath, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            found: true,
+            status: 'found_access_required',
+            vehicle_preview: {
+              vehicle_id: 601,
+              brand: 'Skoda',
+              model: 'Octavia',
+              vin_masked: 'TMB***6010',
+              plate_masked: '6MO***01',
+            },
+            access: { status: 'not_requested', can_request_access: true },
+            can_create_work_order: false,
+            owner_data: null,
+          }),
+        });
+      });
+      await page.route(intakeLegacyLookupPath, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ candidates: [] }),
+        });
+      });
+      await openIntake(page);
+      await waitForIntakeStable(page);
+      await page.locator('[data-testid="service-intake-plate-input"]').fill('6MO6001');
+      await page.locator('[data-testid="service-intake-lookup-button"]').click();
+      await expect(page.locator('[data-testid="service-intake-access-not-requested"]')).toBeVisible({ timeout: 20_000 });
+      const workBtn = page.locator('[data-testid="service-intake-work-access-button"]');
+      await expect(workBtn).toBeVisible({ timeout: 20_000 });
+      await workBtn.scrollIntoViewIfNeeded();
+      const box = await workBtn.boundingBox();
+      const viewport = page.viewportSize();
+      expect(box).not.toBeNull();
+      expect(viewport).not.toBeNull();
+      if (box) {
+        const parentWidth = await workBtn.evaluate((el) => el.parentElement?.getBoundingClientRect().width || 0);
+        expect(parentWidth).toBeGreaterThan(0);
+        expect(box.width).toBeGreaterThanOrEqual(parentWidth * 0.95);
+      }
+    });
+
+    test('mobile_vin_input_keeps_focus_while_typing', async ({ page }) => {
+      await page.route(intakeLookupPath, async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 8000));
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ found: false, status: 'not_found', can_create_unowned_vehicle: true }),
+        });
+      });
+      await openIntake(page);
+      await waitForIntakeStable(page);
+      await page.evaluate(() => {
+        const el = document.querySelector('[data-testid="service-intake-vin-input"]');
+        if (el instanceof HTMLElement) {
+          el.scrollIntoView({ block: 'center', inline: 'nearest' });
+          el.focus();
+        }
+      });
+      for (const ch of 'TMB123456789'.split('')) {
+        await page.keyboard.press(ch);
+        const focused = await page.evaluate(() => {
+          const el = document.querySelector('[data-testid="service-intake-vin-input"]');
+          return el instanceof HTMLElement && document.activeElement === el;
+        });
+        expect(focused).toBe(true);
+      }
+    });
+
     test('mobile_f5_keeps_session_on_intake', async ({ page }) => {
       await openIntake(page);
       await waitForIntakeStable(page);

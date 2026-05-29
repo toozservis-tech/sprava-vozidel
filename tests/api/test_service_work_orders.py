@@ -534,6 +534,11 @@ def test_owner_can_reject_service_link_and_service_keeps_own_work_records(tmp_pa
         engine.dispose()
 
 
+def test_service_rejected_approval_can_keep_own_records(tmp_path: Path) -> None:
+    """Named intake-path alias: rejected approval does not remove service work records."""
+    test_owner_can_reject_service_link_and_service_keeps_own_work_records(tmp_path)
+
+
 def test_claim_does_not_auto_approve_service_links(tmp_path: Path) -> None:
     from src.modules.vehicle_hub.routers_v1 import vehicles as vehicles_router
 
