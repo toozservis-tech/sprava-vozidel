@@ -4,6 +4,7 @@
   "description": "E2E tests for Správa vozidel",
   "scripts": {
     "bootstrap": "bash ./bootstrap-e2e.sh",
+    "ensure-ide-path": "bash ./ensure-playwright-ide-path.sh",
     "test": "bash ./run-playwright.sh test",
     "test:headed": "bash ./run-playwright.sh test --headed",
     "test:ui": "bash ./run-playwright.sh test --ui",

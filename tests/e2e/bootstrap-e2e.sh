@@ -97,5 +97,23 @@ for deb in "${DEBS_DIR}"/*.deb; do
   dpkg-deb -x "${deb}" "${SYSROOT_DIR}"
 done
 
+# Playwright VS Code / Cursor resolves symlinked workspaces under releases/ incorrectly
+# (…/releases/releases/<release>/tests/e2e). A sibling symlink fixes IDE test-server lookup.
+ensure_playwright_ide_path() {
+  local e2e_real releases_root release_name doubled_dir
+  e2e_real="$(cd "${SCRIPT_DIR}" && pwd -P)"
+  if [[ "${e2e_real}" =~ ^(.*/releases)/([^/]+)/tests/e2e$ ]]; then
+    releases_root="${BASH_REMATCH[1]}"
+    release_name="${BASH_REMATCH[2]}"
+    doubled_dir="${releases_root}/releases/${release_name}"
+    if [[ ! -e "${doubled_dir}" ]]; then
+      mkdir -p "${releases_root}/releases"
+      ln -s "../${release_name}" "${doubled_dir}"
+      echo "[E2E bootstrap] IDE Playwright path workaround: ${doubled_dir} -> ../${release_name}"
+    fi
+  fi
+}
+ensure_playwright_ide_path
+
 echo "[E2E bootstrap] Complete."
 echo "[E2E bootstrap] Use: npm test"
