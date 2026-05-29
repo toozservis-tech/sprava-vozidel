@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/web/theme.css" />
     <link rel="stylesheet" href="/web/app.css" />
     <link rel="stylesheet" href="/web/inline-styles.css" />
-    <link rel="stylesheet" href="/web/service-shell.css?v=2026050720" />
+    <link rel="stylesheet" href="/web/service-shell.css?v=2026052913" />
     <link rel="stylesheet" href="/web/user-app-next.css?v=20260524docpreview7" />
     <style>
         * {
@@ -37792,6 +37792,11 @@
             const statusText = document.getElementById('statusText');
             
             if (!indicator || !statusText) return;
+
+            const navbar = document.getElementById('mainNavbar');
+            if (navbar && navbar.classList.contains('hidden')) {
+                return;
+            }
             
             // Pokud API_URL není inicializována, zkusit znovu
             if (!API_URL) {
@@ -58516,7 +58521,11 @@
                     console.log('[APP] API URL:', API_URL);
                 } catch (e) {
                     console.error('[APP] Chyba při inicializaci API_URL:', e);
-                    API_URL = "http://127.0.0.1:8001"; // Fallback
+                    try {
+                        API_URL = getApiBaseUrl();
+                    } catch (e2) {
+                        API_URL = window.location.origin || "http://127.0.0.1:8000";
+                    }
                 }
             }
             
@@ -70036,8 +70045,8 @@
     <!-- AI Features JavaScript -->
     <script src="/web/ai-features.js"></script>
     <script src="/web/tutorial-hub.js"></script>
-    <script src="/web/user-app-next.js?v=2026052407"></script>
+    <script src="/web/user-app-next.js?v=2026052913"></script>
     <script src="/web/user-settings.js?v=20260524settingsfull"></script>
-    <script src="/web/service-shell.js?v=2026050720"></script>
+    <script src="/web/service-shell.js?v=2026052912"></script>
 </body>
 </html>
