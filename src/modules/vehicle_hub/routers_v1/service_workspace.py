@@ -56,6 +56,7 @@ from ..models import (
     ServiceDocumentIngestion,
     ServiceIntake,
     ServiceRecord as ServiceRecordModel,
+    ServiceWorkOrder,
     VehicleOwnership,
     Vehicle as VehicleModel,
     VehicleQrAccessLog,
@@ -70,7 +71,9 @@ from ..partner_public_profile import (
     partner_public_profile_to_stored_json,
 )
 from ..service_access import (
+    create_or_update_service_work_access,
     create_or_update_vehicle_service_link,
+    get_active_service_work_access,
     get_active_vehicle_service_link,
     log_vehicle_lookup,
     masked_plate,
@@ -78,6 +81,7 @@ from ..service_access import (
     normalize_lookup_query,
     require_service_vehicle_link,
     resolve_vehicle_for_lookup,
+    service_has_work_access,
     vehicle_label,
 )
 from ..service_access_messaging import try_email_owner_about_service_access_request
@@ -152,6 +156,12 @@ class ServiceProvisionUnownedVehicleRequestV1(BaseModel):
     intake_note: Optional[str] = Field(default=None, max_length=2000)
     source: Optional[str] = Field(default=None, max_length=64)
     context: Optional[str] = Field(default=None, max_length=64)
+
+
+class ServiceWorkAccessRequestV1(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=1000)
+    source: Optional[str] = Field(default="manual", max_length=64)
+    work_order_id: Optional[int] = Field(default=None, gt=0)
 
 
 def _service_access_email_notification_message(email_result: dict[str, Any]) -> str:
@@ -773,8 +783,20 @@ def _build_vehicle_detail_payload(
         vehicle=vehicle,
         owner_customer=owner_customer,
     )
+    work_access = get_active_service_work_access(
+        db,
+        service_customer_id=int(current_user.id),
+        vehicle_id=int(vehicle.id),
+    )
+    has_work_access = bool(work_access) or (
+        owner_customer is None
+        and getattr(vehicle, "provisioned_by_service_customer_id", None) == getattr(current_user, "id", None)
+        and vehicle_state(db, vehicle) == "service_provisioned_unowned"
+    )
+    if not approved_link and has_work_access:
+        status = "work_access"
     disclosure = "full" if approved_link else "limited"
-    can_create_work_order = bool(approved_link and linked_customer and owner_customer)
+    can_create_work_order = bool(approved_link and linked_customer and owner_customer) or has_work_access
     can_request_access = bool(
         owner_customer
         and owner_customer.id != current_user.id
@@ -820,6 +842,8 @@ def _build_vehicle_detail_payload(
             "request_id": int(pending_request.id) if pending_request else None,
             "request_status": pending_request.status if pending_request else None,
             "service_link_id": int(approved_link.id) if approved_link else None,
+            "work_access_id": int(work_access.id) if work_access else None,
+            "access_mode": "owner_approved_service_link" if approved_link else ("service_work_access" if has_work_access else "none"),
             "records_count": int(visible_records_count),
             "has_qr_token": bool(active_qr_token),
             "qr_public_mode": getattr(active_qr_token, "public_mode", None) if active_qr_token else None,
@@ -2732,10 +2756,27 @@ def _service_access_status_for_vehicle(db: Session, *, current_user: Customer, v
         and getattr(vehicle, "provisioned_by_service_customer_id", None) == getattr(current_user, "id", None)
         and vehicle_state(db, vehicle) == "service_provisioned_unowned"
     ):
-        return "approved", False
+        return "work_access", False
     link = get_active_vehicle_service_link(db, service_customer_id=int(current_user.id), vehicle_id=int(vehicle.id))
     if link:
         return "approved", False
+    work_access = get_active_service_work_access(
+        db,
+        service_customer_id=int(current_user.id),
+        vehicle_id=int(vehicle.id),
+    )
+    if work_access:
+        owner_exists = active_owner_assignment(db, int(vehicle.id)) is not None
+        pending_or_approved = (
+            db.query(ServiceAccessRequest.id)
+            .filter(
+                ServiceAccessRequest.service_customer_id == int(current_user.id),
+                ServiceAccessRequest.vehicle_id == int(vehicle.id),
+                ServiceAccessRequest.status.in_(("pending", "approved")),
+            )
+            .first()
+        )
+        return "work_access", bool(owner_exists and pending_or_approved is None)
     request_row = (
         db.query(ServiceAccessRequest)
         .filter(
@@ -2874,7 +2915,10 @@ def central_service_vehicle_lookup(
     owner_assignment = active_owner_assignment(db, int(vehicle.id))
     owner_id = int(owner_assignment.customer_id) if owner_assignment else None
     access_status, can_request_access = _service_access_status_for_vehicle(db, current_user=current_user, vehicle=vehicle)
-    if access_status == "approved" and owner_id is None:
+    if access_status == "work_access":
+        status = "found_work_access" if owner_id is not None else "found_service_unowned"
+        result_status = "work_access"
+    elif access_status == "approved" and owner_id is None:
         status = "found_service_unowned"
         result_status = "service_unowned"
     elif access_status == "approved":
@@ -2922,6 +2966,11 @@ def central_service_vehicle_lookup(
         if owner_id is None:
             body["can_create_work_order"] = True
             body["access"]["scope"] = list(body["access"]["scope"]) + ["create_work_order"]
+    elif access_status == "work_access":
+        body["access"]["scope"] = ["service_work_access"]
+        body["access"]["mode"] = "service_work_access"
+        body["can_open_detail"] = True
+        body["can_create_work_order"] = True
     return body
 
 
@@ -3011,6 +3060,186 @@ def provision_unowned_service_vehicle(
         "status": "service_provisioned_unowned",
         "message": "Vozidlo evidováno bez majitele.",
         "vehicle_preview": _safe_vehicle_preview(vehicle),
+    }
+
+
+def _redact_history_text(raw: Optional[str]) -> Optional[str]:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    safe_lines: list[str] = []
+    blocked_tokens = ("kč", "czk", "eur", "€", "faktura", "invoice", "cena", "celkem", "subtotal", "vat")
+    money_re = re.compile(r"\b\d{1,3}(?:[ .]\d{3})*(?:[,.]\d{1,2})?\s*(?:kč|czk|eur|€)\b", re.IGNORECASE)
+    for line in text.splitlines():
+        cleaned = line.strip()
+        if not cleaned:
+            continue
+        haystack = cleaned.lower()
+        if any(token in haystack for token in blocked_tokens):
+            continue
+        cleaned = money_re.sub("[částka skryta]", cleaned)
+        safe_lines.append(cleaned)
+    return "\n".join(safe_lines).strip()[:1000] or None
+
+
+def _owner_safe_parts_from_record(raw: Optional[str]) -> list[dict[str, Any]]:
+    if not raw:
+        return []
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    if not isinstance(payload, dict):
+        return []
+    parts = payload.get("owner_safe_parts")
+    if not isinstance(parts, list):
+        return []
+    safe: list[dict[str, Any]] = []
+    for entry in parts:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()
+        if not name:
+            continue
+        safe.append(
+            {
+                "name": name,
+                "quantity": entry.get("quantity"),
+                "unit": str(entry.get("unit") or "").strip() or None,
+            }
+        )
+    return safe
+
+
+def _serialize_service_safe_history_item(record: ServiceRecordModel, *, current_user: Customer) -> dict[str, Any]:
+    own_record = int(getattr(record, "created_by_service_customer_id", 0) or 0) == int(current_user.id) or int(
+        getattr(record, "service_id", 0) or 0
+    ) == int(current_user.id)
+    if own_record:
+        return {
+            "id": int(record.id),
+            "own_record": True,
+            "performed_at": record.performed_at.isoformat() if record.performed_at else None,
+            "mileage": record.mileage,
+            "category": record.category,
+            "service_type": record.service_type,
+            "description": record.description,
+            "customer_visible_description": record.notes_customer_visible,
+            "recommended_next_service_text": record.recommended_next_service_text,
+            "recommended_next_service_date": record.recommended_next_service_date.isoformat()
+            if record.recommended_next_service_date
+            else None,
+            "work_order_id": int(record.work_order_id) if record.work_order_id else None,
+            "price": record.price,
+            "total_price": record.total_price,
+            "source_label": "Vlastní servisní záznam",
+            "visibility_scope": str(record.visibility_scope or ""),
+        }
+    description = _redact_history_text(record.notes_customer_visible) or _redact_history_text(record.description)
+    return {
+        "id": int(record.id),
+        "own_record": False,
+        "performed_at": record.performed_at.isoformat() if record.performed_at else None,
+        "mileage": record.mileage,
+        "category": record.category,
+        "service_type": record.service_type,
+        "description": description or record.category or record.service_type or "Servisní zásah",
+        "parts": _owner_safe_parts_from_record(getattr(record, "attachments", None)),
+        "recommended_next_service_text": record.recommended_next_service_text,
+        "recommended_next_service_date": record.recommended_next_service_date.isoformat()
+        if record.recommended_next_service_date
+        else None,
+        "source_label": "Servisní záznam",
+        "visibility_scope": "service_safe_anonymized",
+    }
+
+
+@router.post("/vehicles/{vehicle_id}/work-access")
+def create_service_vehicle_work_access(
+    vehicle_id: int,
+    payload: ServiceWorkAccessRequestV1,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_workspace_schema(db)
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id), VehicleModel.status != "archived").first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo nebylo nalezeno.")
+    if payload.work_order_id is not None:
+        order = (
+            db.query(ServiceWorkOrder)
+            .filter(
+                ServiceWorkOrder.id == int(payload.work_order_id),
+                ServiceWorkOrder.vehicle_id == int(vehicle.id),
+                ServiceWorkOrder.service_customer_id == int(current_user.id),
+            )
+            .first()
+        )
+        if not order:
+            raise HTTPException(status_code=404, detail="Zakázka pro pracovní přístup nebyla nalezena.")
+    row = create_or_update_service_work_access(
+        db,
+        current_user=current_user,
+        vehicle=vehicle,
+        reason=payload.reason,
+        source=payload.source or "manual",
+        work_order_id=payload.work_order_id,
+    )
+    db.commit()
+    db.refresh(row)
+    return {
+        "created": True,
+        "work_access_id": int(row.id),
+        "vehicle_id": int(vehicle.id),
+        "status": "work_access",
+        "access_mode": "service_work_access",
+        "vehicle_preview": _safe_vehicle_preview(vehicle),
+        "owner_data": None,
+    }
+
+
+@router.get("/vehicles/{vehicle_id}/safe-technical-history")
+def get_service_vehicle_safe_technical_history(
+    vehicle_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_workspace_schema(db)
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id), VehicleModel.status != "archived").first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo nebylo nalezeno.")
+    if not service_has_work_access(db, current_user=current_user, vehicle=vehicle):
+        raise HTTPException(status_code=403, detail="Servis nemá pracovní ani schválený přístup k historii vozidla.")
+    rows = (
+        db.query(ServiceRecordModel)
+        .filter(
+            ServiceRecordModel.vehicle_id == int(vehicle.id),
+            ServiceRecordModel.is_deleted.is_(False),
+        )
+        .order_by(ServiceRecordModel.performed_at.desc().nullslast(), ServiceRecordModel.id.desc())
+        .limit(200)
+        .all()
+    )
+    items = [_serialize_service_safe_history_item(row, current_user=current_user) for row in rows]
+    write_global_audit_log(
+        db,
+        entity_type="vehicle_safe_history",
+        entity_id=int(vehicle.id),
+        action="service_safe_technical_history_viewed",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(getattr(current_user, "tenant_id", None) or getattr(vehicle, "tenant_id", None) or 1),
+        vehicle_id=int(vehicle.id),
+        metadata={"projection": "service_safe_technical_history", "count": len(items)},
+    )
+    db.commit()
+    return {
+        "vehicle_id": int(vehicle.id),
+        "access_mode": "service_work_access",
+        "items": items,
+        "count": len(items),
     }
 
 

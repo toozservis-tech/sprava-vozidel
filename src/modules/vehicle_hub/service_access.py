@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException
+from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from src.core.rbac import is_admin, is_service, normalize_role
@@ -15,6 +16,7 @@ from .models import (
     Customer,
     ServiceAccessRequest,
     ServiceCustomerLink,
+    ServiceWorkAccess,
     ServiceVehicleAccess,
     ServiceVehicleLookupAudit,
     ServiceRecord,
@@ -73,6 +75,125 @@ def get_active_vehicle_service_link(
         )
         .first()
     )
+
+
+def service_work_access_table_available(db: Session) -> bool:
+    try:
+        return inspect(db.get_bind()).has_table("service_work_access")
+    except Exception:
+        return True
+
+
+def get_active_service_work_access(
+    db: Session,
+    *,
+    service_customer_id: int,
+    vehicle_id: int,
+) -> Optional[ServiceWorkAccess]:
+    if not service_work_access_table_available(db):
+        return None
+    return (
+        db.query(ServiceWorkAccess)
+        .filter(
+            ServiceWorkAccess.service_customer_id == int(service_customer_id),
+            ServiceWorkAccess.vehicle_id == int(vehicle_id),
+            ServiceWorkAccess.status == "active",
+        )
+        .first()
+    )
+
+
+def service_has_work_access(db: Session, *, current_user: Customer, vehicle: Vehicle) -> bool:
+    if not is_service(normalize_role(getattr(current_user, "role", None))):
+        return False
+    if get_active_vehicle_service_link(
+        db,
+        service_customer_id=int(current_user.id),
+        vehicle_id=int(vehicle.id),
+    ) is not None:
+        return True
+    if (
+        get_primary_vehicle_owner(db, vehicle) is None
+        and getattr(vehicle, "provisioned_by_service_customer_id", None) == getattr(current_user, "id", None)
+        and str(getattr(vehicle, "global_vehicle_status", "") or "") == "service_provisioned_unowned"
+    ):
+        return True
+    return get_active_service_work_access(
+        db,
+        service_customer_id=int(current_user.id),
+        vehicle_id=int(vehicle.id),
+    ) is not None
+
+
+def create_or_update_service_work_access(
+    db: Session,
+    *,
+    current_user: Customer,
+    vehicle: Vehicle,
+    reason: Optional[str],
+    source: Optional[str],
+    work_order_id: Optional[int] = None,
+) -> ServiceWorkAccess:
+    if not service_work_access_table_available(db):
+        raise HTTPException(status_code=503, detail="Pracovní přístup servisu není připravený.")
+    now = datetime.utcnow()
+    owner = get_primary_vehicle_owner(db, vehicle)
+    row = (
+        db.query(ServiceWorkAccess)
+        .filter(
+            ServiceWorkAccess.service_customer_id == int(current_user.id),
+            ServiceWorkAccess.vehicle_id == int(vehicle.id),
+        )
+        .first()
+    )
+    source_value = str(source or "manual").strip().lower()[:64] or "manual"
+    reason_value = (str(reason or "").strip() or None)
+    if row:
+        row.status = "active"
+        row.owner_customer_id = int(owner.id) if owner else None
+        if work_order_id is not None:
+            row.work_order_id = int(work_order_id)
+        if reason_value:
+            row.reason = reason_value
+        row.source = source_value
+        row.last_used_at = now
+        row.updated_at = now
+    else:
+        row = ServiceWorkAccess(
+            tenant_id=int(getattr(vehicle, "tenant_id", None) or getattr(current_user, "tenant_id", None) or 1),
+            service_customer_id=int(current_user.id),
+            vehicle_id=int(vehicle.id),
+            owner_customer_id=int(owner.id) if owner else None,
+            work_order_id=int(work_order_id) if work_order_id is not None else None,
+            status="active",
+            source=source_value,
+            reason=reason_value,
+            created_by_customer_id=int(current_user.id),
+            last_used_at=now,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(row)
+    db.flush()
+    write_global_audit_log(
+        db,
+        entity_type="service_work_access",
+        entity_id=int(row.id),
+        action="service_work_access_upserted",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(getattr(row, "tenant_id", None) or getattr(vehicle, "tenant_id", None) or 1),
+        vehicle_id=int(vehicle.id),
+        metadata={
+            "service_customer_id": int(current_user.id),
+            "vehicle_id": int(vehicle.id),
+            "owner_customer_id": int(owner.id) if owner else None,
+            "work_order_id": int(work_order_id) if work_order_id is not None else None,
+            "source": source_value,
+        },
+    )
+    db.flush()
+    return row
 
 
 def service_can_read_vehicle(db: Session, current_user: Customer, vehicle_id: int) -> bool:
@@ -408,6 +529,7 @@ def create_or_update_vehicle_service_link(
                 )
             )
 
+    db.flush()
     return link
 
 

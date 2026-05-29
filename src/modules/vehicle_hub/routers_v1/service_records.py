@@ -52,8 +52,10 @@ from ..models import (
 from ..schema_management import assert_module_ready
 from ..service_access import (
     attach_service_access_to_record,
+    get_active_service_work_access,
     normalize_lookup_query,
     require_service_vehicle_link,
+    service_has_work_access,
 )
 from ..service_record_snapshot import service_record_audit_snapshot as _service_record_snapshot
 from ..service_record_snapshot import snapshot_json_and_hash as _snapshot_json_and_hash
@@ -1098,18 +1100,29 @@ def create_service_record(
     """Vytvoří nový servisní záznam"""
     try:
         assert_module_ready(db, "service_records", detail_prefix="Servisní historie není připravena")
-        # Kontrola přístupu k vozidlu
-        if not can_access_vehicle(vehicle_id, current_user, db):
-            raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto vozidlu")
-        
         # Načíst vozidlo kvůli tenant kontextu
         vehicle = db.query(VehicleModel).filter(VehicleModel.id == vehicle_id).first()
         if not vehicle:
             raise HTTPException(status_code=404, detail="Vozidlo nenalezeno")
+        current_user_is_service = is_service(getattr(current_user, "role", None))
+        explicit_work_access = (
+            get_active_service_work_access(
+                db,
+                service_customer_id=int(current_user.id),
+                vehicle_id=int(vehicle.id),
+            )
+            if current_user_is_service
+            else None
+        )
+        # Kontrola přístupu k vozidlu. Work access dovoluje zápis, ne obecné čtení owner detailu.
+        if not can_access_vehicle(vehicle_id, current_user, db) and not (
+            current_user_is_service and service_has_work_access(db, current_user=current_user, vehicle=vehicle)
+        ):
+            raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto vozidlu")
 
         # Tenant kontext je povinný - primárně z vozidla, fallback z uživatele (legacy) a nakonec tenant 1
         tenant_id = vehicle.tenant_id or getattr(current_user, "tenant_id", None) or 1
-        if is_service(getattr(current_user, "role", None)):
+        if current_user_is_service:
             assert_service_monthly_service_record_quota(db, service_customer_id=int(current_user.id))
         _enforce_free_service_record_limit(
             db,
@@ -1120,13 +1133,14 @@ def create_service_record(
         access_link = None
         owner_customer = get_primary_vehicle_owner(db, vehicle)
         service_owns_unassigned_vehicle = (
-            is_service(getattr(current_user, "role", None))
+            current_user_is_service
             and owner_customer is None
             and getattr(vehicle, "provisioned_by_service_customer_id", None) == getattr(current_user, "id", None)
             and vehicle_state(db, vehicle) == "service_provisioned_unowned"
         )
+        service_work_access_only = current_user_is_service and explicit_work_access is not None
         if str(getattr(current_user, "role", "") or "").strip().lower() == "service":
-            if not service_owns_unassigned_vehicle:
+            if not service_owns_unassigned_vehicle and not service_work_access_only:
                 access_link = require_service_vehicle_link(
                     db,
                     current_user=current_user,
@@ -1168,11 +1182,13 @@ def create_service_record(
             total_price=getattr(record_data, "total_price", None) if getattr(record_data, "total_price", None) is not None else record_data.price,
         )
         attach_service_access_to_record(record=record, current_user=current_user, access_link=access_link)
-        if service_owns_unassigned_vehicle:
+        if service_owns_unassigned_vehicle or service_work_access_only:
             record.created_by_service_customer_id = int(current_user.id)
             record.service_id = int(current_user.id)
             record.origin = "service_created"
-            record.visibility_scope = "safe_history_after_claim"
+            record.visibility_scope = (
+                "safe_history_after_claim" if owner_customer is None else "owner_visible_no_prices"
+            )
         
         db.add(record)
         db.flush()

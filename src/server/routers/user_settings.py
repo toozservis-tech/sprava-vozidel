@@ -600,6 +600,7 @@ def get_services_sharing_settings(
     customer = _require_customer(db, email)
     prefs = get_user_preferences(customer)
     from src.modules.vehicle_hub.models import ServiceAccessRequest, Vehicle
+    from src.modules.vehicle_hub.service_access import masked_plate, masked_vin
 
     favorites = (
         db.query(ServiceCustomerLink, Customer)
@@ -648,12 +649,18 @@ def get_services_sharing_settings(
     for req_row, service, vehicle in pending_requests:
         sharing_rows.append(
             {
+                "request_id": int(req_row.id),
                 "service_id": int(service.id),
                 "service_name": service.name or service.email,
                 "vehicle_name": vehicle.nickname or vehicle.plate or f"Vozidlo #{vehicle.id}",
+                "vehicle_plate_masked": masked_plate(vehicle.plate),
+                "vehicle_vin_masked": masked_vin(vehicle.vin),
                 "access_level": "view",
                 "status": "pending",
                 "vehicle_id": int(vehicle.id),
+                "reason": req_row.request_message,
+                "requested_scope": req_row.requested_scope,
+                "requested_at": req_row.requested_at.isoformat() if req_row.requested_at else None,
             }
         )
 

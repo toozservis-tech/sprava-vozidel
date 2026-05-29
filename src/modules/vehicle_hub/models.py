@@ -357,6 +357,32 @@ class ServiceAccessRequest(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class ServiceWorkAccess(Base):
+    """Jednorázový pracovní přístup servisu k vozidlu bez owner-approved propojení."""
+    __tablename__ = "service_work_access"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    service_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False, index=True)
+    owner_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    work_order_id = Column(Integer, ForeignKey("service_work_orders.id"), nullable=True, index=True)
+
+    status = Column(String(32), nullable=False, default="active", index=True)
+    source = Column(String(64), nullable=False, default="manual", index=True)
+    reason = Column(Text, nullable=True)
+    created_by_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    last_used_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("service_customer_id", "vehicle_id", name="uq_service_work_access_pair"),
+    )
+
+
 class ServiceCustomerInvite(Base):
     """Pozvánka od servisu pro zákazníka (registrace / propojení účtu)."""
     __tablename__ = "service_customer_invites"

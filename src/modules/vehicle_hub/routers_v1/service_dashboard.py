@@ -26,6 +26,7 @@ from ..models import (
     ServiceRecord as ServiceRecordModel,
     ServiceQuote,
     ServiceQuoteAuditLog,
+    ServiceWorkAccess,
     ServiceWorkOrder,
     ServiceWorkOrderAuditLog,
     Vehicle as VehicleModel,
@@ -36,6 +37,12 @@ from ..ownership import get_owned_vehicle, get_primary_vehicle_owner
 from ..quote_public_access import build_public_quote_page_url, ensure_quote_access_token, get_active_quote_access_token
 from ..reports.service_quote_pdf import render_service_quote_pdf
 from ..schema_management import assert_module_ready
+from ..service_access import (
+    create_or_update_service_work_access,
+    get_active_service_work_access,
+    service_has_work_access,
+    service_work_access_table_available,
+)
 from .auth import get_current_user
 from .service_workspace import _require_service_workspace_role
 
@@ -390,17 +397,36 @@ def _resolve_unowned_work_order_vehicle(
     *,
     current_user: Customer,
     vehicle_id: int,
+    create_work_access: bool = False,
+    reason: Optional[str] = None,
+    source: Optional[str] = None,
 ) -> VehicleModel:
-    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id)).first()
+    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(vehicle_id), VehicleModel.status != "archived").first()
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vozidlo zakázky nebylo nalezeno.")
-    if not _is_service_provisioned_unowned_for_service(db, current_user=current_user, vehicle=vehicle):
-        if active_owner_assignment(db, int(vehicle.id)) is not None:
-            raise HTTPException(
-                status_code=422,
-                detail="Pro vozidlo s majitelem je nutné zadat owner_id a schválený přístup.",
-            )
-        raise HTTPException(status_code=403, detail="Servis nemá oprávnění k tomuto nepřiřazenému vozidlu.")
+    if _is_service_provisioned_unowned_for_service(db, current_user=current_user, vehicle=vehicle):
+        return vehicle
+    if get_active_service_work_access(
+        db,
+        service_customer_id=int(current_user.id),
+        vehicle_id=int(vehicle.id),
+    ) is not None:
+        return vehicle
+    if (
+        getattr(vehicle, "global_vehicle_status", None) == "service_provisioned_unowned"
+        and getattr(vehicle, "provisioned_by_service_customer_id", None) != getattr(current_user, "id", None)
+    ):
+        raise HTTPException(status_code=403, detail="Servis nemá pracovní přístup k tomuto vozidlu.")
+    if create_work_access:
+        create_or_update_service_work_access(
+            db,
+            current_user=current_user,
+            vehicle=vehicle,
+            reason=reason,
+            source=source or "work_order",
+        )
+        return vehicle
+    raise HTTPException(status_code=403, detail="Servis nemá pracovní přístup k tomuto vozidlu.")
     return vehicle
 
 
@@ -476,13 +502,16 @@ def _serialize_work_order(
         [part for part in [getattr(vehicle, "brand", None), getattr(vehicle, "model", None)] if part]
     ).strip()
     is_unowned = order.owner_customer_id is None
+    access_mode = "service_work_access" if is_unowned else "owner_approved_service_link"
     return {
         "entity_type": "work_order",
         "entity_id": int(order.id),
         "id": int(order.id),
         "title": order.title,
         "description": order.description,
-        "access_status": "full_access",
+        "access_status": "work_access" if is_unowned else "full_access",
+        "access_mode": access_mode,
+        "access_badge": "Jednorázový servisní zásah" if is_unowned else "Propojeno s majitelem",
         "can_open_detail": True,
         "can_edit": True,
         "can_request_access": False,
@@ -492,7 +521,7 @@ def _serialize_work_order(
         "is_unowned_vehicle": is_unowned,
         "owner_id": int(owner.id) if owner else None,
         "customer_id": int(owner.id) if owner else None,
-        "customer_name": "Nepřiřazené vozidlo" if is_unowned else (owner.name or owner.email),
+        "customer_name": "Jednorázový servisní zásah" if is_unowned else (owner.name or owner.email),
         "customer_contact": None if is_unowned else (owner.email or owner.phone),
         "vehicle_id": int(vehicle.id),
         "vehicle_vin": vehicle.vin,
@@ -761,7 +790,7 @@ def _assert_work_order_vehicle_access(
             owner_id=int(order.owner_customer_id),
             vehicle_id=int(order.vehicle_id),
         )
-    elif not _is_service_provisioned_unowned_for_service(db, current_user=current_user, vehicle=vehicle):
+    elif not service_has_work_access(db, current_user=current_user, vehicle=vehicle):
         raise HTTPException(status_code=403, detail="Servis nemá oprávnění k této zakázce.")
     return vehicle
 
@@ -1129,6 +1158,13 @@ def list_service_work_orders(
             VehicleServiceLink.status == "approved",
         )
     )
+    work_access_link = exists().where(
+        and_(
+            ServiceWorkAccess.service_customer_id == ServiceWorkOrder.service_customer_id,
+            ServiceWorkAccess.vehicle_id == ServiceWorkOrder.vehicle_id,
+            ServiceWorkAccess.status == "active",
+        )
+    )
 
     query = (
         db.query(ServiceWorkOrder, owner_alias, VehicleModel, tech_alias)
@@ -1145,8 +1181,13 @@ def list_service_work_orders(
                 ),
                 and_(
                     ServiceWorkOrder.owner_customer_id.is_(None),
-                    VehicleModel.provisioned_by_service_customer_id == int(current_user.id),
-                    VehicleModel.global_vehicle_status == "service_provisioned_unowned",
+                    or_(
+                        and_(
+                            VehicleModel.provisioned_by_service_customer_id == int(current_user.id),
+                            VehicleModel.global_vehicle_status == "service_provisioned_unowned",
+                        ),
+                        work_access_link,
+                    ),
                 ),
             )
         )
@@ -1210,9 +1251,7 @@ def get_service_work_order_detail(
         raise HTTPException(status_code=404, detail="Detail zakázky není kompletní.")
     if order.owner_customer_id is not None and not owner:
         raise HTTPException(status_code=404, detail="Detail zakázky není kompletní.")
-    if order.owner_customer_id is None and not _is_service_provisioned_unowned_for_service(
-        db, current_user=current_user, vehicle=vehicle
-    ):
+    if order.owner_customer_id is None and not service_has_work_access(db, current_user=current_user, vehicle=vehicle):
         raise HTTPException(status_code=403, detail="Servis nemá oprávnění k detailu této zakázky.")
 
     audit_rows = (
@@ -1391,12 +1430,30 @@ def list_unowned_vehicles_for_work_orders(
     _require_service_workspace_role(current_user)
     _ensure_service_dashboard_schema(db)
 
+    work_access_vehicle_ids = []
+    if service_work_access_table_available(db):
+        work_access_vehicle_ids = [
+            int(row[0])
+            for row in db.query(ServiceWorkAccess.vehicle_id)
+            .filter(
+                ServiceWorkAccess.service_customer_id == int(current_user.id),
+                ServiceWorkAccess.status == "active",
+            )
+            .all()
+            if row and row[0] is not None
+        ]
+    work_access_vehicle_id_set = set(work_access_vehicle_ids)
     rows = (
         db.query(VehicleModel)
         .filter(
-            VehicleModel.provisioned_by_service_customer_id == int(current_user.id),
-            VehicleModel.global_vehicle_status == "service_provisioned_unowned",
             VehicleModel.status != "archived",
+            or_(
+                and_(
+                    VehicleModel.provisioned_by_service_customer_id == int(current_user.id),
+                    VehicleModel.global_vehicle_status == "service_provisioned_unowned",
+                ),
+                VehicleModel.id.in_(work_access_vehicle_ids or [-1]),
+            ),
         )
         .order_by(VehicleModel.updated_at.desc(), VehicleModel.id.desc())
         .limit(100)
@@ -1404,7 +1461,8 @@ def list_unowned_vehicles_for_work_orders(
     )
     items = []
     for vehicle in rows:
-        if active_owner_assignment(db, int(vehicle.id)) is not None:
+        has_work_access = int(vehicle.id) in work_access_vehicle_id_set
+        if active_owner_assignment(db, int(vehicle.id)) is not None and not has_work_access:
             continue
         label = " / ".join(
             part
@@ -1441,6 +1499,9 @@ def create_service_work_order(
             db,
             current_user=current_user,
             vehicle_id=int(payload.vehicle_id),
+            create_work_access=True,
+            reason=payload.description or payload.title,
+            source=payload.source_type or "work_order",
         )
 
     technician_id = _resolve_technician_id(db, current_user=current_user, technician_id=payload.technician_id)
@@ -1517,6 +1578,15 @@ def create_service_work_order(
 
     db.add(order)
     db.flush()
+    if owner is None:
+        create_or_update_service_work_access(
+            db,
+            current_user=current_user,
+            vehicle=vehicle,
+            reason=payload.description or payload.title,
+            source=source_type,
+            work_order_id=int(order.id),
+        )
 
     snapshot = _work_order_snapshot(order)
     audit_action = "create_unowned" if owner is None else "create"

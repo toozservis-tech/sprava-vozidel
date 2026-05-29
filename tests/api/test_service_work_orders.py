@@ -17,10 +17,12 @@ from src.modules.vehicle_hub.database import Base
 from src.modules.vehicle_hub.central_vehicle_identity import build_owner_safe_service_history
 from src.modules.vehicle_hub.models import (
     Customer,
+    ServiceAccessRequest,
     ServiceCustomerLink,
     ServiceInvoice,
     ServiceQuote,
     ServiceRecord,
+    ServiceWorkAccess,
     ServiceWorkOrder,
     Tenant,
     Vehicle,
@@ -29,6 +31,8 @@ from src.modules.vehicle_hub.models import (
     VehicleServiceLink,
 )
 from src.modules.vehicle_hub.routers_v1 import service_dashboard as dashboard_router
+from src.modules.vehicle_hub.routers_v1 import service_workspace as workspace_router
+from src.modules.vehicle_hub.routers_v1 import services as services_router
 from src.modules.vehicle_hub.routers_v1.work_order_photos_api import (
     WorkOrderPhotoUploadRequest,
     WorkOrderPhotoVisibilityUpdateRequest,
@@ -240,6 +244,335 @@ def test_service_work_order_forbidden_without_access(tmp_path: Path) -> None:
         engine.dispose()
 
 
+def test_service_can_create_work_access_without_owner_approval(tmp_path: Path) -> None:
+    engine, db, owner, _service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        before_owner_links = db.query(VehicleServiceLink).filter(
+            VehicleServiceLink.service_customer_id == foreign_service.id,
+            VehicleServiceLink.vehicle_id == vehicle.id,
+        ).count()
+        result = workspace_router.create_service_vehicle_work_access(
+            vehicle_id=int(vehicle.id),
+            payload=workspace_router.ServiceWorkAccessRequestV1(
+                reason="Jednorázová diagnostika",
+                source="service_lookup",
+            ),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        assert result["status"] == "work_access"
+        assert result["owner_data"] is None
+        assert db.query(ServiceWorkAccess).filter(
+            ServiceWorkAccess.service_customer_id == foreign_service.id,
+            ServiceWorkAccess.vehicle_id == vehicle.id,
+            ServiceWorkAccess.status == "active",
+        ).count() == 1
+        assert db.query(VehicleServiceLink).filter(
+            VehicleServiceLink.service_customer_id == foreign_service.id,
+            VehicleServiceLink.vehicle_id == vehicle.id,
+        ).count() == before_owner_links
+        assert db.query(VehicleOwnership).filter(
+            VehicleOwnership.vehicle_id == vehicle.id,
+            VehicleOwnership.customer_id == owner.id,
+            VehicleOwnership.is_active.is_(True),
+        ).count() == 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_can_create_work_order_with_work_access(tmp_path: Path) -> None:
+    engine, db, _owner, _service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        workspace_router.create_service_vehicle_work_access(
+            vehicle_id=int(vehicle.id),
+            payload=workspace_router.ServiceWorkAccessRequestV1(reason="Jednorázový servis", source="manual"),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=foreign_service.id,
+                title="Jednorázový zásah",
+                status="approved",
+            ),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        assert created["vehicle_id"] == vehicle.id
+        assert created["owner_id"] is None
+        assert created["access_status"] == "work_access"
+        work_access = db.query(ServiceWorkAccess).filter(
+            ServiceWorkAccess.service_customer_id == foreign_service.id,
+            ServiceWorkAccess.vehicle_id == vehicle.id,
+        ).one()
+        assert int(work_access.work_order_id) == int(created["id"])
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_cannot_read_owner_pii_with_work_access(tmp_path: Path) -> None:
+    engine, db, _owner, _service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        workspace_router.create_service_vehicle_work_access(
+            vehicle_id=int(vehicle.id),
+            payload=workspace_router.ServiceWorkAccessRequestV1(reason="Bez propojení", source="manual"),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        detail = workspace_router.get_service_vehicle_detail(
+            vehicle_id=int(vehicle.id),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        assert detail["access_mode"] == "service_work_access"
+        assert detail["owner_customer_id"] is None
+        assert detail["owner_name"] is None
+        assert detail["vin"] is None
+        assert detail["plate"] is None
+        assert detail["vin_masked"]
+        assert detail["plate_masked"]
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_service_safe_technical_history_anonymizes_other_service_records(tmp_path: Path) -> None:
+    engine, db, _owner, service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        other_record = ServiceRecord(
+            tenant_id=vehicle.tenant_id,
+            vehicle_id=vehicle.id,
+            user_id=service.id,
+            service_id=service.id,
+            created_by_service_customer_id=service.id,
+            performed_at=datetime.utcnow(),
+            mileage=111000,
+            description="Výměna oleje\nCelkem 2 500 Kč\nInterní poznámka",
+            notes_customer_visible="Výměna oleje a filtru",
+            price=2500,
+            total_price=2500,
+            category="Údržba",
+            service_type="maintenance",
+            visibility_scope="owner_visible_no_prices",
+        )
+        db.add(other_record)
+        db.commit()
+
+        workspace_router.create_service_vehicle_work_access(
+            vehicle_id=int(vehicle.id),
+            payload=workspace_router.ServiceWorkAccessRequestV1(reason="Jednorázově", source="manual"),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=foreign_service.id,
+                title="Vlastní brzdy",
+                status="approved",
+            ),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        add_work_order_part(
+            int(created["id"]),
+            ServiceWorkOrderPartCreateRequest(name="Brzdové destičky", quantity=1, unit_price_without_vat=1800),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        complete_work_order(int(created["id"]), current_user=_service_user(foreign_service), db=db)
+        create_service_record_from_work_order(
+            int(created["id"]),
+            ServiceWorkOrderCreateRecordRequest(mileage=112000),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+
+        history = workspace_router.get_service_vehicle_safe_technical_history(
+            vehicle_id=int(vehicle.id),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        own_items = [item for item in history["items"] if item["own_record"]]
+        other_items = [item for item in history["items"] if not item["own_record"]]
+        assert own_items and own_items[0]["price"] is not None
+        assert other_items
+        blob = json.dumps(other_items, ensure_ascii=False).lower()
+        assert "2500" not in blob
+        assert "kč" not in blob
+        assert "service_id" not in blob
+        assert "invoice" not in blob
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_cross_service_work_access_forbidden(tmp_path: Path) -> None:
+    engine, db, _owner, service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        workspace_router.create_service_vehicle_work_access(
+            vehicle_id=int(vehicle.id),
+            payload=workspace_router.ServiceWorkAccessRequestV1(reason="Cizí zásah", source="manual"),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=foreign_service.id,
+                title="Cizí zakázka",
+                status="approved",
+            ),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        with pytest.raises(HTTPException) as exc:
+            dashboard_router.get_service_work_order_detail(
+                int(created["id"]),
+                current_user=_service_user(service),
+                db=db,
+            )
+        assert exc.value.status_code == 404
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_owner_can_approve_service_link(tmp_path: Path) -> None:
+    engine, db, owner, _service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        request_row = ServiceAccessRequest(
+            tenant_id=vehicle.tenant_id,
+            service_customer_id=foreign_service.id,
+            owner_customer_id=owner.id,
+            vehicle_id=vehicle.id,
+            requested_scope="history_read_create_record",
+            status="pending",
+            request_message="Dlouhodobé propojení",
+            requested_at=datetime.utcnow(),
+        )
+        db.add(request_row)
+        db.commit()
+        db.refresh(request_row)
+        result = services_router.resolve_service_access_request(
+            int(request_row.id),
+            services_router.ServiceAccessRequestDecisionV1(decision="approved"),
+            current_user=owner,
+            db=db,
+        )
+        assert result["decision"] == "approved"
+        assert db.query(VehicleServiceLink).filter(
+            VehicleServiceLink.service_customer_id == foreign_service.id,
+            VehicleServiceLink.vehicle_id == vehicle.id,
+            VehicleServiceLink.status == "approved",
+        ).count() == 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_owner_can_reject_service_link_and_service_keeps_own_work_records(tmp_path: Path) -> None:
+    engine, db, owner, _service, foreign_service, vehicle = _seed_ctx(tmp_path)
+    try:
+        workspace_router.create_service_vehicle_work_access(
+            vehicle_id=int(vehicle.id),
+            payload=workspace_router.ServiceWorkAccessRequestV1(reason="Před žádostí", source="manual"),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=foreign_service.id,
+                title="Vlastní zásah před odmítnutím",
+                status="completed",
+            ),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )
+        request_row = ServiceAccessRequest(
+            tenant_id=vehicle.tenant_id,
+            service_customer_id=foreign_service.id,
+            owner_customer_id=owner.id,
+            vehicle_id=vehicle.id,
+            requested_scope="history_read_create_record",
+            status="pending",
+            request_message="Žádost po zásahu",
+            requested_at=datetime.utcnow(),
+        )
+        db.add(request_row)
+        db.commit()
+        db.refresh(request_row)
+
+        result = services_router.resolve_service_access_request(
+            int(request_row.id),
+            services_router.ServiceAccessRequestDecisionV1(decision="rejected"),
+            current_user=owner,
+            db=db,
+        )
+        assert result["decision"] == "rejected"
+        assert db.query(VehicleServiceLink).filter(
+            VehicleServiceLink.service_customer_id == foreign_service.id,
+            VehicleServiceLink.vehicle_id == vehicle.id,
+            VehicleServiceLink.status == "approved",
+        ).count() == 0
+        assert db.query(ServiceWorkAccess).filter(
+            ServiceWorkAccess.service_customer_id == foreign_service.id,
+            ServiceWorkAccess.vehicle_id == vehicle.id,
+            ServiceWorkAccess.status == "active",
+        ).count() == 1
+        assert dashboard_router.get_service_work_order_detail(
+            int(created["id"]),
+            current_user=_service_user(foreign_service),
+            db=db,
+        )["id"] == int(created["id"])
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_claim_does_not_auto_approve_service_links(tmp_path: Path) -> None:
+    from src.modules.vehicle_hub.routers_v1 import vehicles as vehicles_router
+
+    engine, db, owner, service, _foreign_service, _vehicle = _seed_ctx(tmp_path)
+    try:
+        unowned = _seed_unowned_vehicle(db, service, vin="TMBCLAMWRK1234567")
+        workspace_router.create_service_vehicle_work_access(
+            vehicle_id=int(unowned.id),
+            payload=workspace_router.ServiceWorkAccessRequestV1(reason="Před claimem", source="manual"),
+            current_user=_service_user(service),
+            db=db,
+        )
+        vehicles_router.owner_vehicle_claim_init(
+            int(unowned.id),
+            vehicles_router.VehicleClaimInitRequestV1(vin=unowned.vin),
+            current_user=owner,
+            db=db,
+        )
+        vehicles_router.owner_vehicle_claim_confirm(
+            int(unowned.id),
+            vehicles_router.VehicleClaimConfirmRequestV1(confirm_ownership=True, vin=unowned.vin),
+            current_user=owner,
+            db=db,
+        )
+        assert db.query(VehicleServiceLink).filter(
+            VehicleServiceLink.service_customer_id == service.id,
+            VehicleServiceLink.vehicle_id == unowned.id,
+            VehicleServiceLink.status == "approved",
+        ).count() == 0
+        assert db.query(ServiceWorkAccess).filter(
+            ServiceWorkAccess.service_customer_id == service.id,
+            ServiceWorkAccess.vehicle_id == unowned.id,
+            ServiceWorkAccess.status == "active",
+        ).count() == 1
+    finally:
+        db.close()
+        engine.dispose()
+
+
 def test_service_work_order_create_from_intake_context(tmp_path: Path) -> None:
     engine, db, owner, service, _foreign_service, vehicle = _seed_ctx(tmp_path)
     try:
@@ -330,7 +663,7 @@ def test_service_work_order_create_for_unowned_vehicle(tmp_path: Path) -> None:
         assert created["vehicle_id"] == unowned.id
         assert created["owner_id"] is None
         assert created["is_unowned_vehicle"] is True
-        assert created["customer_name"] == "Nepřiřazené vozidlo"
+        assert created["customer_name"] == "Jednorázový servisní zásah"
     finally:
         db.close()
         engine.dispose()
@@ -407,20 +740,26 @@ def test_service_work_order_create_for_other_service_unowned_forbidden(tmp_path:
         engine.dispose()
 
 
-def test_service_work_order_create_for_owned_vehicle_without_owner_id_forbidden(tmp_path: Path) -> None:
+def test_service_work_order_create_for_owned_vehicle_without_owner_id_creates_work_access(tmp_path: Path) -> None:
     engine, db, owner, service, _foreign, vehicle = _seed_ctx(tmp_path)
     try:
-        with pytest.raises(HTTPException) as exc:
-            dashboard_router.create_service_work_order(
-                payload=dashboard_router.ServiceWorkOrderCreateRequest(
-                    vehicle_id=vehicle.id,
-                    technician_id=service.id,
-                    title="Owned bez owner_id",
-                ),
-                current_user=_service_user(service),
-                db=db,
-            )
-        assert exc.value.status_code == 422
+        created = dashboard_router.create_service_work_order(
+            payload=dashboard_router.ServiceWorkOrderCreateRequest(
+                vehicle_id=vehicle.id,
+                technician_id=service.id,
+                title="Owned bez owner_id",
+            ),
+            current_user=_service_user(service),
+            db=db,
+        )
+        assert created["owner_id"] is None
+        assert db.query(VehicleOwnership).filter(VehicleOwnership.vehicle_id == vehicle.id).count() == 1
+        assert db.query(ServiceWorkAccess).filter(
+            ServiceWorkAccess.service_customer_id == service.id,
+            ServiceWorkAccess.vehicle_id == vehicle.id,
+            ServiceWorkAccess.status == "active",
+        ).count() == 1
+        assert owner.email == "owner@example.com"
     finally:
         db.close()
         engine.dispose()

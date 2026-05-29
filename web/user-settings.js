@@ -576,6 +576,26 @@
       <section class="uapp-settings-card"><h3>Platební metoda</h3><p>${pm.configured ? 'Karta ' + esc(pm.masked || '****') : 'Není nastavena'}</p><button type="button" class="uapp-settings-link" data-uapp-settings-action="open-license">${pm.configured ? 'Upravit' : 'Přidat platební metodu'}</button></section>`;
   }
 
+  function serviceAccessStatusLabel(status) {
+    const key = String(status || '').toLowerCase();
+    if (key === 'pending') return 'Čeká na schválení';
+    if (key === 'approved') return 'Schváleno';
+    if (key === 'rejected') return 'Zamítnuto';
+    if (key === 'revoked') return 'Odebráno';
+    return status || '—';
+  }
+
+  function renderServiceSharingActions(row) {
+    const requestId = Number(row && row.request_id);
+    const status = String(row && row.status || '').toLowerCase();
+    if (!requestId || status !== 'pending') return '—';
+    return `
+      <div class="uapp-settings-inline-actions">
+        <button type="button" class="uapp-settings-link" data-uapp-settings-action="service-access:approved:${requestId}">Schválit</button>
+        <button type="button" class="uapp-settings-link is-danger" data-uapp-settings-action="service-access:rejected:${requestId}">Zamítnout</button>
+      </div>`;
+  }
+
   function renderPanelServices() {
     const data = STATE.services || {};
     const fav = data.favorites || [];
@@ -586,7 +606,7 @@
         ${fav.length ? fav.map((s) => `<div class="uapp-settings-service-row"><div><strong>${esc(s.name)}</strong><span>${esc(s.city || '')}, ${esc(s.country || '')}</span></div><button type="button" class="uapp-settings-link" data-uapp-settings-action="nav:servicesDirectory">Nastavení</button></div>`).join('') : '<p class="uapp-settings-muted">Zatím nemáte oblíbené servisy.</p>'}
       </section>
       <section class="uapp-settings-card"><div class="uapp-settings-card-head-row"><h3>Sdílení vozidel se servisy</h3><button type="button" class="uapp-settings-btn" data-uapp-settings-action="modal:share-service">Sdílet vozidlo</button></div>
-        ${sharing.length ? `<table class="uapp-settings-table"><thead><tr><th>Servis</th><th>Vozidlo</th><th>Přístup</th><th>Stav</th></tr></thead><tbody>${sharing.map((r) => `<tr><td>${esc(r.service_name)}</td><td>${esc(r.vehicle_name)}</td><td>${esc(r.access_level)}</td><td>${esc(r.status)}</td></tr>`).join('')}</tbody></table>` : '<p class="uapp-settings-muted">Žádné sdílení.</p>'}
+        ${sharing.length ? `<table class="uapp-settings-table"><thead><tr><th>Servis</th><th>Vozidlo</th><th>Důvod</th><th>Stav</th><th>Akce</th></tr></thead><tbody>${sharing.map((r) => `<tr><td>${esc(r.service_name)}</td><td>${esc(r.vehicle_name)}<br><small>${esc([r.vehicle_plate_masked, r.vehicle_vin_masked].filter(Boolean).join(' · '))}</small></td><td>${esc(r.reason || r.requested_scope || 'Žádost o propojení')}</td><td>${esc(serviceAccessStatusLabel(r.status))}</td><td>${renderServiceSharingActions(r)}</td></tr>`).join('')}</tbody></table>` : '<p class="uapp-settings-muted">Žádné sdílení.</p>'}
       </section>
       <section class="uapp-settings-card"><h3>Komunikace se servisy</h3>
         <div class="uapp-settings-row-line"><span>Povolit servisům přístup k vozidlům</span>${toggleHtml((data.communication && data.communication.allow_vehicle_access) !== false)}</div>
@@ -744,6 +764,21 @@
     if (action === 'save-garage') { try { await api(`${API_BASE}/garage`, 'PATCH', { mdcr_auto_update: true }); showMsg('Uloženo.', 'success'); } catch (e) { showMsg(e.message, 'error'); } return; }
     if (action === 'save-privacy') { try { await api(`${API_BASE}/privacy`, 'PATCH', { marketing: false, third_party: false }); showMsg('Uloženo.', 'success'); await loadSnapshot(true); refresh(); } catch (e) { showMsg(e.message, 'error'); } return; }
     if (action === 'save-services') { try { await api(`${API_BASE}/services`, 'PATCH', { allow_vehicle_access: true, allow_communication: true }); showMsg('Uloženo.', 'success'); } catch (e) { showMsg(e.message, 'error'); } return; }
+    if (action.startsWith('service-access:')) {
+      const parts = action.split(':');
+      const decision = parts[1] === 'approved' ? 'approved' : 'rejected';
+      const requestId = Number(parts[2] || 0);
+      if (!requestId) return;
+      try {
+        await api(`/api/v1/services/access-requests/${requestId}`, 'PUT', { decision });
+        await loadPanelData('services-sharing');
+        showMsg(decision === 'approved' ? 'Přístup byl schválen.' : 'Žádost byla zamítnuta.', 'success');
+        refresh();
+      } catch (e) {
+        showMsg(e.message || 'Rozhodnutí se nepodařilo uložit.', 'error');
+      }
+      return;
+    }
     if (action === 'save-documents') { try { await api(`${API_BASE}/documents`, 'PATCH', { auto_sort: true, smart_naming: true }); showMsg('Uloženo.', 'success'); } catch (e) { showMsg(e.message, 'error'); } return; }
     if (action === 'open-license') { if (hasFn('openLicenseModal')) window.openLicenseModal(); else showMsg('Modul licencí není dostupný.', 'warning'); return; }
     if (action === 'add-vehicle') { if (hasFn('openAddVehicleModal')) window.openAddVehicleModal(); return; }

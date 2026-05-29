@@ -324,11 +324,6 @@ def create_work_order_billing_contact(
     _validate_billing_contact_payload(payload)
     order = sd._get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
     _assert_unowned_work_order_for_billing_contact(order)
-    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(order.vehicle_id)).first()
-    if not vehicle or not sd._is_service_provisioned_unowned_for_service(
-        db, current_user=current_user, vehicle=vehicle
-    ):
-        raise HTTPException(status_code=403, detail="Servis nemá oprávnění k fakturačnímu kontaktu u tohoto vozidla.")
 
     existing = _get_billing_contact_row(
         db,

@@ -24,7 +24,7 @@ from ..ownership import get_primary_vehicle_owner
 from ..schema_management import assert_module_ready
 from ..service_record_snapshot import service_record_audit_snapshot as _service_record_snapshot
 from .auth import get_current_user
-from ..service_access import require_service_vehicle_link
+from ..service_access import require_service_vehicle_link, service_has_work_access
 from .service_workspace import _require_service_workspace_role
 
 WORK_ORDER_ITEM_LABOR = "labor"
@@ -480,6 +480,11 @@ def _build_service_record_from_work_order(
         and vehicle_state(db, vehicle) == "service_provisioned_unowned"
         and int(getattr(vehicle, "provisioned_by_service_customer_id", 0) or 0) == int(actor.id)
     )
+    has_work_access = order.owner_customer_id is None and service_has_work_access(
+        db,
+        current_user=actor,
+        vehicle=vehicle,
+    )
     if order.owner_customer_id is not None and owner_customer:
         require_service_vehicle_link(
             db,
@@ -487,7 +492,7 @@ def _build_service_record_from_work_order(
             vehicle_id=int(vehicle.id),
             require_create_record=True,
         )
-    elif not service_owns_unassigned and order.owner_customer_id is None:
+    elif not has_work_access and order.owner_customer_id is None:
         raise HTTPException(status_code=403, detail="Servis nemá oprávnění vytvořit záznam pro tuto zakázku.")
 
     owner_safe_parts = [serialize_item_owner_safe(row) for row in grouped_rows["parts"]]
@@ -514,9 +519,7 @@ def _build_service_record_from_work_order(
     )
     labor_seconds = sum(int(float(row.quantity or 0) * 60) for row in grouped_rows["time"])
 
-    visibility_scope = (
-        "safe_history_after_claim" if service_owns_unassigned else "owner_visible_no_prices"
-    )
+    visibility_scope = "safe_history_after_claim" if active_owner_assignment(db, int(vehicle.id)) is None else "owner_visible_no_prices"
 
     record = ServiceRecordModel(
         tenant_id=int(order.tenant_id),
