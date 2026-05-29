@@ -4111,3 +4111,151 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Mobile service intake: lookup, create-unowned, quick intake aside */
+@media (max-width: 900px) {
+  .service-nav-brand,
+  .service-nav-account,
+  .service-nav-footer {
+    display: none !important;
+  }
+
+  .service-nav-menu {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .service-dashboard-pro.service-section-page[data-testid="service-intake-page"],
+  .service-intake-layout {
+    overflow-x: hidden;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .service-dashboard-pro.service-section-page[data-testid="service-intake-page"] .service-pro-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .service-dashboard-pro.service-section-page[data-testid="service-intake-page"] .service-pro-main,
+  .service-dashboard-pro.service-section-page[data-testid="service-intake-page"] .service-pro-aside {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .service-dashboard-pro.service-section-page[data-testid="service-intake-page"] .service-pro-aside {
+    order: 2;
+  }
+
+  .service-dashboard-pro.service-section-page[data-testid="service-intake-page"] .service-pro-main {
+    order: 1;
+  }
+
+  .service-intake-layout .service-pro-card,
+  .service-intake-create-panel {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  [data-testid="service-intake-section"] input,
+  [data-testid="service-intake-section"] textarea,
+  [data-testid="service-intake-section"] select,
+  [data-testid="service-intake-section"] .service-shell-primary-btn,
+  [data-testid="service-intake-section"] .btn,
+  .service-intake-create-panel input,
+  .service-intake-create-panel select,
+  .service-intake-create-panel textarea,
+  .service-intake-create-panel .service-shell-primary-btn,
+  .service-quick-intake input,
+  .service-quick-intake .service-shell-primary-btn,
+  .service-quick-intake button {
+    box-sizing: border-box;
+    min-height: 44px;
+    max-width: 100%;
+  }
+
+  [data-testid="service-intake-section"] label,
+  .service-intake-create-panel label,
+  .service-quick-intake label:not(.service-check-row) {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  [data-testid="service-intake-section"] input.service-shell-search,
+  [data-testid="service-intake-section"] textarea.service-shell-search,
+  [data-testid="service-intake-section"] select.service-shell-search,
+  .service-intake-create-panel input,
+  .service-intake-create-panel select,
+  .service-intake-create-panel textarea,
+  .service-quick-intake input {
+    width: 100%;
+  }
+
+  [data-testid="service-intake-plate-input"],
+  [data-testid="service-intake-vin-input"] {
+    scroll-margin-top: 72px;
+  }
+
+  [data-testid="service-intake-section"] .service-action-bar,
+  .service-intake-create-panel .service-action-bar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  [data-intake-patch="lookup-error"],
+  [data-testid="service-intake-error"] {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .service-intake-create-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  [data-testid="service-intake-add-vehicle-button"],
+  [data-testid="service-intake-save-vehicle-button"] {
+    width: 100%;
+    max-width: 100%;
+    white-space: normal;
+    scroll-margin-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  [data-testid="service-intake-result"],
+  .service-intake-create-panel {
+    scroll-margin-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 640px) {
+  .service-intake-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .service-intake-create-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  [data-testid="service-intake-section"] .service-pro-card,
+  .service-intake-create-panel.service-pro-card {
+    padding: 14px 12px;
+  }
+
+  [data-testid="service-intake-section"] .service-action-bar,
+  .service-intake-create-panel .service-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  [data-testid="service-intake-section"] .service-action-bar .service-shell-primary-btn,
+  [data-testid="service-intake-section"] .service-action-bar .btn,
+  .service-intake-create-panel .service-action-bar .service-shell-primary-btn {
+    width: 100%;
+  }
+
+  .service-dashboard-pro.service-section-page[data-testid="service-intake-page"] {
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+}

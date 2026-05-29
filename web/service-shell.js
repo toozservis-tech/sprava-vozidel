@@ -1934,7 +1934,7 @@
         runRequestBatch(secondaryKeys, false)
           .then(() => {
             state.lastLoadedAt = Date.now();
-            render();
+            refreshShellAfterDataLoad(silent, { backgroundOnly: true });
           })
           .catch((err) => {
             console.warn('[SERVICE_SHELL] background load failed:', err?.message || err);
@@ -1957,7 +1957,7 @@
       }
     } finally {
       state.loading = false;
-      render();
+      refreshShellAfterDataLoad(silent);
       ensureAutoRefresh();
     }
   }
@@ -7018,6 +7018,15 @@
     render();
   }
 
+  function refreshShellAfterDataLoad(silent, options = {}) {
+    const backgroundOnly = Boolean(options.backgroundOnly);
+    if (state.activeSection === 'intake' && state.mounted && (silent || backgroundOnly)) {
+      intakeUiRefresh();
+      return;
+    }
+    render();
+  }
+
   function getIntakeUiContext() {
     const draft = state.intakeDraft || {};
     const response = state.intakeLookupResponse || null;
@@ -9585,6 +9594,11 @@
 
   function render() {
     if (!state.mounted) return;
+    const intakeFocusSnap = state.activeSection === 'intake'
+      ? (captureIntakeFocus() || (state._intakeFocusField
+        ? { field: state._intakeFocusField, start: state._intakeCaretPos, end: state._intakeCaretPos }
+        : null))
+      : null;
     syncMobileNavScrollLock();
     const root = getRoot();
     try {
@@ -9609,6 +9623,9 @@
         window.refreshWorkspaceModeSwitcher();
       }
       mountRemindersOverdueOverlayIfNeeded();
+      if (intakeFocusSnap) {
+        restoreIntakeFocus(intakeFocusSnap);
+      }
     } catch (error) {
       console.error('[SERVICE_SHELL] render failed:', error);
       try {
@@ -9664,6 +9681,7 @@
     quickIntakeChecklist,
     setIntakeDraftField,
     setIntakeChecklistItem,
+    cancelIntakeLookupDebounce,
     lookupVehicleForIntake,
     openIntakeCreateVehicleForm,
     closeIntakeCreateVehicleForm,

@@ -17,6 +17,20 @@ async function openIntake(page: Parameters<typeof test>[0]['page']) {
   await waitForServiceShellReady(page);
 }
 
+async function waitForIntakeStable(page: Parameters<typeof test>[0]['page']) {
+  await expect(page.locator('[data-testid="service-intake-section"]')).toBeVisible();
+  const lookupBtn = page.locator('[data-testid="service-intake-lookup-button"]');
+  await expect(lookupBtn).toHaveText(/načíst vozidlo/i, { timeout: 45_000 });
+  await page.waitForFunction(() => {
+    const input = document.querySelector('[data-testid="service-intake-plate-input"]');
+    const btn = document.querySelector('[data-testid="service-intake-lookup-button"]');
+    return input instanceof HTMLElement
+      && input.isConnected
+      && btn instanceof HTMLElement
+      && !/načítám/i.test(btn.textContent || '');
+  }, { timeout: 45_000 });
+}
+
 test.describe('Service shell intake route', () => {
   test.beforeEach(async ({ page }) => {
     test.skip(!getServiceTestCredentials(), 'Nastavte E2E_SERVICE_EMAIL a E2E_SERVICE_PASSWORD');
@@ -184,12 +198,16 @@ test.describe('Service shell intake route', () => {
       });
     });
     await openIntake(page);
+    await waitForIntakeStable(page);
     const plateInput = page.locator('[data-testid="service-intake-plate-input"]');
     await plateInput.click();
-    const chars = '1AB2345'.split('');
-    for (const ch of chars) {
+    for (const ch of '1AB2345'.split('')) {
       await plateInput.press(ch);
-      await expect(plateInput).toBeFocused();
+      const focused = await page.evaluate(() => {
+        const el = document.querySelector('[data-testid="service-intake-plate-input"]');
+        return el instanceof HTMLElement && document.activeElement === el;
+      });
+      expect(focused).toBe(true);
     }
   });
 
