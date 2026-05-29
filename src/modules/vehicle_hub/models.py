@@ -1026,12 +1026,55 @@ class ServiceWorkOrderItem(Base):
     note = Column(Text, nullable=True)
     mechanic_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
     source = Column(String(32), nullable=False, default="manual", index=True)
+    inventory_item_id = Column(Integer, ForeignKey("service_inventory_items.id"), nullable=True, index=True)
     created_by = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
 
     deleted_at = Column(DateTime, nullable=True, index=True)
     deleted_by = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ServiceInventoryItem(Base):
+    """Skladová položka servisu — interní evidence dílů."""
+    __tablename__ = "service_inventory_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    service_tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    service_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
+    internal_code = Column(String(128), nullable=True, index=True)
+    name = Column(String(512), nullable=False)
+    description = Column(Text, nullable=True)
+    brand = Column(String(255), nullable=True)
+    supplier_name = Column(String(255), nullable=True)
+    unit = Column(String(32), nullable=False, default="ks")
+    quantity_on_hand = Column(Float, nullable=False, default=0)
+    min_quantity = Column(Float, nullable=False, default=0)
+    purchase_price = Column(Float, nullable=True)
+    sale_price = Column(Float, nullable=True)
+    vat_rate = Column(Float, nullable=True)
+    location = Column(String(255), nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ServiceInventoryMovement(Base):
+    """Auditní pohyb skladové položky servisu."""
+    __tablename__ = "service_inventory_movements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    service_tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    inventory_item_id = Column(Integer, ForeignKey("service_inventory_items.id"), nullable=False, index=True)
+    work_order_id = Column(Integer, ForeignKey("service_work_orders.id"), nullable=True, index=True)
+    work_order_item_id = Column(Integer, ForeignKey("service_work_order_items.id"), nullable=True, index=True)
+    movement_type = Column(String(32), nullable=False, index=True)
+    quantity_delta = Column(Float, nullable=False)
+    quantity_before = Column(Float, nullable=False)
+    quantity_after = Column(Float, nullable=False)
+    reason = Column(Text, nullable=True)
+    actor_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
 class ServiceWorkOrderCsvImport(Base):

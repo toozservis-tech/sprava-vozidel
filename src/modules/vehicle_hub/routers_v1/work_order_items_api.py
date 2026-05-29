@@ -20,7 +20,6 @@ from ..models import (
     ServiceWorkOrder,
     ServiceWorkOrderItem,
 )
-from ..ownership import get_primary_vehicle_owner
 from ..schema_management import assert_module_ready
 from ..service_record_snapshot import service_record_audit_snapshot as _service_record_snapshot
 from .auth import get_current_user
@@ -42,11 +41,12 @@ class ServiceWorkOrderLaborCreateRequest(BaseModel):
 
 
 class ServiceWorkOrderPartCreateRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=512)
+    name: Optional[str] = Field(default=None, max_length=512)
     quantity: float = Field(default=1, gt=0, le=99999)
-    unit: str = Field(default="ks", min_length=1, max_length=32)
+    unit: Optional[str] = Field(default=None, max_length=32)
     note: Optional[str] = Field(default=None, max_length=2000)
     unit_price_without_vat: Optional[float] = Field(default=None, ge=0)
+    inventory_item_id: Optional[int] = Field(default=None, gt=0)
 
 
 class ServiceWorkOrderTimeCreateRequest(BaseModel):
@@ -103,21 +103,96 @@ def add_work_order_part(
     db: Session = Depends(get_db),
 ):
     from . import service_dashboard as sd
+    from .service_inventory_api import decrement_inventory_for_work_order, get_inventory_item_for_service
 
     sd._require_service_workspace_role(current_user)
     sd._ensure_service_dashboard_schema(db)
     order = sd._get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
-    item = _create_work_order_item(
-        db,
-        order=order,
-        actor=current_user,
-        item_type=WORK_ORDER_ITEM_PART,
-        name=str(payload.name).strip(),
-        quantity=float(payload.quantity),
-        unit=str(payload.unit or "ks").strip() or "ks",
-        note=(str(payload.note or "").strip() or None),
-        sale_price_without_vat=float(payload.unit_price_without_vat or 0),
-    )
+    inventory_item_id = int(payload.inventory_item_id or 0)
+    quantity = float(payload.quantity)
+    if inventory_item_id:
+        inventory_item = get_inventory_item_for_service(db, current_user, inventory_item_id)
+        if float(inventory_item.quantity_on_hand or 0) < quantity:
+            write_global_audit_log(
+                db,
+                entity_type="service_inventory_item",
+                entity_id=int(inventory_item.id),
+                action="inventory_insufficient_stock",
+                actor_user_id=int(current_user.id),
+                actor_role=getattr(current_user, "role", None),
+                tenant_id=int(inventory_item.service_tenant_id),
+                metadata={
+                    "requested": quantity,
+                    "available": float(inventory_item.quantity_on_hand or 0),
+                    "work_order_id": int(order.id),
+                },
+            )
+            db.commit()
+            raise HTTPException(status_code=422, detail="Nedostatečné množství na skladě.")
+        name = str(payload.name or inventory_item.name).strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Název dílu je povinný.")
+        unit = str(payload.unit or inventory_item.unit or "ks").strip() or "ks"
+        sale_price = (
+            float(payload.unit_price_without_vat)
+            if payload.unit_price_without_vat is not None
+            else float(inventory_item.sale_price or 0)
+        )
+        purchase_price = float(inventory_item.purchase_price) if inventory_item.purchase_price is not None else None
+        item = _create_work_order_item(
+            db,
+            order=order,
+            actor=current_user,
+            item_type=WORK_ORDER_ITEM_PART,
+            name=name,
+            quantity=quantity,
+            unit=unit,
+            note=(str(payload.note or "").strip() or None),
+            sale_price_without_vat=sale_price,
+            purchase_price_without_vat=purchase_price,
+            code=inventory_item.internal_code,
+            inventory_item_id=int(inventory_item.id),
+            source="inventory",
+        )
+        decrement_inventory_for_work_order(
+            db,
+            inventory_item=inventory_item,
+            quantity=quantity,
+            actor=current_user,
+            work_order_id=int(order.id),
+            work_order_item_id=int(item.id),
+            reason=f"Odpis na zakázku #{int(order.id)}",
+        )
+        write_global_audit_log(
+            db,
+            entity_type="service_work_order_item",
+            entity_id=int(item.id),
+            action="inventory_part_added_to_work_order",
+            actor_user_id=int(current_user.id),
+            actor_role=getattr(current_user, "role", None),
+            tenant_id=int(order.tenant_id),
+            metadata={
+                "work_order_id": int(order.id),
+                "inventory_item_id": int(inventory_item.id),
+                "quantity": quantity,
+            },
+        )
+    else:
+        name = str(payload.name or "").strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Název dílu je povinný pro ruční položku.")
+        item = _create_work_order_item(
+            db,
+            order=order,
+            actor=current_user,
+            item_type=WORK_ORDER_ITEM_PART,
+            name=name,
+            quantity=quantity,
+            unit=str(payload.unit or "ks").strip() or "ks",
+            note=(str(payload.note or "").strip() or None),
+            sale_price_without_vat=float(payload.unit_price_without_vat or 0),
+            source="manual",
+        )
     sd._write_work_order_audit(
         db,
         work_order=order,
@@ -338,7 +413,11 @@ def _create_work_order_item(
     unit: str,
     note: Optional[str],
     sale_price_without_vat: float = 0,
+    purchase_price_without_vat: Optional[float] = None,
     mechanic_id: Optional[int] = None,
+    code: Optional[str] = None,
+    inventory_item_id: Optional[int] = None,
+    source: str = "manual",
 ) -> ServiceWorkOrderItem:
     item = ServiceWorkOrderItem(
         tenant_id=int(order.tenant_id),
@@ -347,13 +426,16 @@ def _create_work_order_item(
         vehicle_id=int(order.vehicle_id),
         item_type=str(item_type),
         name=name,
+        code=code,
         quantity=float(quantity),
         unit=unit,
         note=note,
         sale_price_without_vat=float(sale_price_without_vat or 0),
+        purchase_price_without_vat=purchase_price_without_vat,
         mechanic_id=mechanic_id,
+        inventory_item_id=inventory_item_id,
         created_by=int(actor.id),
-        source="manual",
+        source=str(source or "manual"),
     )
     db.add(item)
     db.flush()
@@ -388,6 +470,9 @@ def _serialize_item_for_service(item: ServiceWorkOrderItem) -> dict[str, object]
         "worked_date": worked_date,
         "unit_price_without_vat": float(item.sale_price_without_vat or 0),
         "line_total_without_vat": round(float(item.quantity or 0) * float(item.sale_price_without_vat or 0), 2),
+        "inventory_item_id": int(item.inventory_item_id) if item.inventory_item_id else None,
+        "from_inventory": bool(item.inventory_item_id),
+        "source": str(item.source or "manual"),
         "created_at": item.created_at.isoformat() if item.created_at else None,
     }
 

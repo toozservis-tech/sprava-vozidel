@@ -256,6 +256,8 @@ MODULE_REQUIREMENTS: Dict[str, Dict[str, object]] = {
             "service_work_orders",
             "service_work_order_audit_logs",
             "service_work_order_billing_contacts",
+            "service_inventory_items",
+            "service_inventory_movements",
             "service_quotes",
             "service_quote_audit_logs",
             "service_quote_access_tokens",

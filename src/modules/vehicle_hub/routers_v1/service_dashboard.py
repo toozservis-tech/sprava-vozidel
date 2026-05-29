@@ -1659,10 +1659,12 @@ def update_service_work_order(
 from .work_order_billing_api import register_work_order_billing_routes
 from .work_order_items_api import register_work_order_item_routes
 from .work_order_photos_api import list_work_order_photos_for_order, register_work_order_photo_routes
+from .service_inventory_api import register_inventory_routes
 
 register_work_order_item_routes(router)
 register_work_order_photo_routes(router)
 register_work_order_billing_routes(router)
+register_inventory_routes(router)
 
 
 @router.post("/quotes/from-record/{record_id}")

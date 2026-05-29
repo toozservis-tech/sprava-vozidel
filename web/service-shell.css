@@ -4684,3 +4684,31 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
     display: none !important;
   }
 }
+
+.service-inventory-item-row {
+  width: 100%;
+  text-align: left;
+}
+
+.service-work-order-part-source {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+
+[data-testid="service-inventory-section"] .service-action-bar,
+.service-inventory-form .service-action-bar {
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 900px) {
+  [data-testid="service-inventory-section"] .service-action-bar .service-shell-primary-btn,
+  [data-testid="service-inventory-section"] .service-action-bar .btn,
+  [data-testid="service-inventory-section"] .service-action-bar .service-shell-search {
+    width: 100%;
+    max-width: 100%;
+  }
+}

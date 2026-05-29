@@ -16,7 +16,7 @@ const SERVICE_SECTION_ROUTES = [
   { path: 'photos', navTestId: 'service-nav-photos', body: /Fotodokumentace/i, limited: true },
   { path: 'history', navTestId: 'service-nav-history', body: /Servisní historie/i },
   { path: 'billing', navTestId: 'service-nav-invoices', body: /Faktury|Nabídky/i },
-  { path: 'parts-stock', navTestId: 'service-nav-parts', body: /Sklad dílů/i, limited: true },
+  { path: 'parts-stock', navTestId: 'service-nav-parts', body: /Sklad dílů/i },
   { path: 'reservations', navTestId: 'service-nav-reservations', body: /Rezervace/i },
   { path: 'team', navTestId: 'service-nav-team', body: /Tým/i },
   { path: 'audit-security', navTestId: 'service-nav-audit', body: /Audit a bezpečnost/i, limited: true },
@@ -103,7 +103,7 @@ test.describe('Service shell navigation (phase 2)', () => {
     await waitForServiceShellReady(page);
     await expect(page).toHaveURL(/\/parts-stock/);
     await expect(page.locator('[data-service-active-section="parts"]')).toBeVisible();
-    await expect(page.locator('[data-testid="service-limited-placeholder"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-inventory-section"]')).toBeVisible();
   });
 
   test('service_audit_security_alias_opens_audit_section', async ({ page }) => {

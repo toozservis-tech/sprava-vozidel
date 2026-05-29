@@ -380,6 +380,33 @@
     payrollError: '',
     payrollDetailEmployeeId: null,
     payrollEmployeeDetailCache: null,
+    inventoryItems: [],
+    inventoryMovements: [],
+    inventoryLoading: false,
+    inventoryError: '',
+    inventorySearch: '',
+    inventoryLowStockOnly: false,
+    inventoryFormOpen: false,
+    inventoryFormDraft: {
+      internal_code: '',
+      name: '',
+      description: '',
+      brand: '',
+      supplier_name: '',
+      unit: 'ks',
+      quantity_on_hand: '',
+      min_quantity: '',
+      purchase_price: '',
+      sale_price: '',
+      location: '',
+    },
+    inventorySelectedId: 0,
+    inventoryAdjustDraft: { quantity_delta: '', reason: '' },
+    workOrderPartSource: 'manual',
+    workOrderInventorySearch: '',
+    workOrderInventoryResults: [],
+    workOrderInventorySelectedId: 0,
+    workOrderInventoryLoading: false,
     /** Objekt `{ [reminderId]: true }` — přehlédnuto v aktuální návštěvě sekce Připomínky kvůli frontě propadlých úkolů. */
     overdueReminderSkipIds: null,
     /** ID připomínky při rozbalení formuláře „Posunout připomenutí“ přímo v sekci */
@@ -1710,7 +1737,7 @@
     }, autoRefreshMs);
   }
 
-  const LIMITED_WORKSPACE_SECTIONS = new Set(['photos', 'parts', 'audit', 'settings']);
+  const LIMITED_WORKSPACE_SECTIONS = new Set(['photos', 'audit', 'settings']);
 
   function mapSection(tab) {
     const key = String(tab || '').trim().toLowerCase();
@@ -1947,6 +1974,10 @@
           console.warn('[SERVICE_SHELL] quotes endpoint:', err?.message || err);
           return { items: [] };
         }),
+        inventoryItems: () => window.apiCall(`/api/service/inventory/items?limit=300${state.inventorySearch ? `&q=${encodeURIComponent(state.inventorySearch)}` : ''}${state.inventoryLowStockOnly ? '&low_stock=true' : ''}`, 'GET').catch((err) => {
+          console.warn('[SERVICE_SHELL] inventory items:', err?.message || err);
+          return { items: [] };
+        }),
         profile: () => window.apiCall('/user/me', 'GET'),
         partnerProfile: () => window.apiCall('/api/v1/services/workspace/partner-public-profile', 'GET').catch((err) => {
           console.warn('[SERVICE_SHELL] partner-public-profile:', err?.message || err);
@@ -1972,6 +2003,7 @@
         if (key === 'documents') state.documents = Array.isArray(payload) ? payload : [];
         if (key === 'invoices') state.invoices = Array.isArray(payload?.items) ? payload.items : [];
         if (key === 'quotes') state.quotes = Array.isArray(payload?.items) ? payload.items : [];
+        if (key === 'inventoryItems') state.inventoryItems = Array.isArray(payload?.items) ? payload.items : [];
         if (key === 'profile') state.profile = payload || {};
         if (key === 'partnerProfile') state.partnerPublicProfile = payload && typeof payload === 'object' ? payload : {};
       };
@@ -2026,6 +2058,7 @@
         history: ['vehicles', 'customers'],
         photos: ['vehicles', 'customers'],
         intake: ['customers', 'vehicles'],
+        parts: ['inventoryItems'],
         team: ['performance'],
         settings: ['profile', 'partnerProfile'],
       };
@@ -4137,12 +4170,32 @@
       <section class="service-shell-side-card" aria-label="Díly na zakázce">
         <h3>Díly</h3>
         <ul class="service-shell-list" data-testid="service-work-order-part-list">${renderWorkOrderLineList(parts, 'Zatím bez evidovaných dílů.')}</ul>
-        <div class="service-work-order-add-row">
-          <input type="text" id="serviceWoPartName" placeholder="Název dílu" ${canAddPart ? '' : 'disabled'}>
-          <input type="number" id="serviceWoPartQty" min="0.01" step="0.01" placeholder="Množství" value="1" ${canAddPart ? '' : 'disabled'}>
-          <input type="text" id="serviceWoPartUnit" placeholder="Jednotka" value="ks" ${canAddPart ? '' : 'disabled'}>
-          <button type="button" class="btn btn-secondary" data-testid="service-work-order-add-part-button" ${canAddPart ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderPart(${workOrderId})">Přidat díl</button>
+        <div class="service-work-order-part-source" data-testid="service-work-order-part-source">
+          <label><input type="radio" name="serviceWoPartSource" value="inventory" ${state.workOrderPartSource === 'inventory' ? 'checked' : ''} onchange="window.serviceShell.setWorkOrderPartSource('inventory')"> Díl ze skladu</label>
+          <label><input type="radio" name="serviceWoPartSource" value="manual" ${state.workOrderPartSource !== 'inventory' ? 'checked' : ''} onchange="window.serviceShell.setWorkOrderPartSource('manual')"> Ruční díl</label>
         </div>
+        ${state.workOrderPartSource === 'inventory' ? `
+          <div class="service-work-order-add-row">
+            <input type="search" id="serviceWoInventorySearch" data-testid="service-work-order-inventory-search" placeholder="Vyhledat ve skladu…" value="${escape(state.workOrderInventorySearch || '')}" oninput="window.serviceShell.searchWorkOrderInventory(this.value)" ${canAddPart ? '' : 'disabled'}>
+            <div class="service-shell-list" data-testid="service-work-order-inventory-result">
+              ${(state.workOrderInventoryResults || []).map((item) => `
+                <button type="button" class="service-shell-list-item ${Number(state.workOrderInventorySelectedId) === Number(item.id) ? 'is-selected' : ''}" onclick="window.serviceShell.selectWorkOrderInventoryPart(${Number(item.id)})">
+                  <strong>${escape(item.name || 'Díl')}</strong>
+                  <small>Na skladě: ${escape(String(item.quantity_on_hand ?? 0))} ${escape(item.unit || 'ks')}</small>
+                </button>
+              `).join('') || '<p class="service-shell-muted">Zadejte hledání nebo nechte prázdné pro seznam.</p>'}
+            </div>
+            <input type="number" id="serviceWoInventoryQty" min="0.01" step="0.01" placeholder="Množství" value="1" ${canAddPart ? '' : 'disabled'}>
+            <button type="button" class="btn btn-secondary" data-testid="service-work-order-inventory-add-button" ${canAddPart ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderInventoryPart(${workOrderId})">Přidat ze skladu</button>
+          </div>
+        ` : `
+          <div class="service-work-order-add-row">
+            <input type="text" id="serviceWoPartName" placeholder="Název dílu" ${canAddPart ? '' : 'disabled'}>
+            <input type="number" id="serviceWoPartQty" min="0.01" step="0.01" placeholder="Množství" value="1" ${canAddPart ? '' : 'disabled'}>
+            <input type="text" id="serviceWoPartUnit" placeholder="Jednotka" value="ks" ${canAddPart ? '' : 'disabled'}>
+            <button type="button" class="btn btn-secondary" data-testid="service-work-order-manual-part-button" ${canAddPart ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderPart(${workOrderId})">Přidat ruční díl</button>
+          </div>
+        `}
       </section>
       <section class="service-shell-side-card" aria-label="Čas práce">
         <h3>Čas</h3>
@@ -8477,6 +8530,279 @@
     return staticInfoSection('Mzdy', 'Vyberte položku v levém menu.', `${payrollToolbarHtml()}${err}`);
   }
 
+  function renderInventoryItemRow(item) {
+    const lowBadge = item?.is_low_stock
+      ? ` <span class="service-status-badge service-status-badge--danger" data-testid="service-inventory-low-stock-badge">Nízký stav</span>`
+      : '';
+    return `
+      <button type="button" class="service-shell-list-item service-inventory-item-row" data-testid="service-inventory-item-row" onclick="window.serviceShell.selectInventoryItem(${Number(item?.id || 0)})">
+        <strong>${escape(item?.name || 'Díl')}</strong>
+        <small>${escape([item?.internal_code, item?.brand].filter(Boolean).join(' · ') || '—')}</small>
+        <span class="service-shell-list-value">Na skladě: ${escape(String(item?.quantity_on_hand ?? 0))} ${escape(item?.unit || 'ks')}${lowBadge}</span>
+      </button>
+    `;
+  }
+
+  async function loadInventoryMovements(itemId = 0) {
+    const query = itemId ? `?item_id=${encodeURIComponent(String(itemId))}&limit=50` : '?limit=50';
+    try {
+      const response = await window.apiCall(`/api/service/inventory/movements${query}`, 'GET');
+      state.inventoryMovements = Array.isArray(response?.items) ? response.items : [];
+    } catch (error) {
+      state.inventoryMovements = [];
+    }
+  }
+
+  async function reloadInventorySection(options = {}) {
+    state.inventoryLoading = true;
+    state.inventoryError = '';
+    if (!options.silent) render();
+    try {
+      const params = new URLSearchParams({ limit: '300' });
+      if (state.inventorySearch) params.set('q', state.inventorySearch);
+      if (state.inventoryLowStockOnly) params.set('low_stock', 'true');
+      const response = await window.apiCall(`/api/service/inventory/items?${params.toString()}`, 'GET');
+      state.inventoryItems = Array.isArray(response?.items) ? response.items : [];
+      if (state.inventorySelectedId) {
+        await loadInventoryMovements(state.inventorySelectedId);
+      }
+    } catch (error) {
+      state.inventoryError = error?.message || 'Sklad se nepodařilo načíst.';
+      state.inventoryItems = [];
+    } finally {
+      state.inventoryLoading = false;
+      render();
+    }
+  }
+
+  function setInventorySearch(value) {
+    state.inventorySearch = String(value || '');
+    reloadInventorySection({ silent: true });
+  }
+
+  function toggleInventoryLowStockFilter() {
+    state.inventoryLowStockOnly = !state.inventoryLowStockOnly;
+    reloadInventorySection({ silent: true });
+  }
+
+  function openInventoryForm() {
+    state.inventoryFormOpen = true;
+    state.inventoryFormDraft = {
+      internal_code: '',
+      name: '',
+      description: '',
+      brand: '',
+      supplier_name: '',
+      unit: 'ks',
+      quantity_on_hand: '',
+      min_quantity: '',
+      purchase_price: '',
+      sale_price: '',
+      location: '',
+    };
+    render();
+  }
+
+  function setInventoryDraftField(field, value) {
+    state.inventoryFormDraft = { ...(state.inventoryFormDraft || {}), [field]: value };
+  }
+
+  async function saveInventoryItem() {
+    const draft = state.inventoryFormDraft || {};
+    const name = String(draft.name || '').trim();
+    if (!name) {
+      state.inventoryError = 'Název dílu je povinný.';
+      render();
+      return;
+    }
+    state.inventoryLoading = true;
+    state.inventoryError = '';
+    try {
+      const payload = {
+        name,
+        internal_code: String(draft.internal_code || '').trim() || null,
+        description: String(draft.description || '').trim() || null,
+        brand: String(draft.brand || '').trim() || null,
+        supplier_name: String(draft.supplier_name || '').trim() || null,
+        unit: String(draft.unit || 'ks').trim() || 'ks',
+        quantity_on_hand: Number(draft.quantity_on_hand || 0),
+        min_quantity: Number(draft.min_quantity || 0),
+        purchase_price: draft.purchase_price !== '' ? Number(draft.purchase_price) : null,
+        sale_price: draft.sale_price !== '' ? Number(draft.sale_price) : null,
+        location: String(draft.location || '').trim() || null,
+      };
+      await window.apiCall('/api/service/inventory/items', 'POST', payload);
+      state.inventoryFormOpen = false;
+      await reloadInventorySection({ silent: true });
+    } catch (error) {
+      state.inventoryError = error?.message || 'Díl se nepodařilo uložit.';
+      state.inventoryLoading = false;
+      render();
+    }
+  }
+
+  async function selectInventoryItem(itemId) {
+    state.inventorySelectedId = Number(itemId || 0);
+    await loadInventoryMovements(state.inventorySelectedId);
+    render();
+  }
+
+  async function adjustInventorySelectedItem() {
+    const itemId = Number(state.inventorySelectedId || 0);
+    const delta = Number(state.inventoryAdjustDraft?.quantity_delta || 0);
+    if (!itemId || !Number.isFinite(delta) || delta === 0) {
+      state.inventoryError = 'Zadejte nenulovou úpravu stavu.';
+      render();
+      return;
+    }
+    state.inventoryLoading = true;
+    state.inventoryError = '';
+    try {
+      await window.apiCall(`/api/service/inventory/items/${itemId}/adjust`, 'POST', {
+        quantity_delta: delta,
+        reason: String(state.inventoryAdjustDraft?.reason || '').trim() || null,
+      });
+      state.inventoryAdjustDraft = { quantity_delta: '', reason: '' };
+      await reloadInventorySection({ silent: true });
+    } catch (error) {
+      state.inventoryError = error?.message || 'Stav skladu se nepodařilo upravit.';
+      state.inventoryLoading = false;
+      render();
+    }
+  }
+
+  function renderInventorySection() {
+    const items = Array.isArray(state.inventoryItems) ? state.inventoryItems : [];
+    const selected = items.find((row) => Number(row?.id) === Number(state.inventorySelectedId)) || null;
+    const movements = Array.isArray(state.inventoryMovements) ? state.inventoryMovements : [];
+    const listHtml = items.length
+      ? `<div class="service-shell-list">${items.map(renderInventoryItemRow).join('')}</div>`
+      : `<div class="service-shell-empty" data-testid="service-inventory-empty">Sklad zatím neobsahuje žádné díly.</div>`;
+    const errorHtml = state.inventoryError
+      ? `<div class="service-shell-inline-error" data-testid="service-inventory-error">${escape(state.inventoryError)}</div>`
+      : '';
+    const formHtml = state.inventoryFormOpen ? `
+      <article class="service-pro-card service-inventory-form" data-testid="service-inventory-form">
+        <h3>Nový díl</h3>
+        <div class="service-intake-create-grid">
+          <label>Interní kód<input class="service-shell-search" value="${escape(state.inventoryFormDraft?.internal_code || '')}" oninput="window.serviceShell.setInventoryDraftField('internal_code', this.value)"></label>
+          <label>Název *<input class="service-shell-search" value="${escape(state.inventoryFormDraft?.name || '')}" oninput="window.serviceShell.setInventoryDraftField('name', this.value)"></label>
+          <label>Značka<input class="service-shell-search" value="${escape(state.inventoryFormDraft?.brand || '')}" oninput="window.serviceShell.setInventoryDraftField('brand', this.value)"></label>
+          <label>Dodavatel<input class="service-shell-search" value="${escape(state.inventoryFormDraft?.supplier_name || '')}" oninput="window.serviceShell.setInventoryDraftField('supplier_name', this.value)"></label>
+          <label>Jednotka<input class="service-shell-search" value="${escape(state.inventoryFormDraft?.unit || 'ks')}" oninput="window.serviceShell.setInventoryDraftField('unit', this.value)"></label>
+          <label>Počáteční stav<input class="service-shell-search" type="number" min="0" step="0.01" value="${escape(String(state.inventoryFormDraft?.quantity_on_hand ?? ''))}" oninput="window.serviceShell.setInventoryDraftField('quantity_on_hand', this.value)"></label>
+          <label>Minimální stav<input class="service-shell-search" type="number" min="0" step="0.01" value="${escape(String(state.inventoryFormDraft?.min_quantity ?? ''))}" oninput="window.serviceShell.setInventoryDraftField('min_quantity', this.value)"></label>
+          <label>Nákupní cena<input class="service-shell-search" type="number" min="0" step="0.01" value="${escape(String(state.inventoryFormDraft?.purchase_price ?? ''))}" oninput="window.serviceShell.setInventoryDraftField('purchase_price', this.value)"></label>
+          <label>Prodejní cena<input class="service-shell-search" type="number" min="0" step="0.01" value="${escape(String(state.inventoryFormDraft?.sale_price ?? ''))}" oninput="window.serviceShell.setInventoryDraftField('sale_price', this.value)"></label>
+          <label class="service-intake-create-note">Poznámka<textarea class="service-shell-search" rows="2" oninput="window.serviceShell.setInventoryDraftField('description', this.value)">${escape(state.inventoryFormDraft?.description || '')}</textarea></label>
+        </div>
+        <div class="service-action-bar">
+          <button type="button" class="service-shell-primary-btn" data-testid="service-inventory-save-button" ${state.inventoryLoading ? 'disabled' : ''} onclick="window.serviceShell.saveInventoryItem()">Uložit díl</button>
+          <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeInventoryForm()">Zrušit</button>
+        </div>
+      </article>
+    ` : '';
+    const detailHtml = selected ? `
+      <article class="service-pro-card">
+        <h3>${escape(selected.name || 'Díl')}</h3>
+        <p>Na skladě: <strong>${escape(String(selected.quantity_on_hand ?? 0))} ${escape(selected.unit || 'ks')}</strong></p>
+        <p class="service-shell-muted">Minimální stav: ${escape(String(selected.min_quantity ?? 0))}${selected.is_low_stock ? ' · <span data-testid="service-inventory-low-stock-badge">Nízký stav</span>' : ''}</p>
+        <div class="service-work-order-add-row">
+          <input type="number" step="0.01" placeholder="Úprava (+/-)" value="${escape(String(state.inventoryAdjustDraft?.quantity_delta ?? ''))}" oninput="window.serviceShell.setInventoryAdjustDraft('quantity_delta', this.value)">
+          <input type="text" placeholder="Důvod úpravy" value="${escape(String(state.inventoryAdjustDraft?.reason ?? ''))}" oninput="window.serviceShell.setInventoryAdjustDraft('reason', this.value)">
+          <button type="button" class="btn btn-secondary" data-testid="service-inventory-adjust-button" ${state.inventoryLoading ? 'disabled' : ''} onclick="window.serviceShell.adjustInventorySelectedItem()">Upravit stav</button>
+        </div>
+        <div data-testid="service-inventory-movements">
+          <h4>Historie pohybů</h4>
+          ${movements.length ? `<ul class="service-shell-list">${movements.map((mv) => `<li><strong>${escape(mv.movement_type || '-')}</strong> ${escape(String(mv.quantity_delta ?? 0))} → ${escape(String(mv.quantity_after ?? 0))}<br><small>${escape(mv.reason || '')}</small></li>`).join('')}</ul>` : '<p class="service-shell-muted">Zatím bez pohybů.</p>'}
+        </div>
+      </article>
+    ` : '';
+    return ServiceProPageShell(
+      'Sklad dílů',
+      'Interní evidence dílů servisu — dostupnost, minimální stav a pohyby skladu.',
+      `
+        <div data-testid="service-inventory-section">
+          ${errorHtml}
+          <div class="service-action-bar">
+            <input class="service-shell-search" data-testid="service-inventory-search" placeholder="Vyhledat díl…" value="${escape(state.inventorySearch || '')}" oninput="window.serviceShell.setInventorySearch(this.value)">
+            <button type="button" class="btn btn-secondary" onclick="window.serviceShell.toggleInventoryLowStockFilter()">${state.inventoryLowStockOnly ? 'Všechny díly' : 'Jen nízký stav'}</button>
+            <button type="button" class="service-shell-primary-btn" data-testid="service-inventory-add-button" onclick="window.serviceShell.openInventoryForm()">Přidat díl</button>
+          </div>
+          ${formHtml}
+          <div class="service-pro-grid">
+            <div>${state.inventoryLoading ? '<p>Načítám sklad…</p>' : listHtml}</div>
+            <aside>${detailHtml}</aside>
+          </div>
+        </div>
+      `,
+      { testId: 'service-inventory-page' },
+    );
+  }
+
+  function closeInventoryForm() {
+    state.inventoryFormOpen = false;
+    render();
+  }
+
+  function setInventoryAdjustDraft(field, value) {
+    state.inventoryAdjustDraft = { ...(state.inventoryAdjustDraft || {}), [field]: value };
+  }
+
+  function setWorkOrderPartSource(source) {
+    state.workOrderPartSource = source === 'inventory' ? 'inventory' : 'manual';
+    state.workOrderInventoryResults = [];
+    state.workOrderInventorySelectedId = 0;
+    render();
+  }
+
+  async function searchWorkOrderInventory(query) {
+    state.workOrderInventorySearch = String(query || '');
+    state.workOrderInventoryLoading = true;
+    render();
+    try {
+      const params = new URLSearchParams({ limit: '20' });
+      if (state.workOrderInventorySearch.trim()) params.set('q', state.workOrderInventorySearch.trim());
+      const response = await window.apiCall(`/api/service/inventory/items?${params.toString()}`, 'GET');
+      state.workOrderInventoryResults = Array.isArray(response?.items) ? response.items : [];
+    } catch (error) {
+      state.workOrderInventoryResults = [];
+    } finally {
+      state.workOrderInventoryLoading = false;
+      render();
+    }
+  }
+
+  function selectWorkOrderInventoryPart(itemId) {
+    state.workOrderInventorySelectedId = Number(itemId || 0);
+    render();
+  }
+
+  async function submitWorkOrderInventoryPart(workOrderId) {
+    const id = Number(workOrderId || 0);
+    const inventoryItemId = Number(state.workOrderInventorySelectedId || 0);
+    const qty = Number(document.getElementById('serviceWoInventoryQty')?.value || 1);
+    if (!id || !inventoryItemId) {
+      state.workOrderLimitedNotice = 'Vyberte díl ze skladu.';
+      render();
+      return;
+    }
+    try {
+      await window.apiCall(`/api/service/work-orders/${id}/parts`, 'POST', {
+        inventory_item_id: inventoryItemId,
+        quantity: qty,
+      });
+      state.workOrderLimitedNotice = 'Díl ze skladu byl přidán a sklad odepsán.';
+      state.workOrderInventorySelectedId = 0;
+      state.workOrderInventorySearch = '';
+      state.workOrderInventoryResults = [];
+      await reloadWorkOrderDetailModal(id);
+    } catch (error) {
+      state.workOrderLimitedNotice = error?.message || 'Díl ze skladu se nepodařilo přidat.';
+      render();
+    }
+  }
+
   function serviceAccountPlaceholderSections() {
     if (String(state.activeSection || '').startsWith('payroll-')) {
       return renderPayrollWorkspace(state.activeSection);
@@ -8508,11 +8834,7 @@
           { testId: 'service-history-page' },
         );
       case 'parts':
-        return renderLimitedWorkspaceSection(
-          'Sklad dílů',
-          'Skladové položky a díly k zakázkám.',
-          '<p class="service-shell-muted">Plný skladový modul není v této fázi aktivní. Díly lze evidovat jako položky zakázky v sekci Zakázky.</p>',
-        );
+        return renderInventorySection();
       case 'audit':
         return renderLimitedWorkspaceSection(
           'Audit a bezpečnost',
@@ -9924,6 +10246,7 @@
     if (state.activeSection === 'clients') return clientsSection();
     if (state.activeSection === 'vehicles') return vehiclesSection();
     if (state.activeSection === 'work-orders') return workOrdersSection();
+    if (state.activeSection === 'parts') return renderInventorySection();
     if (state.activeSection === 'documents') return documentsSection();
     if (state.activeSection === 'invoices') return invoicesSection();
     if (state.activeSection === 'reservations') return reservationsSection();
@@ -10099,6 +10422,20 @@
     submitWorkOrderDetailUpdate,
     submitWorkOrderLabor,
     submitWorkOrderPart,
+    submitWorkOrderInventoryPart,
+    setWorkOrderPartSource,
+    searchWorkOrderInventory,
+    selectWorkOrderInventoryPart,
+    reloadInventorySection,
+    setInventorySearch,
+    toggleInventoryLowStockFilter,
+    openInventoryForm,
+    closeInventoryForm,
+    setInventoryDraftField,
+    saveInventoryItem,
+    selectInventoryItem,
+    adjustInventorySelectedItem,
+    setInventoryAdjustDraft,
     submitWorkOrderTime,
     submitWorkOrderComplete,
     submitWorkOrderServiceRecord,
