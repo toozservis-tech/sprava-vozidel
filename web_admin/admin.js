@@ -1162,17 +1162,7 @@ async function loadOverview() {
   try {
     loadAdminToday();
     const stats = await apiRequest('GET', '/admin-api/overview');
-
-    // Počet aktivních uživatelů musí odpovídat seznamu (/admin-api/users vynechává soft-smazané).
-    // Přehledové API může být zastaralé z cache / starého workeru — tady bereme stejný zdroj jako sekce Uživatelé.
-    let activeUsersCount = stats.total_users ?? 0;
-    try {
-      const usersSync = await fetchAllList('/admin-api/users');
-      usersAllCache = usersSync;
-      activeUsersCount = usersSync.length;
-    } catch (syncErr) {
-      console.warn('Nepodařilo se sladit počet uživatelů se seznamem:', syncErr?.message || syncErr);
-    }
+    const activeUsersCount = stats.total_users ?? 0;
     
     // Aktualizovat statistiky v navbaru
     document.getElementById('summary-users').innerHTML = `👥 Uživatelé: <strong>${activeUsersCount}</strong>`;
@@ -8296,8 +8286,8 @@ window.addEventListener('DOMContentLoaded', () => {
   populateLicensePlanSelect('cc-license-plan', 'user', '', { includeBlank: true, blankLabel: 'beze změny' });
 
   if (token) {
-    // Zkusit načíst uživatele - pokud selže (token neplatný), zobrazit přihlášení
-    apiRequest('GET', '/admin-api/users')
+    // Lehké ověření session; seznam uživatelů se načte až při otevření dané sekce.
+    apiRequest('GET', '/user/me')
       .then(() => {
         showDashboard();
       })
