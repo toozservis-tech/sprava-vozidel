@@ -646,7 +646,7 @@ body.service-shell-app.service-shell-theme-light {
   font-weight: 800;
 }
 
-.service-quick-intake input {
+.service-quick-intake input:not([type="checkbox"]) {
   width: 100%;
   min-height: 42px;
   border: 1px solid #cfd8e6;
@@ -687,14 +687,30 @@ body.service-shell-app.service-shell-theme-light {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 30px;
+  min-height: 36px;
   font-size: 0.86rem;
   color: #334155;
+  cursor: pointer;
 }
 
-.service-check-row input {
-  width: 18px;
-  min-height: 18px;
+.service-check-row span {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.service-check-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  flex: 0 0 20px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--service-primary, #2563eb);
+  cursor: pointer;
 }
 
 .service-consent-card {
@@ -2902,8 +2918,10 @@ body.service-shell-theme-light .service-shell-inline-error {
 }
 
 @media (max-width: 720px) {
-  .service-shell-root {
-    padding: 18px 14px 28px;
+  .service-shell-root,
+  body.service-shell-app .service-shell-root {
+    padding: 12px max(12px, env(safe-area-inset-left, 0px))
+      calc(88px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
   }
 
   .service-shell-page-head h1 {
@@ -3380,6 +3398,7 @@ body.service-shell-app.service-shell-theme-light .service-nav-submenu-item.is-ac
     height: auto;
     max-height: none;
     min-height: 0;
+    inset: auto 0 0 0;
     top: auto;
     bottom: 0;
     left: 0;
@@ -3396,15 +3415,62 @@ body.service-shell-app.service-shell-theme-light .service-nav-submenu-item.is-ac
     border-right: 0;
     border-top: 1px solid var(--service-border);
     background: var(--service-panel);
+    z-index: 40;
   }
 
   .service-nav::before {
     display: none;
   }
 
+  .service-nav-brand,
+  .service-nav-account,
+  .service-nav-footer {
+    display: none !important;
+  }
+
+  .service-nav-menu {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 4px;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .service-shell-root {
     padding: 14px max(12px, env(safe-area-inset-left, 0px))
       calc(96px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
+  }
+
+  .service-shell-app-shell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .service-topbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px max(12px, env(safe-area-inset-left, 0px)) 12px max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  .service-topbar-search-wrap {
+    flex: 1 1 100%;
+    order: 2;
+    max-width: none;
+    width: 100%;
+  }
+
+  .service-topbar-right {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
   }
 
   .service-nav-slot {
@@ -3603,6 +3669,14 @@ body.service-shell-app.service-shell-theme-light {
 body.service-shell-app .service-shell-root {
   background: #f5f7fa !important;
   padding: 0 16px 18px calc(var(--service-rail-width) + 16px) !important;
+}
+
+@media (max-width: 900px) {
+  body.service-shell-app .service-shell-root,
+  body.service-shell-app.service-shell-theme-light .service-shell-root {
+    padding: 12px max(12px, env(safe-area-inset-left, 0px))
+      calc(88px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
+  }
 }
 
 body.service-shell-app .service-topbar,
@@ -4114,17 +4188,6 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
 
 /* Mobile service intake: lookup, create-unowned, quick intake aside */
 @media (max-width: 900px) {
-  .service-nav-brand,
-  .service-nav-account,
-  .service-nav-footer {
-    display: none !important;
-  }
-
-  .service-nav-menu {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
   .service-dashboard-pro.service-section-page[data-testid="service-intake-page"],
   .service-intake-layout {
     overflow-x: hidden;
@@ -4157,21 +4220,36 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
     max-width: 100%;
   }
 
-  [data-testid="service-intake-section"] input,
+  [data-testid="service-intake-section"] input:not([type="checkbox"]),
   [data-testid="service-intake-section"] textarea,
   [data-testid="service-intake-section"] select,
   [data-testid="service-intake-section"] .service-shell-primary-btn,
   [data-testid="service-intake-section"] .btn,
-  .service-intake-create-panel input,
+  .service-intake-create-panel input:not([type="checkbox"]),
   .service-intake-create-panel select,
   .service-intake-create-panel textarea,
   .service-intake-create-panel .service-shell-primary-btn,
-  .service-quick-intake input,
+  .service-quick-intake input:not([type="checkbox"]),
   .service-quick-intake .service-shell-primary-btn,
   .service-quick-intake button {
     box-sizing: border-box;
     min-height: 44px;
     max-width: 100%;
+  }
+
+  .service-check-row input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    max-width: 22px;
+    max-height: 22px;
+    flex: 0 0 22px;
+  }
+
+  .service-check-row {
+    min-height: 40px;
+    padding: 2px 0;
   }
 
   [data-testid="service-intake-section"] label,
@@ -4185,10 +4263,10 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
   [data-testid="service-intake-section"] input.service-shell-search,
   [data-testid="service-intake-section"] textarea.service-shell-search,
   [data-testid="service-intake-section"] select.service-shell-search,
-  .service-intake-create-panel input,
+  .service-intake-create-panel input:not([type="checkbox"]),
   .service-intake-create-panel select,
   .service-intake-create-panel textarea,
-  .service-quick-intake input {
+  .service-quick-intake input:not([type="checkbox"]) {
     width: 100%;
   }
 
@@ -4257,5 +4335,340 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
 
   .service-dashboard-pro.service-section-page[data-testid="service-intake-page"] {
     padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Mobile service shell — beats legacy rail padding and desktop nav grid */
+@media (max-width: 900px) {
+  .service-shell-root,
+  .service-shell-root.service-shell-root--mobile {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  .service-shell-root > .service-shell-app-shell {
+    flex: 1 1 auto;
+    order: 1;
+    min-width: 0;
+  }
+
+  .service-shell-root > .service-nav {
+    order: 2;
+  }
+
+  body.service-shell-app .service-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    height: auto;
+    width: 100%;
+  }
+}
+
+/* Mobile service shell UX — consolidated polish */
+@media (max-width: 900px) {
+  .service-topbar--mobile {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 16px;
+    border-radius: var(--service-radius-sm);
+    flex-wrap: nowrap;
+  }
+
+  .service-topbar--mobile .service-topbar-row--search,
+  .service-topbar--mobile .service-topbar-row--search .service-topbar-search {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+  }
+
+  .service-topbar-row {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .service-topbar-row--tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .service-topbar-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .service-topbar-account-cluster {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+
+  .service-topbar-row--search .service-topbar-search,
+  .service-topbar-row--search.service-topbar-search-wrap {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 100%;
+  }
+
+  .service-topbar-row--cta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .service-topbar-cta-btn,
+  .service-topbar--mobile .service-shell-primary-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .service-shell-icon-btn,
+  .service-shell-bell,
+  .service-shell-userbox--compact,
+  .service-nav-item {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .service-shell-userbox--compact {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .service-nav--mobile-tabs {
+    overflow-x: hidden;
+  }
+
+  .service-nav--mobile-tabs .service-nav-menu {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .service-nav--mobile-tabs .service-nav-slot {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+  }
+
+  .service-nav--mobile-tabs .service-nav-item {
+    min-height: 52px;
+    padding: 6px 4px;
+    font-size: 0.62rem;
+  }
+
+  .service-nav--mobile-tabs .service-nav-item-label {
+    -webkit-line-clamp: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .service-nav-slot--more .service-nav-item.active,
+  .service-nav-item--more.active {
+    border-bottom-color: var(--service-primary);
+  }
+
+  .service-shell-mobile-nav-sheet .service-shell-bottom-sheet-panel {
+    max-height: min(85dvh, 720px);
+  }
+
+  .service-shell-mobile-nav-sheet-body {
+    display: grid;
+    gap: 14px;
+    max-height: min(62dvh, 520px);
+    overflow-y: auto;
+    padding-bottom: 8px;
+  }
+
+  .service-shell-mobile-nav-group-title {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--service-text-muted);
+    margin-bottom: 8px;
+  }
+
+  .service-shell-mobile-nav-group-items {
+    display: grid;
+    gap: 6px;
+  }
+
+  .service-shell-mobile-nav-sheet-btn {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--service-border);
+    border-radius: 10px;
+    background: var(--service-panel);
+    color: var(--service-text);
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+
+  .service-shell-mobile-nav-sheet-btn.active {
+    border-color: color-mix(in srgb, var(--service-primary) 40%, var(--service-border));
+    background: color-mix(in srgb, var(--service-primary) 12%, var(--service-panel));
+    color: var(--service-primary);
+  }
+
+  .service-dashboard-pro .service-pro-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .service-dashboard-pro .service-pro-main {
+    order: 1;
+  }
+
+  .service-dashboard-pro .service-pro-aside {
+    order: 2;
+  }
+
+  .service-work-layers p {
+    display: none;
+  }
+
+  .service-work-layers article {
+    min-height: auto;
+    padding: 10px 12px;
+  }
+
+  .service-pro-kpi em {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .service-shell-invoice-toolbar {
+    display: none;
+  }
+
+  .service-shell-filter-chip--desktop-only {
+    display: none !important;
+  }
+
+  .service-shell-card-head-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .service-shell-modal-footer .service-shell-modal-actions,
+  .service-shell-modal-footer.service-shell-mobile-action-bar,
+  .service-shell-mobile-action-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .service-shell-modal-footer .btn,
+  .service-shell-mobile-action-bar .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .service-shell-mobile-more-actions {
+    border: 1px solid var(--service-border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: var(--service-panel-soft);
+  }
+
+  .service-shell-mobile-more-actions summary {
+    cursor: pointer;
+    font-weight: 650;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+  }
+
+  .service-shell-mobile-more-actions-body {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .service-shell-table-wrap {
+    overflow: visible;
+  }
+
+  .service-shell-table thead,
+  .service-shell-data-table thead {
+    display: none;
+  }
+
+  .service-shell-table tbody tr,
+  .service-shell-data-table tbody tr {
+    display: block;
+    margin-bottom: 12px;
+    border: 1px solid var(--service-border);
+    border-radius: var(--service-radius-sm);
+    background: var(--service-panel);
+    padding: 10px 12px;
+  }
+
+  .service-shell-table tbody td,
+  .service-shell-data-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .service-shell-table tbody td::before,
+  .service-shell-data-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 650;
+    color: var(--service-text-soft);
+    text-align: left;
+    flex: 0 0 42%;
+  }
+
+  .service-shell-static-info {
+    padding: 14px 12px;
+  }
+
+  .service-shell-static-body p {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .service-shell-static-info .btn,
+  .service-shell-static-info .service-shell-primary-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (min-width: 901px) {
+  .service-shell-filter-chip--desktop-hide {
+    display: none !important;
   }
 }
