@@ -1,0 +1,31 @@
+---
+description: Produktová ústava Správa vozidel — nejvyšší priorita, PASS/FAIL, zákazy
+alwaysApply: true
+---
+
+# Produktová ústava (závazné)
+
+Plný text: `app/docs/PRODUKTOVA-USTAVA.md` · Pořadí priorit: `app/docs/DECISION_RULES.md`
+
+## Jádro
+
+- **Produkt = jednotná historie vozidel.** Vše navázané na `vehicle_id`, ne na uživatele.
+- **Grafika > nová funkce.** Funguje ale rozbíjí vzhled → **FAIL**.
+- **Žádné fake UI:** mrtvé odkazy, placeholder success, approve/reject bez API.
+- **Žádný modal v modalu.** Inline panel nebo jeden centrální modal.
+- **PDF ≠ textový export.** Profesionální dokument (viz `app/docs/PDF_STANDARDS.md`).
+
+## Před implementací nové funkce
+
+1. Návrh UI · 2. Workflow · 3. Model · 4. API · 5. Mobil · 6. Dokumenty · 7. E2E scénář — **pak teprve kód**.
+
+## Gate report každé fáze (povinné)
+
+PASS/FAIL, commit, grafický + UX + workflow + API + dokument + mobil + E2E + runtime audit, seznam prokliků/modalů/vazeb.
+
+**PASS zakázán** bez end-to-end workflow, jednotného UI, funkčního mobilu a reálných akcí.
+
+## Fáze
+
+- **A/B:** governance a audit — **bez nových feature**
+- **C:** vývoj až po auditu nebo explicitní výjimce

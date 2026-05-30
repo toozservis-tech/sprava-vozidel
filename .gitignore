@@ -22,7 +22,9 @@ node_modules/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 *.log
 *.pid

@@ -1,0 +1,29 @@
+---
+description: Workflow governance — end-to-end flow, vehicle-centric data, E2E povinnost
+globs: app/src/**/*.{py},app/tests/**/*.{py,ts},app/web/**/*.js
+alwaysApply: false
+---
+
+# Workflow Governance
+
+Plný text: `app/docs/WORKFLOW_STANDARDS.md`
+
+## Zásada
+
+Funkce = článek řetězce. Data na **vozidlo** (`vehicle_id`). Create bez list/detail/approve → incomplete.
+
+## Referenční servisní řetězec
+
+Lookup → režim (owner link / one-time) → fotky → protokol → zakázka → přijetí → práce → dokončení → doklady → historie
+
+## Owner ↔ servis
+
+Request → user vidí (dashboard + detail + settings) → approve/reject → servis vidí stav. Rejected servis **bez owner PII**.
+
+## E2E povinnost (nová funkce)
+
+Create · edit · delete · detail · reload · logout · login · mobil — **všechny kroky**, jinak PASS zakázán.
+
+## Fáze vývoje
+
+Governance/audit commit **před** dalšími feature. Feature prompt **nepřebíjí** ústavu.

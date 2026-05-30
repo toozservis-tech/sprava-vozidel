@@ -1,0 +1,31 @@
+---
+description: UI governance — jednotný vzhled service-pro a uapp-next, bez nových vzorů
+globs: app/web/**/*.{html,css,js},web/**/*.{html,css,js}
+alwaysApply: false
+---
+
+# UI Governance
+
+Plný text: `app/docs/UI_GOVERNANCE.md`
+
+## Servisní UI — povinné třídy
+
+`service-dashboard-pro`, `service-page-header`, `service-pro-grid`, `service-pro-card`, `service-pro-kpis`
+
+Stylesheet: `web/service-shell.css`. **Neintrodukovat** nové card/table/modal styly.
+
+## User UI — povinné vzory
+
+`uapp-next-*`, `uapp-settings-*`, `user-app-next.css`. Reference: `app/docs/APP_WIDE_DESIGN_MAP_20260518.md`
+
+## Každé tlačítko (A–E)
+
+Co spouští · kam zapisuje · co refreshuje · kam redirect · stav po dokončení
+
+## Mobil
+
+Min. **44px** tap, **žádný** horizontální scroll stránky. Test: 390×844, 412×915, 768×1024.
+
+## Review před hotovo
+
+Screenshot desktop + mobil, `node --check` na JS, žádné nové CSS soubory bez důvodu.

@@ -1,0 +1,27 @@
+---
+description: PDF a dokumenty — profesionální layout, náhledy karet, ne textový export
+globs: app/**/*.{py,html,js,css},app/docs/**/*
+alwaysApply: false
+---
+
+# PDF Governance
+
+Plný text: `app/docs/PDF_STANDARDS.md`
+
+## FAIL okamžitě
+
+- PDF = pár řádků textu / technický dump
+- Faktura bez QR, DPH, vozidla (VIN, SPZ)
+- UI = jen ikona PDF bez preview karty
+
+## Povinné typy
+
+**Faktura** · **Zakázkový list** · **Servisní záznam** · **Příjmový protokol** — každý s brandingem, vozidlem, profesionálním layoutem (2026).
+
+## Náhled v UI
+
+Thumbnail/embed, typ, stav, datum, vozidlo, akce (otevřít, stáhnout, sdílet, ověřit) — karty v `service-pro-card` / `uapp-next-*`.
+
+## Před novou šablonou
+
+Wireframe + schválení proti `PDF_STANDARDS.md`, pak implementace.

@@ -1,0 +1,16 @@
+---
+description: Po úpravě .env vždy restart backend a informuj uživatele
+globs: app/.env,app/.env.*,**/.env.example
+alwaysApply: true
+---
+
+# .env a backend
+
+**Povinné chování agenta:** Po **každé úpravě** souboru `app/.env` (nebo jiného načítaného env, který backend používá) musíš:
+
+1. **Restartovat backend** (uvicorn / `python -m src.server.main` z `app/`), aby se proměnné znovu načetly — bez restartu se změny neprojeví.
+2. **Uživatele vždy informovat** v odpovědi, že jsi backend po změně `.env` **restartoval** a **proč** (stručně: načtení konfigurace).
+
+**Jak:** ukonči proces na portu z konfigurace (typicky 8000, viz `PORT` v `.env` / `config.py`), nebo `pkill` kontextu stejného serveru, pak znovu spusť `cd /opt/toozhub2/app && /opt/toozhub2/.venv/bin/python -m src.server.main` (nebo ekvivalent s aktivovaným venv). Po restartu můžeš krátce ověřit `curl -sI http://127.0.0.1:$PORT/health` nebo odpovídající URL, pokud dává smysl.
+
+Pokud `.env` mění jen člověk mimo agenta, toto pravidlo připomíná v konverzaci, že **musí** backend restartovat sám; agent po svých owních změnách **vždy** restart provede a napíše to uživateli.

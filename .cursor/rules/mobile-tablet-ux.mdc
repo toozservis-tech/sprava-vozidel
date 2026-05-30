@@ -1,0 +1,28 @@
+---
+description: Cíl UX pro mobil a tablet – přehlednost, méně vrstev, efektivní layout (TooZ Hub)
+globs: app/web/**/*.{html,css},app/frontend/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Mobil a tablet – produktový cíl (TooZ Hub)
+
+## Kontext (současný stav)
+
+- Na **telefonu** je rozhraní často **přeplácané**: mnoho prvků ve **vrstvách** (overlaye, pevné panely, vysoké `z-index`), současně viditelné bloky, které na desktopu dávají smysl, na mobilu **konkurují** sobě.
+- Uživatel chce, aby bylo zobrazení na **mobilech a tabletech přehlednější a efektivnější** než dnes – nejen „zmenšený web“, ale **jasná hierarchie a kroky**.
+
+## Co má agent dělat při úpravách UI
+
+1. **Jedna hlavní věc na obrazovku** – na úzké šířce preferuj jednu primární akci nebo jednu oblast obsahu; sekundární věci schovej do rozbalení, tabu, druhé obrazovky nebo spodního listu místo další plovoucí vrstvy.
+2. **Méně současných fixních vrstev** – kombinace `position: fixed` / sticky lišt + bublin + modálů + dropdownů na mobilu zhoršuje orientaci. Při nových úpravách **nesčítej** další globální overlay; spíš **sjednoť** nebo **nahraď** existující vzorec.
+3. **Čitelná hierarchie** – nadpisy, odsazení, konzistentní mezery; na mobilu větší tap cíle, dostačující `line-height`; vyhni se drobnému textu v hustých tabulkách bez alternativy (karty / stack).
+4. **Breakpointy** – respektuj stávající media queries v projektu (např. `max-width: 900px` a podobné); nové chování doplň **do stejné logiky** místo duplicitních pravidel na jiné šířce bez důvodu.
+5. **Tablety** – využij mezistupeň: více sloupců než na telefonu, pořád ale omezená současná informace; nekopíruj 1:1 desktopové vícesloupce, kde to zahltí střední šířku.
+
+## Čemu se vyhnout (mobil / tablet)
+
+- Přidávání „ještě jednoho“ plovoucího ovladače navrch bez zjednodušení zbytku.
+- Tříštění stejné akce do více míst (např. stejná akce v horní liště i v bublině a v menu).
+- Skrývání kritické navigace za mnoha úrovněmi – raději **jasná struktura** (tab bar, jedna hlavní nabídka) než mnoho otevíracích panelů.
+
+Při refaktoringu stručně v komentáři nebo v PR popiš, co se **odstranilo** nebo **sjednotilo** (např. „mobil: jeden entry point místo tří overlayů“), ať je změna auditovatelná.
