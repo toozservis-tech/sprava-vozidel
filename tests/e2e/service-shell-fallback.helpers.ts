@@ -1,5 +1,7 @@
 import type { Page, Route } from '@playwright/test';
 
+import { loginServiceUser, waitForServiceShellReady } from './helpers';
+
 export const serviceUser = {
   id: 9901,
   email: 'service.workspace@example.com',
@@ -35,10 +37,15 @@ function json(route: Route, status: number, body: unknown): Promise<void> {
 
 export async function installServiceShellMocks(
   page: Page,
-  options: { seedCurrentUser?: boolean; forceServiceWorkspaceRole?: boolean } = {},
+  options: {
+    seedCurrentUser?: boolean;
+    forceServiceWorkspaceRole?: boolean;
+    preserveAuth?: boolean;
+  } = {},
 ): Promise<void> {
   const seedCurrentUser = options.seedCurrentUser !== false;
   const forceServiceWorkspaceRole = options.forceServiceWorkspaceRole !== false;
+  const preserveAuth = options.preserveAuth === true;
   let linkedCustomer = false;
   let nextWorkOrderId = 777;
   let nextRecordId = 602;
@@ -386,21 +393,23 @@ export async function installServiceShellMocks(
     audit_log: item.audit_log,
   });
 
-  await page.addInitScript(({ user, seedUser, forceRole }) => {
-    localStorage.setItem('accessToken', 'test-token');
-    localStorage.setItem('wasLoggedIn', 'true');
-    localStorage.setItem('loginMode', 'service');
-    if (seedUser) {
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      (window as typeof window & { currentUser?: unknown }).currentUser = user;
-    } else {
-      localStorage.removeItem('currentUser');
-      (window as typeof window & { currentUser?: unknown }).currentUser = undefined;
-    }
-    if (forceRole) {
-      (window as typeof window & { isServiceWorkspaceRole?: () => boolean }).isServiceWorkspaceRole = () => true;
-    }
-  }, { user: serviceUser, seedUser: seedCurrentUser, forceRole: forceServiceWorkspaceRole });
+  if (!preserveAuth) {
+    await page.addInitScript(({ user, seedUser, forceRole }) => {
+      localStorage.setItem('accessToken', 'test-token');
+      localStorage.setItem('wasLoggedIn', 'true');
+      localStorage.setItem('loginMode', 'service');
+      if (seedUser) {
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        (window as typeof window & { currentUser?: unknown }).currentUser = user;
+      } else {
+        localStorage.removeItem('currentUser');
+        (window as typeof window & { currentUser?: unknown }).currentUser = undefined;
+      }
+      if (forceRole) {
+        (window as typeof window & { isServiceWorkspaceRole?: () => boolean }).isServiceWorkspaceRole = () => true;
+      }
+    }, { user: serviceUser, seedUser: seedCurrentUser, forceRole: forceServiceWorkspaceRole });
+  }
 
   await page.route('**/health', (route) => json(route, 200, { status: 'ok' }));
   await page.context().route('**/api/public/quote/quote-public-token', async (route) => {
@@ -471,6 +480,9 @@ export async function installServiceShellMocks(
     const method = route.request().method();
 
     if (path === '/api/me') {
+      if (preserveAuth) {
+        return route.fallback();
+      }
       const authorization = String(route.request().headers().authorization || '');
       if (!authorization.includes('test-token')) {
         return json(route, 200, { authenticated: false, app_name: 'Správa vozidel' });
@@ -478,7 +490,12 @@ export async function installServiceShellMocks(
       return json(route, 200, serviceWorkspaceMe);
     }
     if (path === '/api/v1/system-notifications') return json(route, 200, { items: [] });
-    if (path === '/api/v1/customers/me' || path === '/user/me') return json(route, 200, serviceUser);
+    if (path === '/api/v1/customers/me' || path === '/user/me') {
+      if (preserveAuth) {
+        return route.fallback();
+      }
+      return json(route, 200, serviceUser);
+    }
     if (path.startsWith('/api/v1/license')) return json(route, 200, {});
     if (path === '/api/v1/services/my-contacts') return json(route, 200, { services: [] });
     if (path === '/api/v1/services/workspace/partner-public-profile') {
@@ -1310,9 +1327,23 @@ export async function installServiceShellMocks(
   });
 }
 
+export async function installQuotePlatformMocks(page: Page): Promise<void> {
+  await installServiceShellMocks(page, { preserveAuth: true });
+}
+
+export async function bootstrapAuthenticatedQuotePlatformShell(page: Page): Promise<string> {
+  await installQuotePlatformMocks(page);
+  await loginServiceUser(page);
+  const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+  const slug = slugMatch?.[1] || 'e2e-fixed-service';
+  await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+  await waitForServiceShellReady(page);
+  return slug;
+}
+
 export async function bootstrapMockServiceShell(
   page: Page,
-  options: { section?: string } = {},
+  options: { section?: string; requireShell?: boolean } = {},
 ): Promise<void> {
   await installServiceShellMocks(page);
   await page.goto('/web/index.html', { waitUntil: 'domcontentloaded' });
