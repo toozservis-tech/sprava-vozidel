@@ -4147,8 +4147,10 @@
             <div class="service-shell-list-row"><span class="service-shell-list-title">Stav</span><span class="service-shell-list-value" data-testid="service-work-order-quote-status">${escape(quote.status_label || quote.status || '-')}</span></div>
             <div class="service-shell-list-row"><span class="service-shell-list-title">Celkem</span><span class="service-shell-list-value">${escape(quote.total_price != null ? `${Number(quote.total_price).toLocaleString('cs-CZ')} Kč` : '-')}</span></div>
           </div>
+          ${renderServiceQuoteDocumentSection({ id: quote.quote_id, vehicle_document: quote.vehicle_document, pdf_url: quote.pdf_url })}
           <div class="service-shell-modal-actions">
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openQuoteModal(${Number(quote.quote_id || 0)})">Otevřít nabídku</button>
+            <button type="button" class="btn btn-secondary" data-testid="service-quote-open-pdf-button" onclick="window.serviceShell.shareQuotePdf(${Number(quote.quote_id || 0)}, ${JSON.stringify(quote.pdf_url || '')})">Stáhnout PDF</button>
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Otevřít v Nabídky a faktury</button>
           </div>
         ` : `
@@ -6212,16 +6214,19 @@
             <input id="serviceShellQuoteTotal" type="number" inputmode="decimal" min="0" step="0.01" value="${escape(String(detail?.total_price ?? 0))}">
           </div>
           <p class="service-shell-list-note service-work-order-billing-error hidden" id="serviceBillingQuoteError" data-testid="service-billing-error"></p>
+          ${renderServiceQuoteDocumentSection(detail)}
           </div>
         `;
       },
       renderFooter: (modal) => {
+        const detail = modal.data || {};
+        const pdfPath = detail?.pdf_url || detail?.vehicle_document?.file_url || `/api/service/quotes/${resolvedQuoteId}/pdf`;
         const saveBtn = `<button type="button" class="btn btn-primary" onclick="window.serviceShell.runModalAction('save')">${modal.saving ? 'Ukládám…' : 'Uložit nabídku'}</button>`;
         const secondaryBtns = `
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zpět</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.appendQuoteItemRow()">Přidat položku</button>
-          <button type="button" class="btn btn-secondary" data-testid="service-billing-create-invoice-from-quote-button" onclick="window.serviceShell.createInvoiceFromQuote(${resolvedQuoteId})">Vytvořit fakturu</button>
-          <button type="button" class="btn btn-secondary" onclick="window.serviceShell.shareQuotePdf(${resolvedQuoteId})">Sdílet / stáhnout PDF</button>
+          <button type="button" class="btn btn-secondary" data-testid="service-quote-create-invoice-button" onclick="window.serviceShell.createInvoiceFromQuote(${resolvedQuoteId})">Vytvořit fakturu</button>
+          <button type="button" class="btn btn-secondary" data-testid="service-quote-open-pdf-button" onclick="window.serviceShell.shareQuotePdf(${resolvedQuoteId}, ${JSON.stringify(pdfPath)})">Sdílet / stáhnout PDF</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.copyQuotePublicLink(${resolvedQuoteId})">Kopírovat veřejný odkaz</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openQuotePublicLink(${resolvedQuoteId})">Otevřít veřejný odkaz</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.emailQuotePublicLink(${resolvedQuoteId})">Odeslat e-mailem</button>
@@ -6242,6 +6247,10 @@
         </div>`;
       },
     });
+    queueMicrotask(() => {
+      const modalEl = document.querySelector('.service-shell-modal:last-of-type');
+      if (modalEl) bindServiceQuoteDocumentActions(modalEl, state.modal?.data || {});
+    });
   }
 
   async function createQuoteFromRecord(recordId) {
@@ -6251,10 +6260,10 @@
     openQuoteModal(Number(quote?.id || 0));
   }
 
-  function shareQuotePdf(quoteId) {
+  function shareQuotePdf(quoteId, pdfUrl) {
     const resolvedQuoteId = Number(quoteId || state.modal?.context?.quoteId || 0);
-    if (!resolvedQuoteId) return;
-    const path = `/api/service/quotes/${resolvedQuoteId}/pdf`;
+    if (!resolvedQuoteId && !pdfUrl) return;
+    const path = pdfUrl || `/api/service/quotes/${resolvedQuoteId}/pdf`;
     if (typeof window.openAuthenticatedPdf === 'function') {
       window.openAuthenticatedPdf(path).catch((err) => {
         const msg = err?.message || 'PDF se nepodařilo otevřít.';
@@ -6451,6 +6460,44 @@
     if (isModalOpen('invoice-create')) {
       return runModalAction('save');
     }
+  }
+
+  function renderServiceQuoteDocumentSection(quote) {
+    const doc = quote?.vehicle_document;
+    if (!doc || typeof window.ToozDocumentCards?.renderDocumentCard !== 'function') return '';
+    const statusText = window.ToozDocumentCards.statusLabel(doc.status);
+    const cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
+      cardClass: 'vehicle-document-card service-quote-document-card-inner',
+      buttonClass: 'vehicle-document-action',
+    })
+      .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-quote-open-pdf-button"')
+      .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-quote-download-pdf-button"')
+      .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-quote-verify-button"')
+      .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-quote-status-badge"');
+    return `
+      <section class="service-shell-quote-document" data-testid="service-quote-document-card">
+        <div class="service-shell-card-head">
+          <div>
+            <h3 class="service-shell-card-title">Doklad na platformě</h3>
+            <p class="service-shell-subtitle">Profesionální PDF s ověřením — servisní soukromý doklad.</p>
+          </div>
+          <span class="vehicle-document-card__status" data-testid="service-quote-status-badge">${escape(statusText)}</span>
+        </div>
+        <div data-testid="service-quote-pdf-preview">${cardHtml}</div>
+      </section>`;
+  }
+
+  function bindServiceQuoteDocumentActions(root, quote) {
+    const container = root || document;
+    if (!window.ToozDocumentCards?.bindDocumentCardActions) return;
+    const pdfUrl = quote?.pdf_url || quote?.vehicle_document?.file_url || '';
+    window.ToozDocumentCards.bindDocumentCardActions(container, {
+      onOpen: (fileUrl) => shareQuotePdf(quote?.id, fileUrl || pdfUrl),
+      onDownload: (fileUrl) => shareQuotePdf(quote?.id, fileUrl || pdfUrl),
+      onVerify: (verifyUrl) => {
+        if (verifyUrl) window.open(verifyUrl, '_blank', 'noopener');
+      },
+    });
   }
 
   function renderServiceInvoiceDocumentSection(inv) {

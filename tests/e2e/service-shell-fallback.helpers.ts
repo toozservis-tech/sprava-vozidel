@@ -235,6 +235,37 @@ export async function installServiceShellMocks(
     invoice.pdf_url = card.file_url;
     return invoice;
   };
+  const buildQuoteVehicleDocument = (quoteId: number, vehicleId = 301, status = 'sent') => {
+    const docId = 6000 + quoteId;
+    return {
+      id: docId,
+      document_type: 'quote',
+      label: 'Nabídka',
+      status: status === 'approved' ? 'approved' : status === 'sent' ? 'pending' : 'draft',
+      title: `Nabídka NAB-${String(quoteId).padStart(5, '0')}`,
+      document_number: `NAB-${String(quoteId).padStart(5, '0')}`,
+      created_at: '2026-04-15T09:00:00Z',
+      vehicle_id: vehicleId,
+      vehicle_label: 'Octavia',
+      service_display: 'ToozServis',
+      thumbnail_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/thumbnail`,
+      file_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/file`,
+      verify_url: `http://127.0.0.1:8000/api/public/documents/verify/quote-token-${quoteId}`,
+      actions: ['open', 'download', 'verify'],
+    };
+  };
+  const attachQuotePlatformDoc = (quote: Record<string, unknown>) => {
+    const id = Number(quote.id || 0);
+    const vehicleId = Number(quote.vehicle_id || 301);
+    const status = String(quote.status || 'draft');
+    const card = buildQuoteVehicleDocument(id, vehicleId, status);
+    quote.vehicle_document_id = card.id;
+    quote.vehicle_document = card;
+    quote.pdf_url = card.file_url;
+    quote.quote_number = `NAB-${String(id).padStart(5, '0')}`;
+    return quote;
+  };
+  serviceQuotes.forEach((quote) => attachQuotePlatformDoc(quote as unknown as Record<string, unknown>));
   const serviceInvoices = [
     {
       id: 9001,
@@ -544,6 +575,22 @@ export async function installServiceShellMocks(
     if (path === '/api/service/dashboard/queue') {
       return json(route, 200, buildQueue());
     }
+    if (path === '/api/service/quotes' && method === 'GET') {
+      return json(route, 200, {
+        items: serviceQuotes.map((entry) => ({
+          quote_id: entry.id,
+          status: entry.status,
+          status_label: entry.status_label,
+          total_price: entry.total_price,
+          work_order_id: entry.work_order_id,
+          vehicle_label: entry.vehicle_label,
+          created_at: entry.created_at,
+          pdf_url: (entry as { pdf_url?: string }).pdf_url,
+          vehicle_document_id: (entry as { vehicle_document_id?: number }).vehicle_document_id,
+          vehicle_document: (entry as { vehicle_document?: unknown }).vehicle_document,
+        })),
+      });
+    }
     if (path === '/api/service/invoices' && method === 'GET') {
       return json(route, 200, {
         items: serviceInvoices.map(({ lines: _lines, ...invoice }) => invoice),
@@ -688,10 +735,13 @@ export async function installServiceShellMocks(
     }
     if (/^\/api\/v1\/vehicles\/\d+\/documents$/.test(path) && method === 'GET') {
       const vehicleId = Number(path.split('/')[4]);
-      const docs = serviceInvoices
+      const invoiceDocs = serviceInvoices
         .filter((inv) => Number(inv.vehicle_id) === vehicleId && inv.vehicle_document)
         .map((inv) => inv.vehicle_document);
-      return json(route, 200, docs);
+      const quoteDocs = serviceQuotes
+        .filter((quote) => Number(quote.vehicle_id) === vehicleId && (quote as { vehicle_document?: unknown }).vehicle_document)
+        .map((quote) => (quote as { vehicle_document: unknown }).vehicle_document);
+      return json(route, 200, [...invoiceDocs, ...quoteDocs]);
     }
     if (/^\/api\/v1\/vehicles\/\d+\/documents\/\d+\/file$/.test(path) && method === 'GET') {
       return route.fulfill({
@@ -1087,6 +1137,7 @@ export async function installServiceShellMocks(
       };
       if (record) (record as typeof serviceRecords[number] & { quote_id?: number }).quote_id = created.id;
       serviceQuotes.unshift(created);
+      attachQuotePlatformDoc(created as unknown as Record<string, unknown>);
       return json(route, 200, created);
     }
     if (/^\/api\/service\/quotes\/\d+$/.test(path) && method === 'GET') {
@@ -1116,14 +1167,43 @@ export async function installServiceShellMocks(
         }
       }
       item.updated_at = '2026-04-15T12:30:00Z';
+      attachQuotePlatformDoc(item as unknown as Record<string, unknown>);
       return json(route, 200, item);
     }
     if (/^\/api\/service\/quotes\/\d+\/pdf$/.test(path) && method === 'GET') {
       return route.fulfill({
         status: 200,
         contentType: 'application/pdf',
-        body: '%PDF-1.4 mock quote pdf',
+        body: Buffer.from('%PDF-1.4 mock platform quote pdf Document Platform C1.2'),
       });
+    }
+    if (/^\/api\/service\/invoices\/from-quote\/\d+$/.test(path) && method === 'POST') {
+      const quoteId = Number(path.split('/').slice(-1)[0]);
+      const quote = serviceQuotes.find((entry) => entry.id === quoteId);
+      if (!quote) return json(route, 404, { detail: 'Not Found' });
+      const created = {
+        id: nextInvoiceId++,
+        tenant_id: 1,
+        service_id: 9901,
+        customer_id: quote.customer_id,
+        vehicle_id: quote.vehicle_id,
+        invoice_number: null as string | null,
+        status: 'draft',
+        status_label: 'Koncept',
+        subtotal: quote.total_price,
+        tax_total: 0,
+        total: quote.total_price,
+        currency: 'CZK',
+        work_order_id: quote.work_order_id,
+        customer_label: 'Linked Customer',
+        vehicle_label: quote.vehicle_label,
+        created_at: '2026-04-16T12:00:00Z',
+        updated_at: '2026-04-16T12:00:00Z',
+        lines: [],
+      };
+      serviceInvoices.unshift(created);
+      attachInvoicePlatformDoc(created);
+      return json(route, 201, created);
     }
     if (path === '/api/v1/services/workspace/vehicles/301/qr' && method === 'GET') {
       return json(route, 200, qrToken);

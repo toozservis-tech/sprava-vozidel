@@ -665,6 +665,7 @@ def get_work_order_quote(
             service_customer=current_user,
             public_token=public_token,
             work_order=order,
+            db=db,
         )
     }
 
@@ -770,10 +771,12 @@ def create_work_order_quote(
     access_token = sd.ensure_quote_access_token(db, quote=quote, created_by_user_id=getattr(current_user, "id", None))
     db.commit()
     db.refresh(quote)
+    sd._sync_quote_vehicle_doc(db, quote=quote, actor=current_user)
+    db.commit()
     quote_party = owner
     if quote_party is None and quote.customer_id:
         quote_party = db.query(Customer).filter(Customer.id == int(quote.customer_id)).first()
-    return sd._serialize_quote(quote, owner=quote_party, vehicle=vehicle, service_customer=current_user, public_token=access_token)
+    return sd._serialize_quote(quote, owner=quote_party, vehicle=vehicle, service_customer=current_user, public_token=access_token, db=db)
 
 
 def get_work_order_invoice(
@@ -958,6 +961,7 @@ def list_service_billing_quotes(
                 service_customer=current_user,
                 public_token=public_token,
                 work_order=work_order,
+                db=db,
             )
         )
     return {"items": items, "count": len(items)}

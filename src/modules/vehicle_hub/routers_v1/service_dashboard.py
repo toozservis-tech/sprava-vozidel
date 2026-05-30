@@ -35,7 +35,11 @@ from ..models import (
 )
 from ..ownership import get_owned_vehicle, get_primary_vehicle_owner
 from ..quote_public_access import build_public_quote_page_url, ensure_quote_access_token, get_active_quote_access_token
-from ..reports.service_quote_pdf import render_service_quote_pdf
+from ..documents.quote_sync import (
+    find_quote_vehicle_document,
+    get_quote_document_card,
+    sync_quote_vehicle_document,
+)
 from ..schema_management import assert_module_ready
 from ..service_access import (
     create_or_update_service_work_access,
@@ -554,6 +558,51 @@ def _serialize_work_order(
     }
 
 
+def _sync_quote_vehicle_doc(
+    db: Session,
+    *,
+    quote: ServiceQuote,
+    actor: Customer,
+) -> None:
+    service_customer = db.query(Customer).filter(Customer.id == int(quote.service_id)).first()
+    if service_customer:
+        sync_quote_vehicle_document(db, quote=quote, service_customer=service_customer, actor=actor)
+
+
+def render_internal_service_quote_pdf(
+    db: Session,
+    *,
+    quote: ServiceQuote,
+    actor: Optional[Customer] = None,
+) -> bytes:
+    from ..documents.document_service import resolve_document_file_path
+    from ..documents.quote_sync import build_quote_document_payload
+    from ..documents.renderers.quote import render_quote_document_pdf
+
+    service_customer = db.query(Customer).filter(Customer.id == int(quote.service_id)).first()
+    if not service_customer:
+        raise HTTPException(status_code=404, detail="Servis nabídky nebyl nalezen.")
+    sync_actor = actor or service_customer
+    doc = sync_quote_vehicle_document(
+        db,
+        quote=quote,
+        service_customer=service_customer,
+        actor=sync_actor,
+    )
+    if doc is not None:
+        path = resolve_document_file_path(doc)
+        if path.exists():
+            return path.read_bytes()
+    payload = build_quote_document_payload(
+        db,
+        quote=quote,
+        service_customer=service_customer,
+        verification_token=None,
+        verification_code=None,
+    )
+    return render_quote_document_pdf(payload)
+
+
 def _serialize_quote_summary(
     quote: ServiceQuote,
     *,
@@ -561,7 +610,13 @@ def _serialize_quote_summary(
     service_customer: Optional[Customer],
     public_token=None,
     work_order: Optional[ServiceWorkOrder] = None,
+    db: Optional[Session] = None,
 ) -> dict[str, object]:
+    doc = find_quote_vehicle_document(db, quote_id=int(quote.id)) if db is not None else None
+    card = get_quote_document_card(db, quote_id=int(quote.id)) if db is not None else None
+    pdf_url = f"/api/service/quotes/{int(quote.id)}/pdf"
+    if doc is not None:
+        pdf_url = f"/api/v1/vehicles/{int(quote.vehicle_id)}/documents/{int(doc.id)}/file"
     return {
         "quote_id": int(quote.id),
         "status": str(quote.status or "draft"),
@@ -573,7 +628,9 @@ def _serialize_quote_summary(
         "updated_at": quote.updated_at.isoformat() if quote.updated_at else None,
         "service_record_id": int(quote.service_record_id) if quote.service_record_id else None,
         "work_order_id": int(quote.work_order_id) if quote.work_order_id else None,
-        "pdf_url": f"/api/service/quotes/{int(quote.id)}/pdf",
+        "pdf_url": pdf_url,
+        "vehicle_document_id": int(doc.id) if doc else None,
+        "vehicle_document": card,
         "public_quote_url": build_public_quote_page_url(str(public_token.token)) if public_token else None,
         "consistency_note": _quote_status_consistency_note(quote=quote, work_order=work_order),
         "vehicle_label": " ".join(part for part in [getattr(vehicle, "brand", None), getattr(vehicle, "model", None)] if part).strip()
@@ -590,11 +647,12 @@ def _serialize_quote(
     vehicle: VehicleModel,
     service_customer: Optional[Customer],
     public_token=None,
+    db: Optional[Session] = None,
 ) -> dict[str, object]:
     items = _parse_quote_items(getattr(quote, "items_json", None))
     vehicle_label = " ".join(part for part in [getattr(vehicle, "brand", None), getattr(vehicle, "model", None)] if part).strip()
     vehicle_label = vehicle_label or getattr(vehicle, "nickname", None) or getattr(vehicle, "plate", None) or f"Vozidlo #{int(vehicle.id)}"
-    return {
+    body: dict[str, object] = {
         "id": int(quote.id),
         "vehicle_id": int(quote.vehicle_id),
         "customer_id": int(owner.id) if owner else (int(quote.customer_id) if quote.customer_id else None),
@@ -619,10 +677,20 @@ def _serialize_quote(
         "customer_phone": getattr(owner, "phone", None) if owner else None,
         "service_name": getattr(service_customer, "name", None) or getattr(service_customer, "email", None),
         "service_ico": getattr(service_customer, "ico", None),
-        "pdf_url": f"/api/service/quotes/{int(quote.id)}/pdf",
+        "quote_number": f"NAB-{int(quote.id):05d}",
         "public_quote_url": build_public_quote_page_url(str(public_token.token)) if public_token else None,
         "public_quote_token_issued_at": public_token.issued_at.isoformat() if public_token and public_token.issued_at else None,
     }
+    doc = find_quote_vehicle_document(db, quote_id=int(quote.id)) if db is not None else None
+    if doc is not None:
+        body["vehicle_document_id"] = int(doc.id)
+        body["vehicle_document"] = get_quote_document_card(db, quote_id=int(quote.id)) if db is not None else None
+        body["pdf_url"] = f"/api/v1/vehicles/{int(quote.vehicle_id)}/documents/{int(doc.id)}/file"
+    else:
+        body["vehicle_document_id"] = None
+        body["vehicle_document"] = None
+        body["pdf_url"] = f"/api/service/quotes/{int(quote.id)}/pdf"
+    return body
 
 
 def _get_quote_or_404(db: Session, *, current_user: Customer, quote_id: int) -> ServiceQuote:
@@ -1281,6 +1349,7 @@ def get_service_work_order_detail(
             service_customer=current_user,
             public_token=public_token,
             work_order=order,
+            db=db,
         )
     from .work_order_billing_api import _linked_invoice, _serialize_invoice_summary
 
@@ -1422,6 +1491,7 @@ def list_vehicle_quotes(
                 service_customer=current_user,
                 public_token=public_token,
                 work_order=work_order,
+                db=db,
             )
         )
     return {"items": items}
@@ -1719,7 +1789,7 @@ def create_service_quote_from_record(
         access_token = ensure_quote_access_token(db, quote=existing, created_by_user_id=getattr(current_user, "id", None))
         db.commit()
         db.refresh(existing)
-        return _serialize_quote(existing, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token)
+        return _serialize_quote(existing, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token, db=db)
 
     items, labor_hours, labor_rate, total_price = _quote_from_record_payload(record)
     quote = ServiceQuote(
@@ -1751,7 +1821,9 @@ def create_service_quote_from_record(
     db.commit()
     db.refresh(quote)
     db.refresh(record)
-    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token)
+    _sync_quote_vehicle_doc(db, quote=quote, actor=current_user)
+    db.commit()
+    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token, db=db)
 
 
 @router.post("/quotes")
@@ -1809,7 +1881,9 @@ def create_service_quote(
     access_token = ensure_quote_access_token(db, quote=quote, created_by_user_id=getattr(current_user, "id", None))
     db.commit()
     db.refresh(quote)
-    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token)
+    _sync_quote_vehicle_doc(db, quote=quote, actor=current_user)
+    db.commit()
+    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token, db=db)
 
 
 @router.get("/quotes/{quote_id}")
@@ -1827,7 +1901,7 @@ def get_service_quote_detail(
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vozidlo nabídky nebylo nalezeno.")
     public_token = get_active_quote_access_token(db, quote_id=int(quote.id))
-    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=public_token)
+    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=public_token, db=db)
 
 
 @router.put("/quotes/{quote_id}")
@@ -1891,12 +1965,14 @@ def update_service_quote(
     access_token = ensure_quote_access_token(db, quote=quote, created_by_user_id=getattr(current_user, "id", None))
     db.commit()
     db.refresh(quote)
+    _sync_quote_vehicle_doc(db, quote=quote, actor=current_user)
+    db.commit()
 
     owner = db.query(Customer).filter(Customer.id == int(quote.customer_id)).first() if quote.customer_id else None
     vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(quote.vehicle_id)).first()
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vozidlo nabídky nebylo nalezeno.")
-    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token)
+    return _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=access_token, db=db)
 
 
 @router.get("/quotes/{quote_id}/pdf")
@@ -1909,19 +1985,8 @@ def get_service_quote_pdf(
     _ensure_service_dashboard_schema(db)
 
     quote = _get_quote_or_404(db, current_user=current_user, quote_id=quote_id)
-    owner = db.query(Customer).filter(Customer.id == int(quote.customer_id)).first() if quote.customer_id else None
-    vehicle = db.query(VehicleModel).filter(VehicleModel.id == int(quote.vehicle_id)).first()
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Vozidlo nabídky nebylo nalezeno.")
-    public_token = get_active_quote_access_token(db, quote_id=int(quote.id))
-    serialized = _serialize_quote(quote, owner=owner, vehicle=vehicle, service_customer=current_user, public_token=public_token)
-    pdf_content = render_service_quote_pdf(
-        {
-            **serialized,
-            "quote_number": f"NAB-{int(quote.id):05d}",
-            "created_at_label": quote.created_at.strftime("%d.%m.%Y") if quote.created_at else "-",
-        }
-    )
+    pdf_content = render_internal_service_quote_pdf(db, quote=quote, actor=current_user)
+    db.commit()
     return Response(
         content=pdf_content,
         media_type="application/pdf",
