@@ -580,7 +580,14 @@ def _linked_invoice(db: Session, *, work_order_id: int, service_customer_id: int
     )
 
 
-def _serialize_invoice_summary(inv: ServiceInvoice) -> dict[str, object]:
+def _serialize_invoice_summary(db: Session, inv: ServiceInvoice) -> dict[str, object]:
+    from ..documents.invoice_sync import find_invoice_vehicle_document, get_invoice_document_card
+
+    doc = find_invoice_vehicle_document(db, invoice_id=int(inv.id))
+    card = get_invoice_document_card(db, invoice_id=int(inv.id)) if doc else None
+    pdf_url = f"/api/service/invoices/{int(inv.id)}/pdf"
+    if doc is not None and inv.vehicle_id is not None:
+        pdf_url = f"/api/v1/vehicles/{int(inv.vehicle_id)}/documents/{int(doc.id)}/file"
     return {
         "invoice_id": int(inv.id),
         "status": str(inv.status or "draft"),
@@ -592,8 +599,10 @@ def _serialize_invoice_summary(inv: ServiceInvoice) -> dict[str, object]:
         "currency": str(inv.currency or "CZK"),
         "invoice_number": inv.invoice_number,
         "work_order_id": int(inv.work_order_id) if inv.work_order_id else None,
-        "pdf_url": f"/api/service/invoices/{int(inv.id)}/pdf",
+        "pdf_url": pdf_url,
         "pdf_available": True,
+        "vehicle_document_id": int(doc.id) if doc else None,
+        "vehicle_document": card,
         "issued_at": inv.issued_at.isoformat() if inv.issued_at else None,
         "created_at": inv.created_at.isoformat() if inv.created_at else None,
     }
@@ -780,7 +789,7 @@ def get_work_order_invoice(
     inv = _linked_invoice(db, work_order_id=int(order.id), service_customer_id=int(current_user.id))
     if not inv:
         return {"invoice": None}
-    return {"invoice": _serialize_invoice_summary(inv)}
+    return {"invoice": _serialize_invoice_summary(db, inv)}
 
 
 def create_work_order_invoice(

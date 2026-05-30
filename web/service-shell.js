@@ -4164,6 +4164,7 @@
             <div class="service-shell-list-row"><span class="service-shell-list-title">Celkem</span><span class="service-shell-list-value">${invoice.total != null ? escape(`${Number(invoice.total).toLocaleString('cs-CZ')} ${invoice.currency || 'CZK'}`) : '-'}</span></div>
             ${invoice.invoice_number ? `<div class="service-shell-list-row"><span class="service-shell-list-title">Číslo</span><span class="service-shell-list-value">${escape(invoice.invoice_number)}</span></div>` : ''}
           </div>
+          ${renderServiceInvoiceDocumentSection({ id: invoice.invoice_id, vehicle_document: invoice.vehicle_document, pdf_url: invoice.pdf_url })}
           <div class="service-shell-modal-actions">
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openServiceInvoiceDetailModal(${Number(invoice.invoice_id || 0)})">Otevřít fakturu</button>
             <button type="button" class="btn btn-secondary" data-testid="service-work-order-invoice-pdf-button" ${canPdf ? '' : 'disabled'} onclick="window.serviceShell.openServiceInvoicePdf(${Number(invoice.invoice_id || 0)})">Stáhnout PDF</button>
@@ -6452,10 +6453,48 @@
     }
   }
 
-  function openServiceInvoicePdf(invoiceId) {
+  function renderServiceInvoiceDocumentSection(inv) {
+    const doc = inv?.vehicle_document;
+    if (!doc || typeof window.ToozDocumentCards?.renderDocumentCard !== 'function') return '';
+    const statusText = window.ToozDocumentCards.statusLabel(doc.status);
+    const cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
+      cardClass: 'vehicle-document-card service-invoice-document-card-inner',
+      buttonClass: 'vehicle-document-action',
+    })
+      .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-invoice-open-pdf-button"')
+      .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-invoice-download-pdf-button"')
+      .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-invoice-verify-button"')
+      .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-invoice-status-badge"');
+    return `
+      <section class="service-shell-invoice-document" data-testid="service-invoice-document-card">
+        <div class="service-shell-card-head">
+          <div>
+            <h3 class="service-shell-card-title">Doklad na platformě</h3>
+            <p class="service-shell-subtitle">Profesionální PDF s ověřením — servisní soukromý doklad.</p>
+          </div>
+          <span class="vehicle-document-card__status" data-testid="service-invoice-status-badge">${escape(statusText)}</span>
+        </div>
+        <div data-testid="service-invoice-pdf-preview">${cardHtml}</div>
+      </section>`;
+  }
+
+  function bindServiceInvoiceDocumentActions(root, inv) {
+    const container = root || document;
+    if (!window.ToozDocumentCards?.bindDocumentCardActions) return;
+    const pdfUrl = inv?.pdf_url || inv?.vehicle_document?.file_url || '';
+    window.ToozDocumentCards.bindDocumentCardActions(container, {
+      onOpen: (fileUrl) => openServiceInvoicePdf(inv?.id, fileUrl || pdfUrl),
+      onDownload: (fileUrl) => openServiceInvoicePdf(inv?.id, fileUrl || pdfUrl),
+      onVerify: (verifyUrl) => {
+        if (verifyUrl) window.open(verifyUrl, '_blank', 'noopener');
+      },
+    });
+  }
+
+  function openServiceInvoicePdf(invoiceId, pdfUrl) {
     const id = Number(invoiceId || 0);
-    if (!id) return;
-    const path = `/api/service/invoices/${id}/pdf`;
+    if (!id && !pdfUrl) return;
+    const path = pdfUrl || `/api/service/invoices/${id}/pdf`;
     if (typeof window.openAuthenticatedPdf === 'function') {
       window.openAuthenticatedPdf(path).catch((err) => {
         const msg = err?.message || 'PDF faktury se nepodařilo otevřít.';
@@ -6569,6 +6608,7 @@
               </div>
             </section>
           `}
+          ${renderServiceInvoiceDocumentSection(inv)}
           </div>
         `;
       },
@@ -6577,16 +6617,21 @@
         const st = String(inv?.status || '').toLowerCase();
         const showIssue = st === 'draft';
         const showCancel = st === 'draft' || st === 'issued';
+        const pdfPath = inv?.pdf_url || inv?.vehicle_document?.file_url || `/api/service/invoices/${id}/pdf`;
         return `
         <div class="service-shell-modal-footer">
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zavřít</button>
           ${showIssue ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.appendInvoiceLineRow()">Přidat položku</button>` : ''}
-          <button type="button" class="btn btn-secondary" data-testid="service-billing-invoice-pdf-button" onclick="window.serviceShell.openServiceInvoicePdf(${id})">PDF</button>
+          <button type="button" class="btn btn-secondary" data-testid="service-invoice-open-pdf-button" onclick="window.serviceShell.openServiceInvoicePdf(${id}, ${JSON.stringify(pdfPath)})">PDF</button>
           ${showIssue ? `<button type="button" class="btn btn-primary" onclick="window.serviceShell.runModalAction('save')">${modal.saving ? 'Ukládám…' : 'Uložit draft'}</button>` : ''}
           ${showIssue ? `<button type="button" class="btn btn-primary" onclick="window.serviceShell.issueServiceInvoiceFromModal(${id})">Vystavit</button>` : ''}
           ${showCancel ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.cancelServiceInvoiceFromModal(${id})">Zrušit</button>` : ''}
         </div>`;
       },
+    });
+    queueMicrotask(() => {
+      const modalEl = document.querySelector('.service-shell-modal:last-of-type');
+      if (modalEl) bindServiceInvoiceDocumentActions(modalEl, state.modal?.data || {});
     });
     const current = state.modal?.data || {};
     if (String(current?.status || '').toLowerCase() === 'draft' && current?.customer_id) {

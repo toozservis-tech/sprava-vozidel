@@ -205,6 +205,36 @@ export async function installServiceShellMocks(
     },
   ];
   let nextInvoiceId = 9002;
+  const buildInvoiceVehicleDocument = (invoiceId: number, vehicleId = 301, status = 'draft') => {
+    const docId = 5000 + invoiceId;
+    const issued = status === 'issued';
+    return {
+      id: docId,
+      document_type: 'invoice',
+      label: 'Faktura',
+      status: issued ? 'completed' : 'draft',
+      title: issued ? `Faktura FV-2026-${String(invoiceId).padStart(4, '0')}` : `Faktura — koncept #${invoiceId}`,
+      document_number: issued ? `FV-2026-${String(invoiceId).padStart(4, '0')}` : null,
+      created_at: '2026-04-16T10:00:00Z',
+      vehicle_id: vehicleId,
+      vehicle_label: 'Octavia',
+      service_display: 'ToozServis',
+      thumbnail_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/thumbnail`,
+      file_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/file`,
+      verify_url: `http://127.0.0.1:8000/api/public/documents/verify/inv-token-${invoiceId}`,
+      actions: ['open', 'download', 'verify'],
+    };
+  };
+  const attachInvoicePlatformDoc = (invoice: Record<string, unknown>) => {
+    const id = Number(invoice.id || 0);
+    const vehicleId = Number(invoice.vehicle_id || 301);
+    const status = String(invoice.status || 'draft');
+    const card = buildInvoiceVehicleDocument(id, vehicleId, status);
+    invoice.vehicle_document_id = card.id;
+    invoice.vehicle_document = card;
+    invoice.pdf_url = card.file_url;
+    return invoice;
+  };
   const serviceInvoices = [
     {
       id: 9001,
@@ -241,6 +271,7 @@ export async function installServiceShellMocks(
       ],
     },
   ];
+  attachInvoicePlatformDoc(serviceInvoices[0]);
   let qrToken: {
     id: number;
     vehicle_id: number;
@@ -573,6 +604,7 @@ export async function installServiceShellMocks(
         lines,
       };
       serviceInvoices.unshift(created);
+      attachInvoicePlatformDoc(created);
       return json(route, 201, created);
     }
     if (/^\/api\/service\/invoices\/\d+$/.test(path) && method === 'GET') {
@@ -634,6 +666,7 @@ export async function installServiceShellMocks(
       invoice.invoice_number = `FV-2026-${String(id).padStart(4, '0')}`;
       invoice.issued_at = '2026-04-16T12:00:00Z';
       invoice.updated_at = '2026-04-16T12:00:00Z';
+      attachInvoicePlatformDoc(invoice);
       return json(route, 200, invoice);
     }
     if (/^\/api\/service\/invoices\/\d+\/cancel$/.test(path) && method === 'POST') {
@@ -650,7 +683,21 @@ export async function installServiceShellMocks(
       return route.fulfill({
         status: 200,
         contentType: 'application/pdf',
-        body: '%PDF-1.4 mock invoice pdf',
+        body: Buffer.from('%PDF-1.4 mock platform invoice pdf Document Platform C1.1'),
+      });
+    }
+    if (/^\/api\/v1\/vehicles\/\d+\/documents$/.test(path) && method === 'GET') {
+      const vehicleId = Number(path.split('/')[4]);
+      const docs = serviceInvoices
+        .filter((inv) => Number(inv.vehicle_id) === vehicleId && inv.vehicle_document)
+        .map((inv) => inv.vehicle_document);
+      return json(route, 200, docs);
+    }
+    if (/^\/api\/v1\/vehicles\/\d+\/documents\/\d+\/file$/.test(path) && method === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/pdf',
+        body: Buffer.from('%PDF-1.4 mock platform invoice file'),
       });
     }
     if (/^\/api\/service\/work-orders\/?$/.test(path) && method === 'GET') {

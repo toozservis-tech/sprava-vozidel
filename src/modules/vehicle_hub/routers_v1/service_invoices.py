@@ -28,7 +28,11 @@ from ..models import (
     ServiceWorkOrder,
     Vehicle as VehicleModel,
 )
-from ..reports.service_invoice_pdf import render_service_invoice_pdf
+from ..documents.invoice_sync import (
+    find_invoice_vehicle_document,
+    get_invoice_document_card,
+    sync_invoice_vehicle_document,
+)
 from ..schema_management import assert_module_ready
 from src.modules.licensing.service import assert_service_invoice_monthly_quota
 from .auth import get_current_user
@@ -220,6 +224,26 @@ def _serialize_line(line: ServiceInvoiceLine) -> dict[str, Any]:
     }
 
 
+def _sync_invoice_vehicle_doc(
+    db: Session,
+    *,
+    inv: ServiceInvoice,
+    lines: list[ServiceInvoiceLine],
+    actor: Customer,
+) -> None:
+    if inv.vehicle_id is None:
+        return
+    issuer = db.query(Customer).filter(Customer.id == int(inv.service_id)).first()
+    if issuer:
+        sync_invoice_vehicle_document(
+            db,
+            invoice=inv,
+            service_customer=issuer,
+            lines=lines,
+            actor=actor,
+        )
+
+
 def _serialize_invoice(
     inv: ServiceInvoice,
     lines: list[ServiceInvoiceLine],
@@ -227,6 +251,7 @@ def _serialize_invoice(
     include_lines: bool = True,
     customer_label: Optional[str] = None,
     vehicle_label: Optional[str] = None,
+    db: Optional[Session] = None,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "id": int(inv.id),
@@ -261,6 +286,15 @@ def _serialize_invoice(
         "customer_label": customer_label,
         "vehicle_label": vehicle_label,
     }
+    doc = find_invoice_vehicle_document(db, invoice_id=int(inv.id)) if db is not None else None
+    if doc is not None:
+        body["vehicle_document_id"] = int(doc.id)
+        body["vehicle_document"] = get_invoice_document_card(db, invoice_id=int(inv.id)) if db is not None else None
+        body["pdf_url"] = f"/api/v1/vehicles/{int(inv.vehicle_id)}/documents/{int(doc.id)}/file" if inv.vehicle_id else f"/api/service/invoices/{int(inv.id)}/pdf"
+    else:
+        body["vehicle_document_id"] = None
+        body["vehicle_document"] = None
+        body["pdf_url"] = f"/api/service/invoices/{int(inv.id)}/pdf"
     if include_lines:
         body["lines"] = [_serialize_line(ln) for ln in sorted(lines, key=lambda x: (x.sort_order, x.id))]
     return body
@@ -686,6 +720,7 @@ def list_service_invoices(
                 include_lines=False,
                 customer_label=customer_label,
                 vehicle_label=vehicle_label,
+                db=db,
             )
         )
     return {"items": items}
@@ -806,8 +841,10 @@ def create_service_invoice(
         .order_by(ServiceInvoiceLine.sort_order, ServiceInvoiceLine.id)
         .all()
     )
+    _sync_invoice_vehicle_doc(db, inv=inv, lines=lines, actor=current_user)
+    db.commit()
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 @router.get("/invoices/{invoice_id}")
@@ -827,7 +864,7 @@ def get_service_invoice(
         .all()
     )
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 @router.put("/invoices/{invoice_id}")
@@ -911,8 +948,10 @@ def update_service_invoice(
         .order_by(ServiceInvoiceLine.sort_order, ServiceInvoiceLine.id)
         .all()
     )
+    _sync_invoice_vehicle_doc(db, inv=inv, lines=lines, actor=current_user)
+    db.commit()
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 @router.post("/invoices/{invoice_id}/issue")
@@ -963,8 +1002,10 @@ def issue_service_invoice(
     )
     db.commit()
     db.refresh(inv)
+    _sync_invoice_vehicle_doc(db, inv=inv, lines=lines, actor=current_user)
+    db.commit()
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 @router.get("/fakturyweb/status")
@@ -1053,8 +1094,10 @@ def export_service_invoice_to_fakturyweb(
     )
     db.commit()
     db.refresh(inv)
+    _sync_invoice_vehicle_doc(db, inv=inv, lines=lines, actor=current_user)
+    db.commit()
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 @router.post("/invoices/{invoice_id}/fakturyweb/sync")
@@ -1105,7 +1148,7 @@ def sync_service_invoice_from_fakturyweb(
         .all()
     )
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 @router.post("/invoices/{invoice_id}/cancel")
@@ -1133,8 +1176,10 @@ def cancel_service_invoice(
         .order_by(ServiceInvoiceLine.sort_order, ServiceInvoiceLine.id)
         .all()
     )
+    _sync_invoice_vehicle_doc(db, inv=inv, lines=lines, actor=current_user)
+    db.commit()
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 def create_invoice_from_quote(
@@ -1288,8 +1333,10 @@ def create_invoice_from_quote(
         .order_by(ServiceInvoiceLine.sort_order, ServiceInvoiceLine.id)
         .all()
     )
+    _sync_invoice_vehicle_doc(db, inv=inv, lines=lines, actor=current_user)
+    db.commit()
     customer_label, vehicle_label = _resolve_invoice_labels(db, inv=inv)
-    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label)
+    return _serialize_invoice(inv, lines, customer_label=customer_label, vehicle_label=vehicle_label, db=db)
 
 
 @router.post("/invoices/from-quote/{quote_id}", status_code=201)
@@ -1312,7 +1359,8 @@ def get_service_invoice_pdf(
     _ensure_service_invoices_schema(db)
 
     inv = _get_invoice_for_service(db, current_user=current_user, invoice_id=invoice_id)
-    pdf_bytes = render_internal_service_invoice_pdf(db, invoice=inv)
+    pdf_bytes = render_internal_service_invoice_pdf(db, invoice=inv, actor=current_user)
+    db.commit()
     _audit(
         db,
         invoice=inv,
@@ -1332,8 +1380,17 @@ def get_service_invoice_pdf(
     )
 
 
-def render_internal_service_invoice_pdf(db: Session, *, invoice: ServiceInvoice) -> bytes:
-    """PDF bytes pro interní fakturu (issuer podle invoice.service_id), bez zápisu auditu."""
+def render_internal_service_invoice_pdf(
+    db: Session,
+    *,
+    invoice: ServiceInvoice,
+    actor: Optional[Customer] = None,
+) -> bytes:
+    """PDF bytes pro servisní fakturu — platform renderer + VehicleDocument sync."""
+    from ..documents.invoice_sync import build_invoice_document_payload
+    from ..documents.renderers.invoice import render_invoice_document_pdf
+    from ..documents.document_service import resolve_document_file_path
+
     issuer = db.query(Customer).filter(Customer.id == int(invoice.service_id)).first()
     if not issuer:
         raise HTTPException(status_code=404, detail="Vystavitel faktury nebyl nalezen.")
@@ -1343,4 +1400,25 @@ def render_internal_service_invoice_pdf(db: Session, *, invoice: ServiceInvoice)
         .order_by(ServiceInvoiceLine.sort_order, ServiceInvoiceLine.id)
         .all()
     )
-    return render_service_invoice_pdf(_pdf_payload(db, invoice=invoice, lines=lines, service_customer=issuer))
+    sync_actor = actor or issuer
+    if invoice.vehicle_id is not None:
+        doc = sync_invoice_vehicle_document(
+            db,
+            invoice=invoice,
+            service_customer=issuer,
+            lines=lines,
+            actor=sync_actor,
+        )
+        if doc is not None:
+            path = resolve_document_file_path(doc)
+            if path.exists():
+                return path.read_bytes()
+    payload = build_invoice_document_payload(
+        db,
+        invoice=invoice,
+        lines=lines,
+        service_customer=issuer,
+        verification_token=None,
+        verification_code=None,
+    )
+    return render_invoice_document_pdf(payload)

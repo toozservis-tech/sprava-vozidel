@@ -5141,7 +5141,8 @@ def user_download_vehicle_invoice_pdf(
     current_user: Customer = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from .service_invoices import render_internal_service_invoice_pdf
+    from ..documents.document_service import resolve_document_file_path, user_can_view_document
+    from ..documents.invoice_sync import find_invoice_vehicle_document
 
     if is_service(normalize_role(getattr(current_user, "role", None))):
         raise HTTPException(status_code=403, detail="Pouze uživatelský účet.")
@@ -5161,7 +5162,16 @@ def user_download_vehicle_invoice_pdf(
     if not inv:
         raise HTTPException(status_code=404, detail="Faktura nebyla nalezena.")
 
-    pdf_bytes = render_internal_service_invoice_pdf(db, invoice=inv)
+    doc = find_invoice_vehicle_document(db, invoice_id=int(invoice_id))
+    if doc is not None:
+        if not user_can_view_document(db, current_user=current_user, doc=doc):
+            raise HTTPException(status_code=403, detail="Nemáte přístup k dokladu.")
+        path = resolve_document_file_path(doc)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="PDF faktury není k dispozici.")
+        pdf_bytes = path.read_bytes()
+    else:
+        raise HTTPException(status_code=403, detail="Nemáte přístup k dokladu.")
     write_global_audit_log(
         db,
         entity_type="service_invoice",

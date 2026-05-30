@@ -1288,7 +1288,7 @@ def get_service_work_order_detail(
         db, work_order_id=int(order.id), service_customer_id=int(current_user.id)
     )
     if linked_invoice:
-        detail["invoice_summary"] = _serialize_invoice_summary(linked_invoice)
+        detail["invoice_summary"] = _serialize_invoice_summary(db, linked_invoice)
     if order.owner_customer_id is None:
         from .work_order_billing_api import _get_billing_contact_row, _serialize_billing_contact
 
