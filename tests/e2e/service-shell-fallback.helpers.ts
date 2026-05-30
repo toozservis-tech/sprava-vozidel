@@ -1309,3 +1309,24 @@ export async function installServiceShellMocks(
     return route.fallback();
   });
 }
+
+export async function bootstrapMockServiceShell(
+  page: Page,
+  options: { section?: string } = {},
+): Promise<void> {
+  await installServiceShellMocks(page);
+  await page.goto('/web/index.html', { waitUntil: 'domcontentloaded' });
+  if (options.requireShell !== false) {
+    await page.waitForFunction(() => {
+      const hasRoot = Boolean(
+        document.querySelector('[data-service-shell="root"]')
+        || document.querySelector('[data-testid="service-shell-root"]'),
+      );
+      const shell = (window as typeof window & {
+        serviceShell?: { openBillingQuoteDetail?: (quoteId: number) => void };
+      }).serviceShell;
+      return hasRoot && typeof shell?.openBillingQuoteDetail === 'function';
+    }, { timeout: 30000 });
+  }
+}
+

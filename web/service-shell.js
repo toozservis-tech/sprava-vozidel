@@ -1565,6 +1565,7 @@
       const data = await state.modal.load(state.modal);
       if (!isModalOpen() || state.modal.loadToken !== token) return;
       setModalState({ loading: false, error: '', data });
+      queueMicrotask(() => bindActiveModalDocumentActions());
     } catch (error) {
       if (!isModalOpen() || state.modal.loadToken !== token) return;
       setModalState({
@@ -4150,7 +4151,7 @@
           ${renderServiceQuoteDocumentSection({ id: quote.quote_id, vehicle_document: quote.vehicle_document, pdf_url: quote.pdf_url })}
           <div class="service-shell-modal-actions">
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openQuoteModal(${Number(quote.quote_id || 0)})">Otevřít nabídku</button>
-            <button type="button" class="btn btn-secondary" data-testid="service-quote-open-pdf-button" onclick="window.serviceShell.shareQuotePdf(${Number(quote.quote_id || 0)}, ${JSON.stringify(quote.pdf_url || '')})">Stáhnout PDF</button>
+            ${quote.vehicle_document ? '' : `<button type="button" class="btn btn-secondary" data-testid="service-quote-download-pdf-button" onclick="window.serviceShell.shareQuotePdf(${Number(quote.quote_id || 0)}, ${JSON.stringify(quote.pdf_url || '')})">Stáhnout PDF</button>`}
             <button type="button" class="btn btn-secondary" onclick="window.serviceShell.navigate('billing')">Otevřít v Nabídky a faktury</button>
           </div>
         ` : `
@@ -6087,6 +6088,33 @@
   async function createInvoiceFromQuote(quoteId, options = {}) {
     const resolvedQuoteId = Number(quoteId || state.modal?.context?.quoteId || 0);
     if (!resolvedQuoteId) return;
+    const modalQuoteId = Number(state.modal?.context?.quoteId || 0);
+    const inQuoteModal = isModalOpen() && state.modal?.entityType === 'service-quote' && modalQuoteId === resolvedQuoteId;
+    const existingInline = state.modal?.data?.linked_invoice || state.modal?.data?.invoice_from_quote;
+    if (existingInline?.id) {
+      if (inQuoteModal) {
+        setModalState({
+          context: {
+            ...(state.modal.context || {}),
+            createInvoiceLoading: false,
+            createInvoiceError: '',
+          },
+        });
+      } else {
+        openServiceInvoiceDetailModal(Number(existingInline.id), { billingView: true });
+      }
+      return;
+    }
+    if (inQuoteModal && state.modal?.context?.createInvoiceLoading) return;
+    if (inQuoteModal) {
+      setModalState({
+        context: {
+          ...(state.modal.context || {}),
+          createInvoiceLoading: true,
+          createInvoiceError: '',
+        },
+      });
+    }
     const body = {};
     const billingCustomerId = Number(options.billingCustomerId || 0);
     if (billingCustomerId > 0) body.billing_customer_id = billingCustomerId;
@@ -6096,6 +6124,23 @@
         const label = invoice?.invoice_number ? ` ${invoice.invoice_number}` : '';
         window.showAlert(`Faktura${label} byla připravena z nabídky.`, 'success');
       }
+      if (inQuoteModal && isModalOpen() && Number(state.modal?.context?.quoteId || 0) === resolvedQuoteId) {
+        setModalState({
+          data: {
+            ...(state.modal.data || {}),
+            linked_invoice: invoice,
+            invoice_from_quote: invoice,
+          },
+          context: {
+            ...(state.modal.context || {}),
+            createInvoiceLoading: false,
+            createInvoiceError: '',
+          },
+        });
+        bindActiveModalDocumentActions();
+        load(true, true).catch((err) => console.warn('[SERVICE_SHELL] billing refresh after quote invoice failed:', err));
+        return;
+      }
       await load(true, true);
       openServiceInvoiceDetailModal(Number(invoice?.id || 0), { billingView: true });
     } catch (err) {
@@ -6104,17 +6149,58 @@
       if (code === 'unowned_requires_billing_customer') {
         const msg = detail?.message || 'Pro vystavení faktury k nepřiřazenému vozidlu doplňte fakturační kontakt.';
         if (typeof window.showAlert === 'function') window.showAlert(msg, 'warning');
+        if (inQuoteModal && isModalOpen()) {
+          setModalState({
+            context: {
+              ...(state.modal.context || {}),
+              createInvoiceLoading: false,
+              createInvoiceError: msg,
+            },
+          });
+        }
         return;
       }
       const existingInvoiceId = Number(detail?.invoice_id || 0);
       if (existingInvoiceId > 0) {
         if (typeof window.showAlert === 'function') window.showAlert('K zakázce už existuje faktura.', 'info');
+        if (inQuoteModal && isModalOpen()) {
+          try {
+            const existingInvoice = await window.apiCall(`/api/service/invoices/${existingInvoiceId}`, 'GET');
+            setModalState({
+              data: {
+                ...(state.modal.data || {}),
+                linked_invoice: existingInvoice,
+                invoice_from_quote: existingInvoice,
+              },
+              context: {
+                ...(state.modal.context || {}),
+                createInvoiceLoading: false,
+                createInvoiceError: '',
+              },
+            });
+            bindActiveModalDocumentActions();
+            load(true, true).catch((loadErr) => console.warn('[SERVICE_SHELL] billing refresh after existing invoice failed:', loadErr));
+            return;
+          } catch (loadErr) {
+            console.warn('[SERVICE_SHELL] existing invoice load failed:', loadErr);
+          }
+        }
         await load(true, true);
         openServiceInvoiceDetailModal(existingInvoiceId, { billingView: true });
         return;
       }
       const msg = err?.message || detail?.message || 'Fakturu z nabídky se nepodařilo vytvořit.';
       if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
+      if (inQuoteModal && isModalOpen()) {
+        setModalState({
+          context: {
+            ...(state.modal.context || {}),
+            createInvoiceLoading: false,
+            createInvoiceError: msg,
+          },
+        });
+        return;
+      }
       throw err;
     }
   }
@@ -6215,18 +6301,30 @@
           </div>
           <p class="service-shell-list-note service-work-order-billing-error hidden" id="serviceBillingQuoteError" data-testid="service-billing-error"></p>
           ${renderServiceQuoteDocumentSection(detail)}
+          ${renderServiceQuoteCreateInvoiceSection(modal)}
           </div>
         `;
       },
       renderFooter: (modal) => {
         const detail = modal.data || {};
+        const ctx = modal?.context || {};
+        const linkedInvoice = detail?.linked_invoice || detail?.invoice_from_quote;
+        const hasPlatformDoc = Boolean(detail?.vehicle_document);
         const pdfPath = detail?.pdf_url || detail?.vehicle_document?.file_url || `/api/service/quotes/${resolvedQuoteId}/pdf`;
         const saveBtn = `<button type="button" class="btn btn-primary" onclick="window.serviceShell.runModalAction('save')">${modal.saving ? 'Ukládám…' : 'Uložit nabídku'}</button>`;
+        const createInvoiceBtn = ctx.createInvoiceLoading
+          ? `<button type="button" class="btn btn-secondary" disabled aria-busy="true">Vytvářím fakturu…</button>`
+          : linkedInvoice?.id
+            ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.openServiceInvoiceDetailModal(${Number(linkedInvoice.id)}, { billingView: true })">Otevřít fakturu #${Number(linkedInvoice.id)}</button>`
+            : `<button type="button" class="btn btn-secondary" data-testid="service-quote-create-invoice-button" onclick="window.serviceShell.createInvoiceFromQuote(${resolvedQuoteId})">Vytvořit fakturu</button>`;
+        const legacyPdfBtn = hasPlatformDoc
+          ? ''
+          : `<button type="button" class="btn btn-secondary" data-testid="service-quote-open-pdf-button" onclick="window.serviceShell.shareQuotePdf(${resolvedQuoteId}, ${JSON.stringify(pdfPath)})">Sdílet / stáhnout PDF</button>`;
         const secondaryBtns = `
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zpět</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.appendQuoteItemRow()">Přidat položku</button>
-          <button type="button" class="btn btn-secondary" data-testid="service-quote-create-invoice-button" onclick="window.serviceShell.createInvoiceFromQuote(${resolvedQuoteId})">Vytvořit fakturu</button>
-          <button type="button" class="btn btn-secondary" data-testid="service-quote-open-pdf-button" onclick="window.serviceShell.shareQuotePdf(${resolvedQuoteId}, ${JSON.stringify(pdfPath)})">Sdílet / stáhnout PDF</button>
+          ${createInvoiceBtn}
+          ${legacyPdfBtn}
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.copyQuotePublicLink(${resolvedQuoteId})">Kopírovat veřejný odkaz</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.openQuotePublicLink(${resolvedQuoteId})">Otevřít veřejný odkaz</button>
           <button type="button" class="btn btn-secondary" onclick="window.serviceShell.emailQuotePublicLink(${resolvedQuoteId})">Odeslat e-mailem</button>
@@ -6247,10 +6345,7 @@
         </div>`;
       },
     });
-    queueMicrotask(() => {
-      const modalEl = document.querySelector('.service-shell-modal:last-of-type');
-      if (modalEl) bindServiceQuoteDocumentActions(modalEl, state.modal?.data || {});
-    });
+    queueMicrotask(() => bindActiveModalDocumentActions());
   }
 
   async function createQuoteFromRecord(recordId) {
@@ -6462,18 +6557,46 @@
     }
   }
 
-  function renderServiceQuoteDocumentSection(quote) {
+  function renderServiceQuoteDocumentFallbackCard(doc) {
+    const statusText = window.ToozDocumentCards?.statusLabel
+      ? window.ToozDocumentCards.statusLabel(doc.status)
+      : String(doc?.status || '—');
+    return `
+      <article class="vehicle-document-card service-quote-document-card-inner" data-testid="vehicle-document-card" data-document-id="${Number(doc?.id || 0)}" data-document-type="${escape(doc?.document_type || 'quote')}">
+        <div class="vehicle-document-card__body">
+          <div class="vehicle-document-card__type">${escape(doc?.label || 'Nabídka')}</div>
+          <div class="vehicle-document-card__status" data-testid="service-quote-status-badge">${escape(statusText)}</div>
+          <div class="vehicle-document-card__title">${escape(doc?.title || doc?.document_number || 'Nabídka')}</div>
+          <div class="vehicle-document-card__actions">
+            <button type="button" class="vehicle-document-action" data-testid="service-quote-open-pdf-button" data-doc-action="open" data-doc-file-url="${escape(doc?.file_url || '')}">Otevřít</button>
+            <button type="button" class="vehicle-document-action" data-testid="service-quote-download-pdf-button" data-doc-action="download" data-doc-file-url="${escape(doc?.file_url || '')}">Stáhnout</button>
+            ${doc?.verify_url ? `<button type="button" class="vehicle-document-action" data-testid="service-quote-verify-button" data-doc-action="verify" data-doc-verify-url="${escape(doc.verify_url)}">Ověřit</button>` : ''}
+          </div>
+        </div>
+      </article>`;
+  }
+
+  function renderServiceQuoteDocumentSection(quote, options = {}) {
     const doc = quote?.vehicle_document;
-    if (!doc || typeof window.ToozDocumentCards?.renderDocumentCard !== 'function') return '';
-    const statusText = window.ToozDocumentCards.statusLabel(doc.status);
-    const cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
-      cardClass: 'vehicle-document-card service-quote-document-card-inner',
-      buttonClass: 'vehicle-document-action',
-    })
-      .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-quote-open-pdf-button"')
-      .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-quote-download-pdf-button"')
-      .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-quote-verify-button"')
-      .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-quote-status-badge"');
+    if (!doc && !options.loading) return '';
+    let cardHtml = '';
+    if (doc && typeof window.ToozDocumentCards?.renderDocumentCard === 'function') {
+      cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
+        cardClass: 'vehicle-document-card service-quote-document-card-inner',
+        buttonClass: 'vehicle-document-action',
+      })
+        .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-quote-open-pdf-button"')
+        .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-quote-download-pdf-button"')
+        .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-quote-verify-button"')
+        .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-quote-status-badge"');
+    } else if (doc) {
+      cardHtml = renderServiceQuoteDocumentFallbackCard(doc);
+    } else {
+      cardHtml = '<div class="service-quote-document-loading" data-testid="service-quote-document-loading" aria-busy="true">Načítám doklad…</div>';
+    }
+    const statusText = window.ToozDocumentCards?.statusLabel
+      ? window.ToozDocumentCards.statusLabel(doc?.status)
+      : String(doc?.status || '—');
     return `
       <section class="service-shell-quote-document" data-testid="service-quote-document-card">
         <div class="service-shell-card-head">
@@ -6483,17 +6606,55 @@
           </div>
           <span class="vehicle-document-card__status" data-testid="service-quote-status-badge">${escape(statusText)}</span>
         </div>
-        <div data-testid="service-quote-pdf-preview">${cardHtml}</div>
+        <div class="service-quote-pdf-preview" data-testid="service-quote-pdf-preview">${cardHtml}</div>
       </section>`;
+  }
+
+  function renderServiceQuoteCreateInvoiceSection(modal) {
+    const ctx = modal?.context || {};
+    const detail = modal?.data || {};
+    const invoice = detail?.linked_invoice || detail?.invoice_from_quote;
+    if (ctx.createInvoiceLoading) {
+      return `<p class="service-shell-list-note" data-testid="service-quote-create-invoice-loading">Vytvářím fakturu z nabídky…</p>`;
+    }
+    if (ctx.createInvoiceError) {
+      return `<p class="service-shell-list-note service-work-order-billing-error" data-testid="service-quote-create-invoice-error">${escape(ctx.createInvoiceError)}</p>`;
+    }
+    if (!invoice?.id) return '';
+    return `
+      <section class="service-shell-quote-invoice-result" data-testid="service-quote-created-invoice-card">
+        <div class="service-shell-card-head">
+          <div>
+            <h3 class="service-shell-card-title">Servisní faktura</h3>
+            <p class="service-shell-subtitle">Faktura vytvořená z této nabídky.</p>
+          </div>
+        </div>
+        ${renderServiceInvoiceDocumentSection(invoice)}
+      </section>`;
+  }
+
+  function bindActiveModalDocumentActions() {
+    if (!state.modal?.open) return;
+    const modalEl = document.querySelector('#appFloatingModalRoot .service-shell-modal:last-of-type')
+      || document.querySelector('.service-shell-modal:last-of-type');
+    if (!modalEl) return;
+    if (state.modal.entityType === 'service-quote') {
+      bindServiceQuoteDocumentActions(modalEl, state.modal.data || {});
+      const linkedInvoice = state.modal.data?.linked_invoice || state.modal.data?.invoice_from_quote;
+      if (linkedInvoice) bindServiceInvoiceDocumentActions(modalEl, linkedInvoice);
+    } else if (state.modal.entityType === 'service-invoice') {
+      bindServiceInvoiceDocumentActions(modalEl, state.modal.data || {});
+    }
   }
 
   function bindServiceQuoteDocumentActions(root, quote) {
     const container = root || document;
     if (!window.ToozDocumentCards?.bindDocumentCardActions) return;
+    const quoteId = Number(quote?.id || quote?.quote_id || state.modal?.context?.quoteId || 0);
     const pdfUrl = quote?.pdf_url || quote?.vehicle_document?.file_url || '';
     window.ToozDocumentCards.bindDocumentCardActions(container, {
-      onOpen: (fileUrl) => shareQuotePdf(quote?.id, fileUrl || pdfUrl),
-      onDownload: (fileUrl) => shareQuotePdf(quote?.id, fileUrl || pdfUrl),
+      onOpen: (fileUrl) => shareQuotePdf(quoteId, fileUrl || pdfUrl),
+      onDownload: (fileUrl) => shareQuotePdf(quoteId, fileUrl || pdfUrl),
       onVerify: (verifyUrl) => {
         if (verifyUrl) window.open(verifyUrl, '_blank', 'noopener');
       },

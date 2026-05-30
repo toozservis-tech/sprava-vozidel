@@ -2528,6 +2528,79 @@ body.service-shell-theme-light .service-shell-inline-error {
   }
 }
 
+.service-shell-quote-document {
+  margin-top: 16px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.service-shell-quote-document .service-quote-pdf-preview,
+.service-shell-quote-document [data-testid="service-quote-pdf-preview"] {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.service-shell-quote-document .vehicle-document-card,
+.service-shell-quote-document-card-inner {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.service-shell-quote-invoice-result {
+  margin-top: 16px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.service-quote-document-loading {
+  padding: 16px;
+  border: 1px dashed #dbe5f0;
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .service-shell-quote-document .vehicle-document-card,
+  .service-shell-quote-document-card-inner,
+  .service-shell-quote-invoice-result .vehicle-document-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .service-shell-quote-document .vehicle-document-card__thumb-wrap,
+  .service-shell-quote-invoice-result .vehicle-document-card__thumb-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .service-shell-quote-document .vehicle-document-card__actions,
+  .service-shell-quote-invoice-result .vehicle-document-card__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .service-shell-quote-document .vehicle-document-action,
+  .service-shell-quote-invoice-result .vehicle-document-action {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 640px) {
+  .service-shell-quote-document,
+  .service-shell-quote-invoice-result {
+    width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .service-shell-quote-document .vehicle-document-card__meta,
+  .service-shell-quote-invoice-result .vehicle-document-card__meta {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
 @media (max-width: 900px) {
   .service-shell-root {
     padding: 14px max(12px, env(safe-area-inset-left, 0px)) calc(88px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right, 0px));
