@@ -782,8 +782,16 @@
       }, {});
     }
     let documentsHub = null;
+    let platformDocuments = [];
     if (activeView === 'documents' && apiReady()) {
       documentsHub = await safeApi('/api/v1/vehicles/documents/hub?attachments_limit=100&reports_limit=100&tachometer_limit=100', null);
+      const platformEntries = await Promise.all(
+        vehicleList.slice(0, 12).map(async (vehicle) => {
+          const docs = await safeApi(`/api/v1/vehicles/${Number(vehicle.id)}/documents`, []);
+          return Array.isArray(docs) ? docs : [];
+        }),
+      );
+      platformDocuments = platformEntries.flat();
     }
     let servicesDiscovery = null;
     if (activeView === 'servicesDirectory' && apiReady()) {
@@ -846,6 +854,7 @@
       recordEntries,
       recordMap,
       documentsHub,
+      platformDocuments,
       servicesDiscovery,
     };
     STATE.latestData = data;
@@ -2827,6 +2836,14 @@
         <button type="button" class="uapp-doc-tip-close" data-uapp-action="documentsTipClose" aria-label="Zavřít tip">×</button>
       </div>`;
 
+    const platformDocs = Array.isArray(data?.platformDocuments) ? data.platformDocuments : [];
+    const platformCardsHtml = (typeof window.ToozDocumentCards !== 'undefined' && platformDocs.length)
+      ? `<section class="uapp-doc-platform-section" data-testid="user-vehicle-documents-platform">
+          <h2 class="uapp-doc-section-title">Dokumenty vozidel (platforma)</h2>
+          ${window.ToozDocumentCards.renderDocumentCards(platformDocs, { cardClass: 'uapp-doc-card vehicle-document-card', gridClass: 'vehicle-document-cards-grid' })}
+        </section>`
+      : '';
+
     return `
       <div class="uapp-doc-page" data-testid="user-app-next-documents">
         <nav class="uapp-doc-breadcrumbs" aria-label="Drobečková navigace">
@@ -2844,6 +2861,7 @@
           </div>
           <button type="button" class="uapp-next-btn uapp-next-btn-primary uapp-doc-upload-btn" data-uapp-action="documentsUpload">↑ Nahrát dokument</button>
         </header>
+        ${platformCardsHtml}
         <div class="uapp-doc-toolbar">
           <label class="uapp-doc-search">
             <span class="uapp-next-search-icon" aria-hidden="true">${ICO.search}</span>
@@ -4842,6 +4860,9 @@
       bindServiceHistoryFilters();
     } else if (activeView === 'documents') {
       bindDocumentsFilters();
+      if (typeof window.ToozDocumentCards !== 'undefined') {
+        window.ToozDocumentCards.bindDocumentCardActions(root);
+      }
     } else if (activeView === 'invoices') {
       mountInvoicesModule(root);
     } else if (activeView === 'servicesDirectory') {

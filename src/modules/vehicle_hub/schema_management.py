@@ -24,8 +24,17 @@ MODULE_REQUIREMENTS: Dict[str, Dict[str, object]] = {
             "vehicle_removal_events",
             "audit_log",
             "vehicle_mileage",
+            "vehicle_documents",
         },
         "columns": {
+            "vehicle_documents": {
+                "vehicle_id",
+                "document_type",
+                "document_status",
+                "visibility_scope",
+                "verification_token",
+                "storage_path",
+            },
             "vehicles": {
                 "primary_photo_asset_id",
                 "photo_path",

@@ -280,6 +280,7 @@
     queue: null,
     customers: [],
     vehicles: [],
+    vehiclePlatformDocuments: [],
     reservations: [],
     reminders: [],
     documents: [],
@@ -2009,6 +2010,7 @@
         if (key === 'queue') state.queue = normalizeQueuePayload(payload);
         if (key === 'customers') state.customers = Array.isArray(payload) ? payload : [];
         if (key === 'vehicles') state.vehicles = Array.isArray(payload?.items) ? payload.items : [];
+        if (key === 'vehiclePlatformDocuments') state.vehiclePlatformDocuments = Array.isArray(payload) ? payload : [];
         if (key === 'reservations') state.reservations = Array.isArray(payload) ? payload : [];
         if (key === 'reminders') state.reminders = Array.isArray(payload) ? payload : [];
         if (key === 'documents') state.documents = Array.isArray(payload) ? payload : [];
@@ -2080,6 +2082,20 @@
 
       state.errors = [];
       await runRequestBatch(primaryKeys, true);
+
+      const vehicles = Array.isArray(state.vehicles) ? state.vehicles : [];
+      if (vehicles.length && typeof window.apiCall === 'function') {
+        const firstVehicleId = Number(vehicles[0]?.id || vehicles[0]?.vehicle_id || 0);
+        if (firstVehicleId > 0) {
+          try {
+            const platformDocs = await window.apiCall(`/api/v1/vehicles/${firstVehicleId}/documents`, 'GET');
+            state.vehiclePlatformDocuments = Array.isArray(platformDocs) ? platformDocs : [];
+          } catch (err) {
+            console.warn('[SERVICE_SHELL] vehicle platform documents:', err?.message || err);
+            state.vehiclePlatformDocuments = [];
+          }
+        }
+      }
 
       const secondaryKeys = Object.keys(requestFactories).filter((key) => !primaryKeys.includes(key));
       window.setTimeout(() => {
@@ -9553,8 +9569,9 @@
     `;
   }
 
-  function renderCardList({ head = '', cards = '', empty = 'Bez dat.' } = {}) {
+  function renderCardList({ head = '', cards = '', empty = 'Bez dat.', prefixHtml = '' } = {}) {
     return `
+      ${prefixHtml || ''}
       <section class="service-pro-card service-shell-card detail-card">
         ${head || ''}
         <div class="service-shell-card-list">
@@ -10288,6 +10305,13 @@
 
   function documentsSection() {
     const documents = Array.isArray(state.documents) ? state.documents : [];
+    const platformDocs = Array.isArray(state.vehiclePlatformDocuments) ? state.vehiclePlatformDocuments : [];
+    const platformCards = (typeof window.ToozDocumentCards !== 'undefined' && platformDocs.length)
+      ? `<section class="service-pro-card service-pro-doc-card" data-testid="service-vehicle-documents-platform">
+          <div class="service-shell-card-head"><div><h3 class="service-shell-card-title">Dokumenty vozidla (platforma)</h3></div></div>
+          ${window.ToozDocumentCards.renderDocumentCards(platformDocs, { cardClass: 'service-pro-doc-card vehicle-document-card', gridClass: 'vehicle-document-cards-grid' })}
+        </section>`
+      : '';
     const cards = documents.length ? documents.map((doc) => listCard({
       kicker: doc?.vehicle_label || 'Doklad',
       title: doc?.document_number || doc?.original_filename || '-',
@@ -10316,6 +10340,7 @@
         `,
         cards,
         empty: 'Bez dokumentů.',
+        prefixHtml: platformCards,
       });
     const side = `
       <aside class="service-shell-side">
@@ -10824,6 +10849,9 @@
       mountRemindersOverdueOverlayIfNeeded();
       if (intakeFocusSnap) {
         restoreIntakeFocus(intakeFocusSnap);
+      }
+      if (typeof window.ToozDocumentCards !== 'undefined') {
+        window.ToozDocumentCards.bindDocumentCardActions(root);
       }
     } catch (error) {
       console.error('[SERVICE_SHELL] render failed:', error);

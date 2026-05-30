@@ -8,6 +8,7 @@ from . import (
     tutorials,
     vehicles,
     vehicle_image,
+    vehicle_documents,
     service_records,
     analytics,
     service_intake,
@@ -38,6 +39,7 @@ api_router = APIRouter(prefix="/api/v1", tags=["api-v1"])
 api_router.include_router(vehicle_lifecycle.router)
 api_router.include_router(tutorials.router)
 api_router.include_router(vehicles.router)
+api_router.include_router(vehicle_documents.router)
 api_router.include_router(vehicle_image.router)
 api_router.include_router(service_records.router)
 api_router.include_router(analytics.router)  # Náklady, kategorie, měsíční trendy

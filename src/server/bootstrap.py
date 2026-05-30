@@ -534,6 +534,17 @@ def _include_feature_routers(app: FastAPI) -> None:
         traceback.print_exc()
 
     try:
+        from src.server.routers.public_documents import router as public_documents_router
+
+        app.include_router(public_documents_router)
+        print("[SERVER] Public documents verify router zaregistrován: /api/public/documents/")
+    except ImportError as exc:
+        print(f"[SERVER] Warning: Public documents router není dostupný: {exc}")
+        import traceback
+
+        traceback.print_exc()
+
+    try:
         from src.server.routers.public_demo_account import router as public_demo_account_router
 
         app.include_router(public_demo_account_router)

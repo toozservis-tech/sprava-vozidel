@@ -2117,3 +2117,33 @@ class ServiceLocationReport(Base):
     resolved_at = Column(DateTime, nullable=True)
 
     service_location = relationship("ServiceLocation", back_populates="reports")
+
+
+class VehicleDocument(Base):
+    """Platformní index dokumentů vázaných na vozidlo (C1.0)."""
+    __tablename__ = "vehicle_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False, index=True)
+    document_type = Column(String(64), nullable=False, index=True)
+    document_status = Column(String(32), nullable=False, default="draft", index=True)
+    title = Column(String(255), nullable=False)
+    document_number = Column(String(64), nullable=True, index=True)
+    source_type = Column(String(64), nullable=True)
+    source_id = Column(Integer, nullable=True, index=True)
+    service_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    owner_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    created_by_customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True, index=True)
+    visibility_scope = Column(String(32), nullable=False, default="service_private", index=True)
+    verification_token = Column(String(128), nullable=True, unique=True, index=True)
+    storage_path = Column(String(512), nullable=True)
+    thumbnail_path = Column(String(512), nullable=True)
+    mime_type = Column(String(128), nullable=False, default="application/pdf")
+    file_size = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    archived_at = Column(DateTime, nullable=True, index=True)
+    metadata_json = Column(Text, nullable=True)
+
+    vehicle = relationship("Vehicle", foreign_keys=[vehicle_id])
