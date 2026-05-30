@@ -13,6 +13,7 @@
 | [UI_GOVERNANCE.md](./UI_GOVERNANCE.md) | Design systém |
 | [WORKFLOW_STANDARDS.md](./WORKFLOW_STANDARDS.md) | End-to-end procesy |
 | [PDF_STANDARDS.md](./PDF_STANDARDS.md) | Dokumenty a PDF |
+| [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md) | Lifecycle dokumentů (C1-PREP) |
 
 **Agenti a revieweři:** nejdřív governance, pak tento dokument, pak feature spec.
 
@@ -115,7 +116,7 @@ Podrobná mapa funkcí: [APP_WIDE_FUNCTION_MAP_20260518.md](./APP_WIDE_FUNCTION_
 |------|-------|------|
 | **A — Governance** | Tento balík dokumentů + `.mdc` | probíhá |
 | **B — Audit** | Soulad % po oblastech | plánováno |
-| **C — Vývoj** | Až po auditu nebo výjimce | pozastaveno |
+| **C — Vývoj** | PDF platforma C1, Vehicle hub C2 | plánováno po schválení C1-PREP |
 
 ---
 

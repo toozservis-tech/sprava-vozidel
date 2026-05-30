@@ -1,10 +1,10 @@
 # Document Visual System
 
 **Fáze:** C1-PREP — Document Platform Design  
-**Status:** NÁVRH KE SCHVÁLENÍ  
+**Status:** **SCHVÁLENO** (2026-05-30)  
 **Podřízeno:** [PRODUKTOVA-USTAVA.md](./PRODUKTOVA-USTAVA.md) §6–10, [UI_GOVERNANCE.md](./UI_GOVERNANCE.md), [PDF_STANDARDS.md](./PDF_STANDARDS.md)
 
-Související: [DOCUMENT_PLATFORM_ARCHITECTURE.md](./DOCUMENT_PLATFORM_ARCHITECTURE.md), [DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECIFICATION.md)
+Související: [DOCUMENT_PLATFORM_ARCHITECTURE.md](./DOCUMENT_PLATFORM_ARCHITECTURE.md), [DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECIFICATION.md), [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md)
 
 ---
 
@@ -49,7 +49,20 @@ Převzato z existujícího vehicle report rendereru a sjednoceno s `--sv-*` / `-
 
 **Povinné:** DejaVuSans pro českou diakritiku (server font path již v vehicle report).
 
-### 2.3 Typografie (UI karty)
+### 2.3 Status badge — unified platform (viz [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md) §4)
+
+| Platform status | UI label | Barva |
+|-----------------|----------|-------|
+| `draft` | KONCEPT | warning |
+| `pending` | ČEKÁ | warning |
+| `approved` | SCHVÁLENO | success |
+| `completed` | DOKONČENO / VYSTAVENO | success |
+| `cancelled` | ZRUŠENO | danger |
+| `archived` | ARCHIV | muted |
+
+Typ-specifické subtitle (např. „K ÚHRADĚ") jen jako druhý řádek pod badge — **ne** jiná barva.
+
+### 2.4 Typografie (UI karty)
 
 | Role | CSS | Velikost |
 |------|-----|----------|
@@ -167,14 +180,14 @@ Jednotná karta pro service i user app. CSS třídy:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  ┌──────────────────┐                                       │
-│  │                  │  FAKTURA · VYSTAVENO                  │
+│  │                  │  FAKTURA · DOKONČENO                   │
 │  │  PDF THUMBNAIL   │  č. 2026-0042                         │
-│  │  (first page)    │  28.05.2026 · 15 064,50 Kč            │
-│  │  120 × 170 px    │                                       │
+│  │  (pdf.js str. 1) │  28.05.2026                           │
+│  │  120 × 170 px    │  Autoservis Novák s.r.o.              │
 │  │                  │  🚗 Škoda Octavia · 1AB 2345          │
 │  └──────────────────┘                                       │
 │                                                             │
-│  [ Otevřít ]  [ Stáhnout ]  [ Ověřit ]  [ Sdílet ]         │
+│  [ Otevřít ]  [ Stáhnout ]  [ Sdílet ]  [ Ověřit ]         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -182,28 +195,29 @@ Jednotná karta pro service i user app. CSS třídy:
 
 ```
 ┌─────────────────────────────────────┐
-│ ┌─────────┐  FAKTURA · VYSTAVENO   │
+│ ┌─────────┐  FAKTURA · DOKONČENO   │
 │ │ THUMB   │  č. 2026-0042          │
 │ │ 80×113  │  28.05.2026            │
-│ └─────────┘  Škoda Octavia         │
-│              15 064,50 Kč          │
+│ └─────────┘  Autoservis Novák       │
+│              Škoda Octavia         │
 │ ┌─────────────────────────────────┐│
 │ │ Otevřít          (full width)   ││
 │ └─────────────────────────────────┘│
-│ [ Stáhnout ]  [ Ověřit ]  [ ⋮ ]   │
+│ [ Stáhnout ]  [ Sdílet ]  [ Ověřit ]│
 └─────────────────────────────────────┘
 ```
 
-**Povinná pole karty (§10 ústavy):**
+**Povinná pole karty (schváleno — [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md) §5):**
 
 | Prvek | Povinný |
 |-------|---------|
-| Náhled první stránky | ano |
+| Náhled první stránky (pdf.js, ne ikona) | ano |
 | Typ dokumentu | ano |
-| Stav | ano |
+| Stav (unified platform status) | ano |
 | Datum | ano |
-| Vozidlo | ano (pokud vázáno) |
-| Akce | dle typu |
+| Servis | ano |
+| Vozidlo | ano |
+| Akce: Otevřít, Stáhnout, Sdílet, Ověřit | dle typu |
 
 ### 4.2 Document Card Grid
 
@@ -298,14 +312,16 @@ Detailní pole: [DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECIFICATION
 
 ## 6. Fotografie v PDF
 
+**Zásada (schváleno):** Fotografie jsou **embedded v PDF**, ne odkazy. Detail slotů: [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md) §8.
+
 | Parametr | Hodnota |
 |----------|---------|
-| Max na stránku | 4 náhledy (1 řada) nebo 8 (2 řady) |
+| Max na stránku | 4–6 náhledů (dle typu) |
 | Náhled rozměr | 120 × 90 px (aspect crop center) |
 | Formát | JPEG embedded v PDF |
-| Zdroj | `ServiceWorkOrderPhoto`, intake photos, record attachments |
-| Popisek | 8 pt muted pod náhledem |
-| Prázdný stav | Sekce se nevykresluje (ne „žádné fotky") |
+| Popisek | 8 pt muted pod náhledem — **povinný label slotu** (Přední část, …) |
+| Prázdný slot (draft) | Šedý placeholder „Nepořízeno" |
+| Prázdný slot (finalized intake) | FAIL pro mandatory slots |
 
 ---
 
@@ -383,13 +399,13 @@ Barvy a typografie: stejné tokeny jako PDF header.
 
 ## 12. Schvalovací checklist
 
-- [ ] Master PDF wireframe (Zone A–J) schválen
-- [ ] Document card desktop + mobile schválen
-- [ ] Preview panel (inline, ne nested modal) schválen
-- [ ] Status badge barvy schváleny
-- [ ] QR umístění (platba vs verify) schváleno
-- [ ] Fotografie a podpisy spec schváleny
-- [ ] Tokeny sjednoceny s design mapou
+- [x] Master PDF wireframe (Zone A–J) schválen
+- [x] Document card desktop + mobile schválen
+- [x] Preview panel (inline, ne nested modal) schválen
+- [x] Unified status badge schválen
+- [x] QR umístění (platba vs verify) schváleno
+- [x] Fotografie embedded + sloty schváleny
+- [x] Tokeny sjednoceny s design mapou
 
 ---
 

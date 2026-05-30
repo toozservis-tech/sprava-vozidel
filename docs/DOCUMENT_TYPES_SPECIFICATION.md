@@ -1,10 +1,10 @@
 # Document Types Specification
 
 **Fáze:** C1-PREP — Document Platform Design  
-**Status:** NÁVRH KE SCHVÁLENÍ  
+**Status:** **SCHVÁLENO** (2026-05-30)  
 **Podřízeno:** [PRODUKTOVA-USTAVA.md](./PRODUKTOVA-USTAVA.md) §7–10, [PDF_STANDARDS.md](./PDF_STANDARDS.md)
 
-Související: [DOCUMENT_PLATFORM_ARCHITECTURE.md](./DOCUMENT_PLATFORM_ARCHITECTURE.md), [DOCUMENT_VISUAL_SYSTEM.md](./DOCUMENT_VISUAL_SYSTEM.md)
+Související: [DOCUMENT_PLATFORM_ARCHITECTURE.md](./DOCUMENT_PLATFORM_ARCHITECTURE.md), [DOCUMENT_VISUAL_SYSTEM.md](./DOCUMENT_VISUAL_SYSTEM.md), [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md)
 
 ---
 
@@ -331,7 +331,10 @@ service-shell-work-order-pdf.spec.ts
 │  POŽADAVEK ZÁKAZNÍKA                                                     │
 │  „Kontrola úniku oleje, výměna filtrů"                                   │
 ├──────────────────────────────────────────────────────────────────────────┤
-│  ┌────┐ ┌────┐ ┌────┐ ┌────┐  Fotodokumentace příjmu (4 náhledy)        │
+│  ┌────┐ ┌────┐ ┌────┐   ┌────┐ ┌────┐ ┌────┐                             │
+│  │Před│ │Zad │ │Levá│   │Prav│ │Int.│ │Pošk│  Fotodokumentace příjmu     │
+│  │ní  │ │ní  │ │    │   │á   │ │    │ │ození│  (embedded, ne odkaz)      │
+│  └────┘ └────┘ └────┘   └────┘ └────┘ └────┘                             │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  Podpis zákazníka [img]              Podpis servisu [img]                │
 │  ┌────────┐  Ověření: /verify/{token}                                     │
@@ -348,9 +351,20 @@ service-shell-work-order-pdf.spec.ts
 | Příjem | datetime, recepce, režim přístupu |
 | Poškození | `damage_description` |
 | Požadavek | `customer_request` |
-| Fotky | intake photos |
+| Fotky | intake photos — **6 slotů embedded** (viz lifecycle §8.1) |
 | Podpisy | `signature` |
 | QR verify | ano |
+
+### 4.2a Fotodokumentace — povinné sloty
+
+| Slot key | Label PDF | Finalized |
+|----------|-----------|-----------|
+| `front` | Přední část | povinné |
+| `rear` | Zadní část | povinné |
+| `left` | Levá strana | povinné |
+| `right` | Pravá strana | povinné |
+| `interior` | Interiér | doporučeno |
+| `damage` | Poškození | pokud damage popis |
 
 ## 4.3 Zdroj dat
 
@@ -648,6 +662,10 @@ vehicle-history-pdf-platform.spec.ts
 
 # Příloha C — E2E souhrn
 
+Každý spec musí pokrýt **plný lifecycle cyklus** ([DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md) §12):
+
+create → edit → finalize → card thumbnail → preview = download → share → verify → archive → reload → re-login → mobile → delete draft
+
 | Spec soubor | Typ | Viewport |
 |-------------|-----|----------|
 | `service-shell-invoice-pdf-platform.spec.ts` | Faktura | 1280 + 390 |
@@ -660,6 +678,8 @@ vehicle-history-pdf-platform.spec.ts
 | `user-documents-preview-cards.spec.ts` | Hub cards | 390 |
 
 Každý spec: create → preview card → open → download → verify → reload → re-login → mobile.
+
+**Poznámka:** Po schválení lifecycle (§12) je povinný i krok edit, archive a delete draft.
 
 ---
 

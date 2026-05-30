@@ -1,12 +1,13 @@
 # Document Platform Architecture
 
 **Fáze:** C1-PREP — Document Platform Design  
-**Status:** NÁVRH KE SCHVÁLENÍ — žádná implementace  
-**Závaznost:** Po schválení má prioritu nad ad hoc PDF implementací  
+**Status:** **SCHVÁLENO** (2026-05-30) — implementace až po C1.0 kickoff  
+**Závaznost:** Má prioritu nad ad hoc PDF implementací  
 **Podřízeno:** [PRODUKTOVA-USTAVA.md](./PRODUKTOVA-USTAVA.md) §6–10, [PDF_STANDARDS.md](./PDF_STANDARDS.md), [UI_GOVERNANCE.md](./UI_GOVERNANCE.md)
 
 Související návrhové dokumenty:
 
+- [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md) — vozidlo-centric model, stavy, workflow řetězce
 - [DOCUMENT_VISUAL_SYSTEM.md](./DOCUMENT_VISUAL_SYSTEM.md) — layout, wireframy, komponenty
 - [DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECIFICATION.md) — specifikace 7 typů dokumentů
 
@@ -160,11 +161,22 @@ Typ-specifické payloady rozšiřují base o vlastní sekce (viz [DOCUMENT_TYPES
 | **Stored** | Issued / finalized | `DATA_DIR/documents/{type}/{vehicle_id}/{id}.pdf` |
 | **Versioned** | Vehicle history | `VehicleReportDocument` (existující model) |
 
-Metadata tabulka (rozšíření nebo nová `VehicleDocument` — rozhodnutí v C1.0):
+Metadata tabulka **`VehicleDocument`** (schváleno — viz [DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md) §2):
 
-- `id`, `vehicle_id`, `document_type`, `source_id` (invoice_id, wo_id, …)
-- `status`, `file_path`, `hash_sha256`, `public_token`, `verification_code`
-- `thumbnail_path` (optional), `finalized_at`, `issued_by_service_id`
+| Pole | Povinné |
+|------|---------|
+| `vehicle_id` | ano — dokument patří vozidlu, ne uživateli |
+| `document_type` | ano |
+| `document_status` | ano — unified: draft / pending / approved / completed / cancelled / archived |
+| `created_at`, `created_by` | ano |
+| `service_customer_id` | ano |
+| `owner_visibility` | ano — owner / service_only / public_verify |
+| `verification_token` | u finalized dokumentů |
+| `source_type`, `source_id` | vazba na ServiceInvoice, WO, … |
+| `file_path`, `hash_sha256` | u stored PDF |
+| `parent_document_id` | vazby v řetězci (WO → faktura) |
+
+**Zakázáno:** `user_documents`, primární index podle `customer_id`.
 
 ---
 
@@ -249,8 +261,8 @@ Existující paralelní cesta: `fakturyweb_pdf_url` po exportu do FakturyWeb.
 
 | Surface | Soubor | Dnešní stav | Cíl C1 |
 |---------|--------|-------------|--------|
-| User documents | `user-app-next.js` | Tabulka + ikony | `uapp-doc-card` grid |
-| User vehicle detail → Dokumenty | `user-app-next.js` | Placeholder → legacy | Nativní sekce (C2), karty z C1 |
+| User vehicle detail → Dokumenty | `user-app-next.js` | Placeholder → legacy | **Vehicle Hub subtree** (C2) — viz lifecycle §3 |
+| User documents (legacy list) | `user-app-next.js` | Tabulka + ikony | Migrovat do Vehicle → Dokumenty; deprecate globální list |
 | Legacy hub | `index.html` | pdf.js modal, funguje | Deprecate po C2 |
 | Service invoices | `service-shell.js` | `openAuthenticatedPdf` new tab | Inline preview panel + karta |
 | Service quotes | `service-shell.js` | PDF new tab | Karta + share |
@@ -313,7 +325,7 @@ E2E scénáře per typ: [DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECI
 
 | # | Otázka | Doporučení |
 |---|--------|------------|
-| 1 | Nová tabulka `VehicleDocument` vs rozšířit `VehicleReportDocument` | Abstraktní `VehicleDocument` pro všechny typy |
+| 1 | Nová tabulka `VehicleDocument` vs rozšířit `VehicleReportDocument` | **Rozhodnuto:** `VehicleDocument` pro všechny typy; `VehicleReportDocument` zůstane pro historii |
 | 2 | Server thumbnail vs client pdf.js | Client first; server optional |
 | 3 | Podpis — canvas capture vs upload | Canvas v intake/WO UI → PNG v payload |
 | 4 | Logo servisu — zdroj | `Customer` (service) logo field nebo default TooZ |
@@ -323,14 +335,16 @@ E2E scénáře per typ: [DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECI
 
 ## 14. Schvalovací checklist
 
-- [ ] Architektura modulů schválena
-- [ ] Unified vs per-type API strategie schválena
-- [ ] FakturyWeb strategie A schválena
-- [ ] Verify model sjednocen
-- [ ] UI preview = inline panel (ne nested modal)
-- [ ] Pořadí C1.1–C1.7 schváleno
-- [ ] Vizuální systém schválen ([DOCUMENT_VISUAL_SYSTEM.md](./DOCUMENT_VISUAL_SYSTEM.md))
-- [ ] Všechny typy specifikovány ([DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECIFICATION.md))
+- [x] Architektura modulů schválena
+- [x] Unified vs per-type API strategie schválena (facade + per-type PDF)
+- [x] FakturyWeb strategie A schválena
+- [x] Verify model sjednocen
+- [x] UI preview = inline panel (ne nested modal)
+- [x] Pořadí C1.1–C1.7 schváleno
+- [x] Vizuální systém schválen ([DOCUMENT_VISUAL_SYSTEM.md](./DOCUMENT_VISUAL_SYSTEM.md))
+- [x] Všechny typy specifikovány ([DOCUMENT_TYPES_SPECIFICATION.md](./DOCUMENT_TYPES_SPECIFICATION.md))
+- [x] Lifecycle schválen ([DOCUMENT_LIFECYCLE.md](./DOCUMENT_LIFECYCLE.md))
+- [x] Vehicle-centric model schválen
 
 ---
 
