@@ -335,6 +335,7 @@
     _intakeCaretPos: 0,
     workOrderLimitedNotice: '',
     workOrderDetailCache: {},
+    workOrderCompletionPrompt: {},
     vehicleTimelineCache: {},
     vehicleTimelineLoading: false,
     vehicleTimelineError: '',
@@ -4160,6 +4161,56 @@
     `;
   }
 
+  function workOrderInvoiceActionAvailable(detail) {
+    const caps = detail?.capabilities || {};
+    const invoice = detail?.invoice_summary || null;
+    const ownerId = Number(detail?.owner_id || detail?.customer_id || 0);
+    const isUnowned = Boolean(detail?.is_unowned_vehicle) || ownerId <= 0;
+    const billingContactReady = Boolean(detail?.billing_contact?.ready_for_invoice);
+    const canInvoice = caps.invoices !== false && !Number(invoice?.invoice_id || 0);
+    return canInvoice && ((!isUnowned) || (isUnowned && billingContactReady));
+  }
+
+  function renderWorkOrderCompletionPanel(detail, workOrderId) {
+    const status = String(detail?.status || '').toLowerCase();
+    if (status !== 'completed') return '';
+    const woId = Number(workOrderId || 0);
+    const recordId = Number(detail?.service_record_id || 0);
+    const invoice = detail?.invoice_summary || null;
+    const caps = detail?.capabilities || {};
+    const canCreateRecord = Boolean(caps.create_service_record) && recordId <= 0;
+    const canCreateInvoice = workOrderInvoiceActionAvailable(detail);
+    const ownerId = Number(detail?.owner_id || detail?.customer_id || 0);
+    const isUnowned = Boolean(detail?.is_unowned_vehicle) || ownerId <= 0;
+    const highlighted = Boolean(state.workOrderCompletionPrompt?.[woId]);
+    const doneParts = [];
+    if (!canCreateInvoice && Number(invoice?.invoice_id || 0) > 0) doneParts.push('doklad vystaven');
+    if (!canCreateRecord && recordId > 0) doneParts.push('servisní záznam vytvořen');
+    const allDone = !canCreateInvoice && !canCreateRecord;
+    return `
+      <section class="service-pro-card service-work-order-completion-panel${highlighted ? ' is-highlighted' : ''}" data-testid="service-work-order-completion-panel" aria-label="Další kroky po dokončení">
+        <div class="service-pro-card-head">
+          <h3>Zakázka dokončena</h3>
+          ${highlighted ? '<span class="service-status-badge is-success">Nově dokončeno</span>' : ''}
+        </div>
+        <p class="service-shell-list-note">Doklad zůstává obchodním dokumentem servisu. Servisní záznam pro majitele neobsahuje ceny ani interní data.</p>
+        ${allDone
+          ? `<p class="service-shell-list-note" data-testid="service-work-order-completion-done">${escape(doneParts.join(' · ') || 'Všechny kroky jsou hotové.')}</p>`
+          : `
+            <div class="service-work-order-completion-actions">
+              <button type="button" class="btn btn-secondary service-work-order-completion-action" data-testid="service-work-order-complete-invoice" ${canCreateInvoice ? '' : 'disabled'} onclick="window.serviceShell.createWorkOrderInvoice(${woId})">Vystavit doklad</button>
+              <button type="button" class="btn btn-secondary service-work-order-completion-action" data-testid="service-work-order-complete-record" ${canCreateRecord ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderServiceRecord(${woId})">Přidat servisní záznam</button>
+              <button type="button" class="btn btn-primary service-work-order-completion-action" data-testid="service-work-order-complete-both" ${canCreateInvoice && canCreateRecord ? '' : 'disabled'} onclick="window.serviceShell.submitWorkOrderCompleteBoth(${woId})">Vytvořit obojí</button>
+            </div>
+            ${!canCreateInvoice && isUnowned && !billingContactReady(detail) ? '<p class="service-shell-list-note">Pro vystavení dokladu doplňte fakturační kontakt zákazníka.</p>' : ''}
+          `}
+      </section>`;
+  }
+
+  function billingContactReady(detail) {
+    return Boolean(detail?.billing_contact?.ready_for_invoice);
+  }
+
   function renderWorkOrderItemsPanel(detail, workOrderId) {
     const items = detail?.items || {};
     const caps = detail?.capabilities || {};
@@ -4521,11 +4572,39 @@
     const id = Number(workOrderId || 0);
     try {
       await window.apiCall(`/api/service/work-orders/${id}/complete`, 'POST', {});
+      if (!state.workOrderCompletionPrompt) state.workOrderCompletionPrompt = {};
+      state.workOrderCompletionPrompt[id] = true;
       if (typeof window.showAlert === 'function') window.showAlert('Zakázka byla dokončena.', 'success');
       await reloadWorkOrderDetailModal(id);
-      openWorkOrderCompletionDialog(id);
     } catch (err) {
       setWorkOrderLimitedNotice(err?.message || 'Zakázku se nepodařilo dokončit.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  async function submitWorkOrderCompleteBoth(workOrderId) {
+    const id = Number(workOrderId || 0);
+    if (!id) return;
+    const detail = state.workOrderDetailCache?.[id] || null;
+    const canInvoice = workOrderInvoiceActionAvailable(detail);
+    const canRecord = Boolean(detail?.capabilities?.create_service_record) && Number(detail?.service_record_id || 0) <= 0;
+    try {
+      if (canInvoice) {
+        await window.apiCall(`/api/service/work-orders/${id}/invoice`, 'POST', {});
+      }
+      if (canRecord) {
+        const mileageRaw = document.getElementById('serviceWoRecordMileage')?.value;
+        const mileage = mileageRaw === '' || mileageRaw == null ? null : Number(mileageRaw);
+        const payload = {};
+        if (mileage != null && !Number.isNaN(mileage) && mileage >= 0) payload.mileage = Math.round(mileage);
+        await window.apiCall(`/api/service/work-orders/${id}/service-record`, 'POST', payload);
+      }
+      if (typeof window.showAlert === 'function') window.showAlert('Doklad a servisní záznam byly vytvořeny.', 'success');
+      if (!state.workOrderCompletionPrompt) state.workOrderCompletionPrompt = {};
+      state.workOrderCompletionPrompt[id] = true;
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.detail?.message || err?.message || 'Vytvoření dokladu a záznamu se nepodařilo.');
       await reloadWorkOrderDetailModal(id);
     }
   }
@@ -4734,6 +4813,7 @@
               <textarea id="serviceShellDetailDescription" rows="4">${escape(detail?.description || '')}</textarea>
             </div>
             ${renderWorkOrderItemsPanel(detail, id)}
+            ${renderWorkOrderCompletionPanel(detail, id)}
             <div class="form-group">
               <label>Audit</label>
               <div class="service-dashboard-empty service-shell-modal-audit">
@@ -8210,21 +8290,14 @@
 
   function openWorkOrderCompletionDialog(workOrderId) {
     const id = Number(workOrderId || 0);
-    if (!id || !hasFloatingModalSupport()) return;
-    openModal({
-      key: `work-order-complete-${id}`,
-      title: 'Zakázka dokončena',
-      description: 'Vyberte další krok po dokončení práce.',
-      renderContent: () => `
-        <p class="service-shell-list-note">Doklad zůstává obchodním dokumentem servisu. Servisní záznam pro majitele neobsahuje ceny ani interní data.</p>
-        <div class="service-shell-modal-actions service-intake-completion-actions">
-          <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-invoice" onclick="window.serviceShell.createWorkOrderInvoice(${id}); window.serviceShell.closeModal();">Vystavit doklad</button>
-          <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-record" onclick="window.serviceShell.submitWorkOrderServiceRecord(${id}); window.serviceShell.closeModal();">Přidat servisní záznam</button>
-          <button type="button" class="btn btn-primary" data-testid="service-work-order-complete-both" onclick="window.serviceShell.createWorkOrderInvoice(${id}); window.serviceShell.submitWorkOrderServiceRecord(${id}); window.serviceShell.closeModal();">Vytvořit obojí</button>
-        </div>
-      `,
-      renderFooter: () => renderMobileModalFooter('<button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zavřít</button>'),
-    });
+    if (!id) return;
+    if (!state.workOrderCompletionPrompt) state.workOrderCompletionPrompt = {};
+    state.workOrderCompletionPrompt[id] = true;
+    if (isModalOpen(`work-order-detail-${id}`)) {
+      renderModal();
+      return;
+    }
+    void openWorkOrderDetailModal(id);
   }
 
   function renderServiceIntakeSection() {
@@ -10875,6 +10948,7 @@
     submitWorkOrderAccept,
     openWorkOrderCompletionDialog,
     submitWorkOrderComplete,
+    submitWorkOrderCompleteBoth,
     submitWorkOrderServiceRecord,
     handleWorkOrderPhotoSelection,
     triggerWorkOrderPhotoUpload,

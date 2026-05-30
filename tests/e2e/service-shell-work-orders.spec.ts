@@ -191,9 +191,157 @@ test.describe('Service shell work orders route', () => {
     const statusValue = await status.inputValue();
     if (statusValue === 'completed') {
       await expect(completeBtn).toBeDisabled();
+      await expect(page.locator('[data-testid="service-work-order-completion-panel"]')).toBeVisible();
     } else {
       await expect(completeBtn).toBeEnabled();
     }
+  });
+
+  test.describe('Work order completion panel', () => {
+    const woId = 8801;
+
+    function mockCompletedWorkOrder(page: Parameters<typeof test>[0]['page'], options: { recordId?: number; invoiceId?: number } = {}) {
+      const recordId = Number(options.recordId || 0);
+      const invoiceId = Number(options.invoiceId || 0);
+      return page.route(new RegExp(`/api/service/work-orders/${woId}(?:/|$)`), async (route) => {
+        const method = route.request().method();
+        const url = route.request().url();
+        if (method === 'GET') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              id: woId,
+              title: 'E2E completion WO',
+              status: 'completed',
+              customer_id: 101,
+              owner_id: 101,
+              vehicle_label: 'Skoda Octavia',
+              capabilities: { create_service_record: recordId <= 0, invoices: true, complete: false },
+              service_record_id: recordId || null,
+              invoice_summary: invoiceId ? { invoice_id: invoiceId, status: 'issued', total: 1200 } : null,
+              items: { labor: [], parts: [], time: [] },
+              photos: [],
+            }),
+          });
+          return;
+        }
+        if (method === 'POST' && url.includes('/service-record')) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ service_record_id: 9901 }),
+          });
+          return;
+        }
+        if (method === 'POST' && url.includes('/invoice')) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ id: 7701, invoice_number: 'FV-E2E-1', total: 1500 }),
+          });
+          return;
+        }
+        await route.continue();
+      });
+    }
+
+    async function openCompletedWorkOrderDetail(page: Parameters<typeof test>[0]['page']) {
+      await page.route('**/api/service/work-orders', async (route) => {
+        if (route.request().method() === 'GET' && !route.request().url().includes(`/${woId}`)) {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              items: [{ id: woId, title: 'E2E completion WO', status: 'completed' }],
+              total: 1,
+            }),
+          });
+          return;
+        }
+        await route.continue();
+      });
+      await openWorkOrders(page);
+      await page.locator('[data-testid="service-work-order-row"]').first().click();
+      await expect(page.locator('[data-testid="service-work-order-completion-panel"]')).toBeVisible({ timeout: 15_000 });
+    }
+
+    test('service_work_order_complete_shows_actions', async ({ page }) => {
+      await mockCompletedWorkOrder(page);
+      await openCompletedWorkOrderDetail(page);
+      await expect(page.locator('[data-testid="service-work-order-complete-invoice"]')).toBeEnabled();
+      await expect(page.locator('[data-testid="service-work-order-complete-record"]')).toBeEnabled();
+      await expect(page.locator('[data-testid="service-work-order-complete-both"]')).toBeEnabled();
+    });
+
+    test('service_work_order_complete_create_record', async ({ page }) => {
+      let recordCalled = false;
+      await mockCompletedWorkOrder(page);
+      await page.route(`**/api/service/work-orders/${woId}/service-record`, async (route) => {
+        recordCalled = true;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ service_record_id: 9901 }),
+        });
+      });
+      await openCompletedWorkOrderDetail(page);
+      await page.locator('[data-testid="service-work-order-complete-record"]').click();
+      await expect.poll(() => recordCalled).toBe(true);
+    });
+
+    test('service_work_order_complete_create_invoice', async ({ page }) => {
+      let invoiceCalled = false;
+      await mockCompletedWorkOrder(page);
+      await page.route(`**/api/service/work-orders/${woId}/invoice`, async (route) => {
+        invoiceCalled = true;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ id: 7701, invoice_number: 'FV-E2E-1', total: 1500 }),
+        });
+      });
+      await openCompletedWorkOrderDetail(page);
+      await page.locator('[data-testid="service-work-order-complete-invoice"]').click();
+      await expect.poll(() => invoiceCalled).toBe(true);
+    });
+
+    test('service_work_order_complete_create_both_or_limited', async ({ page }) => {
+      let invoiceCalled = false;
+      let recordCalled = false;
+      await mockCompletedWorkOrder(page);
+      await page.route(`**/api/service/work-orders/${woId}/invoice`, async (route) => {
+        invoiceCalled = true;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 7701 }) });
+      });
+      await page.route(`**/api/service/work-orders/${woId}/service-record`, async (route) => {
+        recordCalled = true;
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ service_record_id: 9901 }) });
+      });
+      await openCompletedWorkOrderDetail(page);
+      await page.locator('[data-testid="service-work-order-complete-both"]').click();
+      await expect.poll(() => invoiceCalled && recordCalled).toBe(true);
+    });
+
+    test('service_work_order_completion_f5_keeps_session', async ({ page }) => {
+      await mockCompletedWorkOrder(page);
+      await openCompletedWorkOrderDetail(page);
+      const before = page.url();
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await waitForServiceShellReady(page);
+      await expect(page).toHaveURL(before);
+      await expect(page.locator('[data-testid="login-form"]')).not.toBeVisible();
+    });
+
+    test('service_work_order_completion_panel_mobile', async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await mockCompletedWorkOrder(page);
+      await openCompletedWorkOrderDetail(page);
+      const invoiceBtn = page.locator('[data-testid="service-work-order-complete-invoice"]');
+      await expect(invoiceBtn).toBeVisible();
+      const box = await invoiceBtn.boundingBox();
+      expect(box?.height || 0).toBeGreaterThanOrEqual(44);
+    });
   });
 
   test('service_work_order_create_record_or_limited', async ({ page }) => {

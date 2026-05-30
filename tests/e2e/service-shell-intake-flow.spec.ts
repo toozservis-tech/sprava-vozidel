@@ -200,7 +200,8 @@ test.describe('Service intake wizard flow', () => {
 
   test('technician_accepts_order_and_completes_it', async ({ page }) => {
     const woId = 3003;
-    await page.route(`**/api/service/work-orders/${woId}`, async (route) => {
+    let woStatus = 'intake_pending';
+    await page.route(new RegExp(`/api/service/work-orders/${woId}(?:/|$)`), async (route) => {
       const method = route.request().method();
       if (method === 'GET') {
         await route.fulfill({
@@ -209,16 +210,24 @@ test.describe('Service intake wizard flow', () => {
           body: JSON.stringify({
             id: woId,
             title: 'Nový příjem vozidla',
-            status: 'intake_pending',
+            status: woStatus,
             vehicle_label: 'Skoda Octavia',
-            capabilities: { accept: true, complete: true },
-            items: [],
+            customer_id: 101,
+            owner_id: 101,
+            capabilities: {
+              accept: woStatus === 'intake_pending',
+              complete: woStatus !== 'completed',
+              create_service_record: woStatus === 'completed',
+              invoices: true,
+            },
+            items: { labor: [], parts: [], time: [] },
             photos: [],
           }),
         });
         return;
       }
       if (method === 'POST' && route.request().url().includes('/accept')) {
+        woStatus = 'in_progress';
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -227,6 +236,7 @@ test.describe('Service intake wizard flow', () => {
         return;
       }
       if (method === 'POST' && route.request().url().includes('/complete')) {
+        woStatus = 'completed';
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -258,9 +268,13 @@ test.describe('Service intake wizard flow', () => {
     await expect(page.locator('[data-testid="service-work-order-accept-button"]')).toBeVisible();
     await page.locator('[data-testid="service-work-order-accept-button"]').click();
     await expect(page.locator('[data-testid="service-work-order-complete-button"]')).toBeVisible({ timeout: 15_000 });
-    await page.locator('[data-testid="service-work-order-complete-button"]').click();
-    await expect(
-      page.locator('[data-testid="service-work-order-complete-invoice"]').or(page.locator('.service-shell-modal-title').filter({ hasText: /dokončena/i })),
-    ).toBeVisible({ timeout: 15_000 });
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes(`/work-orders/${woId}/complete`) && r.status() === 200),
+      page.locator('[data-testid="service-work-order-complete-button"]').click(),
+    ]);
+    await expect(page.locator('[data-testid="service-work-order-completion-panel"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-testid="service-work-order-complete-invoice"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-complete-record"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-work-order-complete-both"]')).toBeVisible();
   });
 });

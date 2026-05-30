@@ -4319,6 +4319,39 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
   }
 }
 
+.service-work-order-completion-panel {
+  margin-top: 12px;
+  border: 1px solid var(--service-border, rgba(148, 163, 184, 0.35));
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
+}
+
+.service-work-order-completion-panel.is-highlighted {
+  border-color: rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12);
+}
+
+.service-work-order-completion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.service-work-order-completion-action {
+  min-height: 44px;
+}
+
+@media (max-width: 640px) {
+  .service-work-order-completion-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .service-work-order-completion-action {
+    width: 100%;
+  }
+}
+
 @media (max-width: 640px) {
   .service-intake-grid {
     grid-template-columns: minmax(0, 1fr);
