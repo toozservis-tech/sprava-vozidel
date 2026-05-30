@@ -223,6 +223,127 @@ def decrement_inventory_for_work_order(
     )
 
 
+def return_inventory_for_work_order_item(
+    db: Session,
+    *,
+    inventory_item: ServiceInventoryItem,
+    quantity: float,
+    actor: Customer,
+    work_order_id: int,
+    work_order_item_id: int,
+    reason: Optional[str] = None,
+) -> None:
+    qty = float(quantity)
+    if qty <= 0:
+        return
+    before = float(inventory_item.quantity_on_hand or 0)
+    after = before + qty
+    inventory_item.quantity_on_hand = after
+    inventory_item.updated_at = datetime.utcnow()
+    _record_movement(
+        db,
+        item=inventory_item,
+        actor=actor,
+        movement_type="return",
+        quantity_delta=qty,
+        quantity_before=before,
+        quantity_after=after,
+        reason=reason or "Vrácení ze zakázky",
+        work_order_id=int(work_order_id),
+        work_order_item_id=int(work_order_item_id),
+    )
+    write_global_audit_log(
+        db,
+        entity_type="service_inventory_item",
+        entity_id=int(inventory_item.id),
+        action="inventory_stock_returned",
+        actor_user_id=int(actor.id),
+        actor_role=getattr(actor, "role", None),
+        tenant_id=int(inventory_item.service_tenant_id),
+        metadata={
+            "quantity": qty,
+            "quantity_before": before,
+            "quantity_after": after,
+            "work_order_id": int(work_order_id),
+            "work_order_item_id": int(work_order_item_id),
+        },
+    )
+
+
+def adjust_inventory_for_work_order_item(
+    db: Session,
+    *,
+    inventory_item: ServiceInventoryItem,
+    quantity_delta: float,
+    actor: Customer,
+    work_order_id: int,
+    work_order_item_id: int,
+    reason: Optional[str] = None,
+) -> None:
+    """Positive delta consumes stock; negative delta returns stock."""
+    delta = float(quantity_delta)
+    if delta == 0:
+        return
+    before = float(inventory_item.quantity_on_hand or 0)
+    if delta > 0:
+        if before < delta:
+            write_global_audit_log(
+                db,
+                entity_type="service_inventory_item",
+                entity_id=int(inventory_item.id),
+                action="inventory_insufficient_stock",
+                actor_user_id=int(actor.id),
+                actor_role=getattr(actor, "role", None),
+                tenant_id=int(inventory_item.service_tenant_id),
+                metadata={
+                    "requested": delta,
+                    "available": before,
+                    "work_order_id": int(work_order_id),
+                    "work_order_item_id": int(work_order_item_id),
+                },
+            )
+            raise HTTPException(status_code=422, detail="Nedostatečné množství na skladě.")
+        after = before - delta
+        movement_type = "out"
+        movement_delta = -delta
+        audit_action = "inventory_stock_decremented"
+    else:
+        after = before - delta
+        movement_type = "return"
+        movement_delta = -delta
+        audit_action = "inventory_stock_returned"
+    inventory_item.quantity_on_hand = after
+    inventory_item.updated_at = datetime.utcnow()
+    _record_movement(
+        db,
+        item=inventory_item,
+        actor=actor,
+        movement_type=movement_type,
+        quantity_delta=movement_delta,
+        quantity_before=before,
+        quantity_after=after,
+        reason=reason or "Úprava položky zakázky",
+        work_order_id=int(work_order_id),
+        work_order_item_id=int(work_order_item_id),
+    )
+    write_global_audit_log(
+        db,
+        entity_type="service_inventory_item",
+        entity_id=int(inventory_item.id),
+        action=audit_action,
+        actor_user_id=int(actor.id),
+        actor_role=getattr(actor, "role", None),
+        tenant_id=int(inventory_item.service_tenant_id),
+        metadata={
+            "quantity_delta": delta,
+            "quantity_before": before,
+            "quantity_after": after,
+            "work_order_id": int(work_order_id),
+            "work_order_item_id": int(work_order_item_id),
+        },
+    )
+
+
 def list_inventory_items(
     q: Optional[str] = Query(default=None, max_length=200),
     low_stock: bool = Query(default=False),

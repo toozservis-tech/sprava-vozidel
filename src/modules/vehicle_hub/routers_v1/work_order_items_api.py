@@ -61,6 +61,14 @@ class ServiceWorkOrderCreateRecordRequest(BaseModel):
     performed_at: Optional[datetime] = None
 
 
+class ServiceWorkOrderItemUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, max_length=512)
+    quantity: Optional[float] = Field(default=None, gt=0, le=99999)
+    unit: Optional[str] = Field(default=None, max_length=32)
+    note: Optional[str] = Field(default=None, max_length=2000)
+    unit_price_without_vat: Optional[float] = Field(default=None, ge=0)
+
+
 def add_work_order_labor(
     work_order_id: int,
     payload: ServiceWorkOrderLaborCreateRequest,
@@ -334,6 +342,217 @@ def create_service_record_from_work_order(
     }
 
 
+def _get_work_order_item_or_404(
+    db: Session,
+    *,
+    current_user: Customer,
+    work_order_id: int,
+    item_id: int,
+) -> tuple[ServiceWorkOrder, ServiceWorkOrderItem]:
+    from . import service_dashboard as sd
+
+    order = sd._get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
+    item = (
+        db.query(ServiceWorkOrderItem)
+        .filter(
+            ServiceWorkOrderItem.id == int(item_id),
+            ServiceWorkOrderItem.work_order_id == int(work_order_id),
+            ServiceWorkOrderItem.service_customer_id == int(current_user.id),
+            ServiceWorkOrderItem.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not item:
+        write_global_audit_log(
+            db,
+            entity_type="service_work_order_item",
+            entity_id=int(item_id),
+            action="inventory_forbidden_access",
+            actor_user_id=int(current_user.id),
+            actor_role=getattr(current_user, "role", None),
+            tenant_id=int(current_user.tenant_id),
+            metadata={"work_order_id": int(work_order_id), "item_id": int(item_id)},
+        )
+        raise HTTPException(status_code=404, detail="Položka zakázky nebyla nalezena.")
+    return order, item
+
+
+def _assert_work_order_items_editable(db: Session, *, order: ServiceWorkOrder, current_user: Customer) -> None:
+    status = str(order.status or "").lower()
+    if status == "completed":
+        raise HTTPException(status_code=422, detail="Dokončenou zakázku nelze upravovat.")
+    from .work_order_billing_api import _linked_invoice
+
+    invoice = _linked_invoice(
+        db,
+        work_order_id=int(order.id),
+        service_customer_id=int(current_user.id),
+    )
+    if invoice and str(invoice.status or "").lower() == "issued":
+        raise HTTPException(
+            status_code=422,
+            detail="Položky fakturované zakázky nelze měnit. Vystavená faktura je uzamčena.",
+        )
+
+
+def update_work_order_item(
+    work_order_id: int,
+    item_id: int,
+    payload: ServiceWorkOrderItemUpdateRequest,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from . import service_dashboard as sd
+    from .service_inventory_api import adjust_inventory_for_work_order_item, get_inventory_item_for_service
+
+    sd._require_service_workspace_role(current_user)
+    sd._ensure_service_dashboard_schema(db)
+    order, item = _get_work_order_item_or_404(
+        db,
+        current_user=current_user,
+        work_order_id=work_order_id,
+        item_id=item_id,
+    )
+    _assert_work_order_items_editable(db, order=order, current_user=current_user)
+
+    old_quantity = float(item.quantity or 0)
+    new_quantity = float(payload.quantity) if payload.quantity is not None else old_quantity
+    quantity_delta = new_quantity - old_quantity
+
+    if item.inventory_item_id and quantity_delta > 0:
+        inventory_item = get_inventory_item_for_service(db, current_user, int(item.inventory_item_id))
+        if float(inventory_item.quantity_on_hand or 0) < quantity_delta:
+            write_global_audit_log(
+                db,
+                entity_type="service_inventory_item",
+                entity_id=int(inventory_item.id),
+                action="inventory_insufficient_stock",
+                actor_user_id=int(current_user.id),
+                actor_role=getattr(current_user, "role", None),
+                tenant_id=int(inventory_item.service_tenant_id),
+                metadata={
+                    "requested": quantity_delta,
+                    "available": float(inventory_item.quantity_on_hand or 0),
+                    "work_order_id": int(order.id),
+                    "work_order_item_id": int(item.id),
+                },
+            )
+            db.commit()
+            raise HTTPException(status_code=422, detail="Nedostatečné množství na skladě.")
+
+    if payload.name is not None:
+        name = str(payload.name).strip()
+        if not name:
+            raise HTTPException(status_code=422, detail="Název položky je povinný.")
+        item.name = name
+    if payload.quantity is not None:
+        item.quantity = new_quantity
+    if payload.unit is not None:
+        unit = str(payload.unit).strip()
+        if not unit:
+            raise HTTPException(status_code=422, detail="Jednotka je povinná.")
+        item.unit = unit
+    if payload.note is not None:
+        item.note = str(payload.note).strip() or None
+    if payload.unit_price_without_vat is not None:
+        item.sale_price_without_vat = float(payload.unit_price_without_vat)
+    item.updated_at = datetime.utcnow()
+
+    if item.inventory_item_id and quantity_delta != 0:
+        inventory_item = get_inventory_item_for_service(db, current_user, int(item.inventory_item_id))
+        adjust_inventory_for_work_order_item(
+            db,
+            inventory_item=inventory_item,
+            quantity_delta=quantity_delta,
+            actor=current_user,
+            work_order_id=int(order.id),
+            work_order_item_id=int(item.id),
+            reason=f"Úprava položky zakázky #{int(order.id)}",
+        )
+
+    write_global_audit_log(
+        db,
+        entity_type="service_work_order_item",
+        entity_id=int(item.id),
+        action="update",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(order.tenant_id),
+        metadata={
+            "work_order_id": int(order.id),
+            "item_type": str(item.item_type),
+            "quantity_delta": quantity_delta,
+        },
+    )
+    sd._write_work_order_audit(
+        db,
+        work_order=order,
+        action="item_updated",
+        actor=current_user,
+        previous_snapshot=sd._work_order_snapshot(order),
+        new_snapshot=sd._work_order_snapshot(order),
+    )
+    db.commit()
+    db.refresh(item)
+    return _serialize_item_for_service(item)
+
+
+def delete_work_order_item(
+    work_order_id: int,
+    item_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from . import service_dashboard as sd
+    from .service_inventory_api import get_inventory_item_for_service, return_inventory_for_work_order_item
+
+    sd._require_service_workspace_role(current_user)
+    sd._ensure_service_dashboard_schema(db)
+    order, item = _get_work_order_item_or_404(
+        db,
+        current_user=current_user,
+        work_order_id=work_order_id,
+        item_id=item_id,
+    )
+    _assert_work_order_items_editable(db, order=order, current_user=current_user)
+
+    if item.inventory_item_id:
+        inventory_item = get_inventory_item_for_service(db, current_user, int(item.inventory_item_id))
+        return_inventory_for_work_order_item(
+            db,
+            inventory_item=inventory_item,
+            quantity=float(item.quantity or 0),
+            actor=current_user,
+            work_order_id=int(order.id),
+            work_order_item_id=int(item.id),
+            reason=f"Odebrání položky ze zakázky #{int(order.id)}",
+        )
+
+    item.deleted_at = datetime.utcnow()
+    item.deleted_by = int(current_user.id)
+    item.updated_at = datetime.utcnow()
+    write_global_audit_log(
+        db,
+        entity_type="service_work_order_item",
+        entity_id=int(item.id),
+        action="delete",
+        actor_user_id=int(current_user.id),
+        actor_role=getattr(current_user, "role", None),
+        tenant_id=int(order.tenant_id),
+        metadata={"work_order_id": int(order.id), "item_type": str(item.item_type)},
+    )
+    sd._write_work_order_audit(
+        db,
+        work_order=order,
+        action="item_deleted",
+        actor=current_user,
+        previous_snapshot=sd._work_order_snapshot(order),
+        new_snapshot=sd._work_order_snapshot(order),
+    )
+    db.commit()
+    return {"deleted": True, "item_id": int(item.id)}
+
+
 def register_work_order_item_routes(router: APIRouter) -> None:
     """Attach work-order item routes to the service dashboard router."""
     router.add_api_route("/work-orders/{work_order_id}/labor", add_work_order_labor, methods=["POST"])
@@ -344,6 +563,16 @@ def register_work_order_item_routes(router: APIRouter) -> None:
         "/work-orders/{work_order_id}/service-record",
         create_service_record_from_work_order,
         methods=["POST"],
+    )
+    router.add_api_route(
+        "/work-orders/{work_order_id}/items/{item_id}",
+        update_work_order_item,
+        methods=["PUT"],
+    )
+    router.add_api_route(
+        "/work-orders/{work_order_id}/items/{item_id}",
+        delete_work_order_item,
+        methods=["DELETE"],
     )
 
 
@@ -381,17 +610,36 @@ def list_work_order_items_grouped(db: Session, *, work_order_id: int) -> dict[st
     return grouped
 
 
-def work_order_capabilities(*, order: ServiceWorkOrder) -> dict[str, bool]:
+def work_order_capabilities(
+    *,
+    order: ServiceWorkOrder,
+    db: Session | None = None,
+    service_customer_id: int | None = None,
+) -> dict[str, bool]:
+    status = str(order.status or "").lower()
+    is_completed = status == "completed"
+    is_invoiced = False
+    if db is not None and service_customer_id is not None:
+        from .work_order_billing_api import _linked_invoice
+
+        invoice = _linked_invoice(
+            db,
+            work_order_id=int(order.id),
+            service_customer_id=int(service_customer_id),
+        )
+        is_invoiced = bool(invoice and str(invoice.status or "").lower() == "issued")
+    items_editable = not is_completed and not is_invoiced
     return {
-        "labor": True,
-        "parts": True,
-        "time": True,
+        "labor": items_editable,
+        "parts": items_editable,
+        "time": items_editable,
+        "edit_items": items_editable,
         "photos": True,
         "quotes": True,
         "invoices": True,
         "invoice_pdf": True,
-        "complete": str(order.status or "").lower() != "completed",
-        "create_service_record": str(order.status or "").lower() == "completed",
+        "complete": not is_completed,
+        "create_service_record": is_completed,
     }
 
 

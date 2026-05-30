@@ -4690,6 +4690,25 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
   text-align: left;
 }
 
+.service-work-order-line-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.service-work-order-line-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.service-work-order-inventory-badge {
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
 .service-work-order-part-source {
   display: flex;
   gap: 16px;

@@ -73,6 +73,32 @@ test.describe('Service shell work orders route', () => {
     );
   });
 
+  test('service_work_order_item_edit_delete_or_limited', async ({ page }) => {
+    await openWorkOrders(page);
+    if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {
+      test.skip(true, 'Žádná dostupná zakázka pro edit/delete test v tomto prostředí.');
+    }
+    await page.locator('[data-testid="service-work-order-row"]').first().click();
+    await expect(page.locator('[data-testid="service-work-order-detail"]')).toBeVisible();
+    const editButtons = page.locator('[data-testid="service-work-order-item-edit"]');
+    const deleteButtons = page.locator('[data-testid="service-work-order-item-delete"]');
+    const itemRows = page.locator('[data-testid="service-work-order-item-row"]');
+    if ((await itemRows.count()) === 0) {
+      const addLabor = page.locator('[data-testid="service-work-order-add-labor-button"]');
+      await expect(addLabor).toBeVisible();
+      return;
+    }
+    if ((await editButtons.count()) > 0) {
+      await expect(editButtons.first()).toBeVisible();
+      await editButtons.first().click();
+      await expect(page.locator('[data-testid="service-work-order-item-edit-form"]')).toBeVisible();
+      await page.locator('.service-shell-modal-title').filter({ hasText: /upravit položku/i }).first().waitFor({ state: 'visible' }).catch(() => {});
+    }
+    if ((await deleteButtons.count()) > 0) {
+      await expect(deleteButtons.first()).toBeVisible();
+    }
+  });
+
   test('service_work_order_add_part_or_limited', async ({ page }) => {
     await openWorkOrders(page);
     if ((await page.locator('[data-testid="service-work-order-row"]').count()) === 0) {

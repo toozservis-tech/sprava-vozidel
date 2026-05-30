@@ -3814,7 +3814,9 @@
     }
   }
 
-  function renderWorkOrderLineList(items, emptyText) {
+  function renderWorkOrderLineList(items, emptyText, options = {}) {
+    const workOrderId = Number(options.workOrderId || 0);
+    const canEditItems = options.canEditItems !== false;
     if (!Array.isArray(items) || !items.length) {
       return `<li class="service-shell-list-note">${escape(emptyText)}</li>`;
     }
@@ -3825,7 +3827,17 @@
         : '';
       const dateHint = item.worked_date ? ` <span class="service-shell-list-note">${escape(item.worked_date)}</span>` : '';
       const note = item.note ? ` — ${escape(item.note)}` : '';
-      return `<li><strong>${escape(item.name || '-')}</strong>${qty ? ` (${escape(qty)})` : ''}${dateHint}${note}${priceHint}</li>`;
+      const inventoryBadge = item.from_inventory
+        ? ` <span class="service-shell-badge service-work-order-inventory-badge" data-testid="service-work-order-inventory-badge">Sklad</span>`
+        : '';
+      const itemId = Number(item.id || 0);
+      const actions = canEditItems && workOrderId > 0 && itemId > 0
+        ? `<span class="service-work-order-line-actions">
+            <button type="button" class="btn btn-secondary btn-sm" data-testid="service-work-order-item-edit" onclick="window.serviceShell.openWorkOrderItemEditModal(${workOrderId}, ${itemId})">Upravit</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-testid="service-work-order-item-delete" onclick="window.serviceShell.confirmDeleteWorkOrderItem(${workOrderId}, ${itemId})">Odebrat</button>
+          </span>`
+        : '';
+      return `<li class="service-work-order-line-item" data-testid="service-work-order-item-row" data-item-id="${itemId}"><strong>${escape(item.name || '-')}</strong>${inventoryBadge}${qty ? ` (${escape(qty)})` : ''}${dateHint}${note}${priceHint}${actions}</li>`;
     }).join('');
   }
 
@@ -4152,6 +4164,8 @@
     const canAddPart = caps.parts !== false;
     const canAddTime = caps.time !== false;
     const canAddPhotos = caps.photos !== false;
+    const canEditItems = caps.edit_items !== false;
+    const lineListOptions = { workOrderId, canEditItems };
     const canCreateRecord = Boolean(caps.create_service_record) && recordId <= 0;
     const limitedNotice = state.workOrderLimitedNotice
       ? `<p class="service-shell-list-note" data-testid="service-work-order-limited-notice">${escape(state.workOrderLimitedNotice)}</p>`
@@ -4160,7 +4174,7 @@
       ${limitedNotice}
       <section class="service-shell-side-card" aria-label="Práce na zakázce">
         <h3>Práce</h3>
-        <ul class="service-shell-list" data-testid="service-work-order-labor-list">${renderWorkOrderLineList(labor, 'Zatím bez evidované práce.')}</ul>
+        <ul class="service-shell-list" data-testid="service-work-order-labor-list">${renderWorkOrderLineList(labor, 'Zatím bez evidované práce.', lineListOptions)}</ul>
         <div class="service-work-order-add-row">
           <input type="text" id="serviceWoLaborName" placeholder="Název práce" ${canAddLabor ? '' : 'disabled'}>
           <input type="number" id="serviceWoLaborHours" min="0.1" step="0.1" placeholder="Hodiny" value="1" ${canAddLabor ? '' : 'disabled'}>
@@ -4169,7 +4183,7 @@
       </section>
       <section class="service-shell-side-card" aria-label="Díly na zakázce">
         <h3>Díly</h3>
-        <ul class="service-shell-list" data-testid="service-work-order-part-list">${renderWorkOrderLineList(parts, 'Zatím bez evidovaných dílů.')}</ul>
+        <ul class="service-shell-list" data-testid="service-work-order-part-list">${renderWorkOrderLineList(parts, 'Zatím bez evidovaných dílů.', lineListOptions)}</ul>
         <div class="service-work-order-part-source" data-testid="service-work-order-part-source">
           <label><input type="radio" name="serviceWoPartSource" value="inventory" ${state.workOrderPartSource === 'inventory' ? 'checked' : ''} onchange="window.serviceShell.setWorkOrderPartSource('inventory')"> Díl ze skladu</label>
           <label><input type="radio" name="serviceWoPartSource" value="manual" ${state.workOrderPartSource !== 'inventory' ? 'checked' : ''} onchange="window.serviceShell.setWorkOrderPartSource('manual')"> Ruční díl</label>
@@ -4199,7 +4213,7 @@
       </section>
       <section class="service-shell-side-card" aria-label="Čas práce">
         <h3>Čas</h3>
-        <ul class="service-shell-list" data-testid="service-work-order-time-list">${renderWorkOrderLineList(times, 'Zatím bez evidovaného času.')}</ul>
+        <ul class="service-shell-list" data-testid="service-work-order-time-list">${renderWorkOrderLineList(times, 'Zatím bez evidovaného času.', lineListOptions)}</ul>
         <div class="service-work-order-add-row">
           <input type="number" id="serviceWoTimeMinutes" min="1" step="1" placeholder="Minuty" value="60" ${canAddTime ? '' : 'disabled'}>
           <input type="date" id="serviceWoTimeDate" ${canAddTime ? '' : 'disabled'}>
@@ -4290,6 +4304,136 @@
       }
       setWorkOrderLimitedNotice(err?.detail?.message || err?.message || 'Fakturu se nepodařilo vytvořit.');
       await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  function findWorkOrderItemInDetail(workOrderId, itemId) {
+    const detail = state.workOrderDetailCache?.[Number(workOrderId || 0)] || null;
+    const groups = detail?.items || {};
+    const all = []
+      .concat(Array.isArray(groups.labor) ? groups.labor : [])
+      .concat(Array.isArray(groups.parts) ? groups.parts : [])
+      .concat(Array.isArray(groups.time) ? groups.time : []);
+    return all.find((row) => Number(row?.id || 0) === Number(itemId || 0)) || null;
+  }
+
+  async function openWorkOrderItemEditModal(workOrderId, itemId) {
+    const woId = Number(workOrderId || 0);
+    const id = Number(itemId || 0);
+    if (!woId || !id || !hasFloatingModalSupport()) return;
+    let item = findWorkOrderItemInDetail(woId, id);
+    if (!item) {
+      try {
+        const detail = await window.apiCall(`/api/service/work-orders/${woId}`, 'GET');
+        state.workOrderDetailCache[woId] = detail;
+        item = findWorkOrderItemInDetail(woId, id);
+      } catch (_err) {
+        setWorkOrderLimitedNotice('Položku se nepodařilo načíst.');
+        await reloadWorkOrderDetailModal(woId);
+        return;
+      }
+    }
+    if (!item) {
+      setWorkOrderLimitedNotice('Položka zakázky nebyla nalezena.');
+      return;
+    }
+    openModal({
+      key: `work-order-item-edit-${woId}-${id}`,
+      entityType: 'work_order_item',
+      kicker: `Zakázka #${woId}`,
+      title: 'Upravit položku',
+      description: item.from_inventory
+        ? 'Úprava skladové položky — změna množství ovlivní stav skladu.'
+        : 'Úprava položky zakázky.',
+      data: { workOrderId: woId, itemId: id, item },
+      actions: {
+        save: async () => {
+          const name = String(document.getElementById('serviceWoItemEditName')?.value || '').trim();
+          const quantity = Number(document.getElementById('serviceWoItemEditQty')?.value || 0);
+          const unit = String(document.getElementById('serviceWoItemEditUnit')?.value || '').trim();
+          const note = String(document.getElementById('serviceWoItemEditNote')?.value || '').trim();
+          const priceRaw = document.getElementById('serviceWoItemEditPrice')?.value;
+          if (!name || !(quantity > 0) || !unit) {
+            return { error: 'Vyplňte název, kladné množství a jednotku.' };
+          }
+          const payload = { name, quantity, unit, note: note || null };
+          if (priceRaw !== '' && priceRaw != null && !Number.isNaN(Number(priceRaw))) {
+            payload.unit_price_without_vat = Number(priceRaw);
+          }
+          await window.apiCall(`/api/service/work-orders/${woId}/items/${id}`, 'PUT', payload);
+          await reloadWorkOrderDetailModal(woId);
+          return {
+            close: true,
+            message: 'Položka byla upravena.',
+          };
+        },
+      },
+      renderContent: () => `
+        <form class="service-dashboard-modal-form" data-testid="service-work-order-item-edit-form" onsubmit="event.preventDefault(); window.serviceShell.submitWorkOrderItemUpdate(${woId}, ${id});">
+          ${item.from_inventory ? '<p class="service-shell-list-note" data-testid="service-work-order-item-edit-inventory-note"><span class="service-shell-badge service-work-order-inventory-badge">Sklad</span> Změna množství upraví stav skladu.</p>' : ''}
+          <div class="form-group">
+            <label for="serviceWoItemEditName">Název</label>
+            <input type="text" id="serviceWoItemEditName" data-testid="service-work-order-item-edit-name" value="${escape(item.name || '')}" required>
+          </div>
+          <div class="service-dashboard-modal-grid cols-2">
+            <div class="form-group">
+              <label for="serviceWoItemEditQty">Množství</label>
+              <input type="number" id="serviceWoItemEditQty" data-testid="service-work-order-item-edit-qty" min="0.01" step="0.01" value="${escape(String(item.quantity ?? 1))}" required>
+            </div>
+            <div class="form-group">
+              <label for="serviceWoItemEditUnit">Jednotka</label>
+              <input type="text" id="serviceWoItemEditUnit" data-testid="service-work-order-item-edit-unit" value="${escape(item.unit || 'ks')}" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="serviceWoItemEditNote">Poznámka</label>
+            <input type="text" id="serviceWoItemEditNote" data-testid="service-work-order-item-edit-note" value="${escape(item.note || '')}">
+          </div>
+          <div class="form-group">
+            <label for="serviceWoItemEditPrice">Cena bez DPH / jednotka (interní)</label>
+            <input type="number" id="serviceWoItemEditPrice" data-testid="service-work-order-item-edit-price" min="0" step="0.01" value="${item.unit_price_without_vat != null ? escape(String(item.unit_price_without_vat)) : ''}">
+          </div>
+        </form>
+      `,
+      renderFooter: (modal) => renderMobileModalFooter(`
+        <button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zrušit</button>
+        <button type="button" class="btn btn-primary" data-testid="service-work-order-item-edit-save" onclick="window.serviceShell.submitWorkOrderItemUpdate(${woId}, ${id})">${modal.saving ? 'Ukládám…' : 'Uložit'}</button>
+      `),
+    });
+  }
+
+  async function submitWorkOrderItemUpdate(workOrderId, itemId) {
+    const key = `work-order-item-edit-${Number(workOrderId || 0)}-${Number(itemId || 0)}`;
+    if (isModalOpen(key)) {
+      try {
+        await runModalAction('save');
+      } catch (err) {
+        const woId = Number(workOrderId || 0);
+        const msg = err?.message || err?.detail || 'Položku se nepodařilo uložit.';
+        if (String(msg).toLowerCase().includes('sklad')) {
+          setWorkOrderLimitedNotice(msg);
+        }
+        setModalState({ error: msg, saving: false, actionKey: '' });
+        if (woId) await reloadWorkOrderDetailModal(woId);
+      }
+    }
+  }
+
+  async function confirmDeleteWorkOrderItem(workOrderId, itemId) {
+    const woId = Number(workOrderId || 0);
+    const id = Number(itemId || 0);
+    if (!woId || !id) return;
+    const item = findWorkOrderItemInDetail(woId, id);
+    const label = item?.name ? ` „${item.name}"` : '';
+    const stockHint = item?.from_inventory ? ' Skladové množství bude vráceno.' : '';
+    if (!window.confirm(`Opravdu odebrat položku${label} ze zakázky?${stockHint}`)) return;
+    try {
+      await window.apiCall(`/api/service/work-orders/${woId}/items/${id}`, 'DELETE');
+      if (typeof window.showAlert === 'function') window.showAlert('Položka byla odebrána.', 'success');
+      await reloadWorkOrderDetailModal(woId);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Položku se nepodařilo odebrat.');
+      await reloadWorkOrderDetailModal(woId);
     }
   }
 
@@ -10422,6 +10566,9 @@
     submitWorkOrderDetailUpdate,
     submitWorkOrderLabor,
     submitWorkOrderPart,
+    openWorkOrderItemEditModal,
+    submitWorkOrderItemUpdate,
+    confirmDeleteWorkOrderItem,
     submitWorkOrderInventoryPart,
     setWorkOrderPartSource,
     searchWorkOrderInventory,

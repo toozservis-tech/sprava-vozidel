@@ -1317,7 +1317,11 @@ def get_service_work_order_detail(
         work_order_id=int(order.id),
         service_customer_id=int(current_user.id),
     )
-    detail["capabilities"] = work_order_capabilities(order=order)
+    detail["capabilities"] = work_order_capabilities(
+        order=order,
+        db=db,
+        service_customer_id=int(current_user.id),
+    )
     detail["limited_notices"] = work_order_limited_notices()
     linked_record = (
         db.query(ServiceRecordModel.id)
