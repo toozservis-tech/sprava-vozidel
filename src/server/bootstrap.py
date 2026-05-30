@@ -46,6 +46,7 @@ from src.server.routers.user_account import router as user_account_router
 from src.server.routers.user_auth import router as user_auth_router
 from src.server.routers.user_security import router as user_security_router
 from src.server.routers.user_settings import router as user_settings_router
+from src.server.routers.user_service_requests import router as user_service_requests_router
 from src.server.routers.session_me import router as session_me_router
 from src.server.routers.workspace_debug import router as workspace_debug_router
 from src.server.maintenance_runtime_notice import maintenance_lockout_message_html
@@ -632,6 +633,7 @@ def _include_feature_routers(app: FastAPI) -> None:
     app.include_router(user_account_router)
     app.include_router(user_security_router)
     app.include_router(user_settings_router, prefix="/api/v1")
+    app.include_router(user_service_requests_router, prefix="/api/v1")
     app.include_router(system_router)
 
 

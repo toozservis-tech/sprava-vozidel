@@ -64,6 +64,7 @@
     servicesSearchDebounce: null,
     serviceAddressCache: {},
     serviceAddressResolveToken: 0,
+    recentServiceRequestDecisions: {},
   };
 
   const DETAIL_MODAL_ID = 'uappNextVehicleDetail';
@@ -755,12 +756,13 @@
   }
 
   async function loadData() {
-    const [summary, vehicles, reminders, accessPayload, contactsPayload] = await Promise.all([
+    const [summary, vehicles, reminders, accessPayload, contactsPayload, serviceRequestsPayload] = await Promise.all([
       safeApi('/api/v1/analytics/dashboard', {}),
       safeApi('/api/v1/vehicles', []),
       safeApi('/api/v1/reminders', []),
       safeApi('/api/v1/services/vehicle-access', { grants: [] }),
       safeApi('/api/v1/services/my-contacts', { services: [] }),
+      safeApi('/api/v1/user/service-requests', { requests: [], meta: { total: 0, pending: 0 } }),
     ]);
     const vehicleList = Array.isArray(vehicles) ? vehicles : [];
     window._lastVehiclesById = vehicleList.reduce((acc, vehicle) => {
@@ -839,6 +841,7 @@
       vehicles: vehicleList,
       reminders: Array.isArray(reminders) ? reminders : [],
       accessGrants: Array.isArray(accessPayload?.grants) ? accessPayload.grants : [],
+      serviceRequests: Array.isArray(serviceRequestsPayload?.requests) ? serviceRequestsPayload.requests : [],
       services: Array.isArray(contactsPayload?.services) ? contactsPayload.services : [],
       recordEntries,
       recordMap,
@@ -1235,8 +1238,152 @@
     }).length;
   }
 
+  function serviceRequestsList(data) {
+    return Array.isArray(data?.serviceRequests) ? data.serviceRequests : [];
+  }
+
+  function pendingServiceRequests(data) {
+    return serviceRequestsList(data).filter((row) => String(row?.status || '').toLowerCase() === 'pending');
+  }
+
+  function pendingServiceRequestsForVehicle(data, vehicleId) {
+    const vid = Number(vehicleId || 0);
+    if (!vid) return [];
+    return pendingServiceRequests(data).filter((row) => Number(row?.vehicle_id) === vid);
+  }
+
+  function formatServiceRequestDate(raw) {
+    if (!raw) return '—';
+    const d = new Date(raw);
+    return Number.isFinite(d.getTime())
+      ? d.toLocaleString('cs-CZ', { dateStyle: 'medium', timeStyle: 'short', hour12: false })
+      : String(raw);
+  }
+
+  function dashboardServiceRequests(data) {
+    const pending = pendingServiceRequests(data);
+    const recentIds = new Set(Object.keys(STATE.recentServiceRequestDecisions || {}).map((id) => Number(id)));
+    if (!recentIds.size) return pending;
+    const recentRows = serviceRequestsList(data).filter((row) => recentIds.has(Number(row?.request_id || row?.id || 0)));
+    const merged = [...pending];
+    recentRows.forEach((row) => {
+      const rid = Number(row?.request_id || row?.id || 0);
+      const decision = STATE.recentServiceRequestDecisions?.[rid];
+      if (!decision) return;
+      if (!merged.some((item) => Number(item?.request_id || item?.id) === rid)) {
+        merged.push({ ...row, status: decision.status });
+      }
+    });
+    return merged;
+  }
+
+  function renderServiceRequestActions(req) {
+    const requestId = Number(req?.request_id || req?.id || 0);
+    const recentDecision = STATE.recentServiceRequestDecisions?.[requestId];
+    const status = String(recentDecision?.status || req?.status || 'pending').toLowerCase();
+    if (status === 'approved') {
+      return '<p class="uapp-next-service-request-state is-approved" data-testid="user-service-request-approved-state">Propojení schváleno</p>';
+    }
+    if (status === 'rejected') {
+      return '<p class="uapp-next-service-request-state is-rejected" data-testid="user-service-request-rejected-state">Propojení zamítnuto</p>';
+    }
+    if (!requestId) return '';
+    return `
+      <div class="uapp-next-service-request-actions">
+        <button type="button" class="uapp-next-btn uapp-next-btn-primary" data-testid="user-service-request-approve-button" data-uapp-action="serviceRequest:approved:${requestId}">Schválit propojení</button>
+        <button type="button" class="uapp-next-btn uapp-next-btn-secondary" data-uapp-action="serviceRequest:rejected:${requestId}" data-testid="user-service-request-reject-button">Zamítnout propojení</button>
+      </div>`;
+  }
+
+  function renderServiceRequestCard(req, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const vehicleLabel = req?.vehicle_name || req?.vehicle_label || 'Vozidlo';
+    const serviceName = req?.service_name || 'Servis';
+    const plateVin = [req?.vehicle_plate_masked, req?.vehicle_vin_masked].filter(Boolean).join(' · ') || 'SPZ/VIN maskováno';
+    const reason = req?.reason || req?.note || 'Žádost o propojení s vozidlem';
+    const scope = req?.scope || req?.scope_summary || req?.requested_scope || 'Čtení historie vozidla a možnost vytvářet nové servisní záznamy.';
+    const requestedAt = formatServiceRequestDate(req?.requested_at);
+    const sectionTestId = opts.sectionTestId ? ` data-testid="${esc(opts.sectionTestId)}"` : '';
+    return `
+      <article class="uapp-next-service-request-card" data-testid="user-service-request-card"${sectionTestId}>
+        <header class="uapp-next-service-request-head">
+          <strong data-testid="user-service-request-service-name">${esc(serviceName)}</strong>
+          <span class="uapp-next-service-request-date">${esc(requestedAt)}</span>
+        </header>
+        <p class="uapp-next-service-request-vehicle" data-testid="user-service-request-vehicle"><strong>Vozidlo:</strong> ${esc(vehicleLabel)} · ${esc(plateVin)}</p>
+        <p class="uapp-next-service-request-reason" data-testid="user-service-request-reason"><strong>Důvod:</strong> ${esc(reason)}</p>
+        <p class="uapp-next-service-request-scope"><strong>Po schválení:</strong> ${esc(scope)}</p>
+        <p class="uapp-next-service-request-deny"><strong>Servis nikdy neuvidí:</strong> faktury, ceny, billing kontakt a interní poznámky mimo schválený rozsah.</p>
+        ${renderServiceRequestActions(req)}
+      </article>`;
+  }
+
+  function renderServiceRequestsDashboardCard(data) {
+    const visible = dashboardServiceRequests(data);
+    if (!visible.length) return '';
+    const cards = visible.map((req) => renderServiceRequestCard(req)).join('');
+    return `
+      <section class="uapp-next-service-requests-dashboard" data-testid="user-service-requests-dashboard-card">
+        <div class="uapp-next-service-requests-dashboard-head">
+          <div>
+            <h2>Žádosti servisů</h2>
+            <p>Servis žádá o propojení s vaším vozidlem. Schvalte nebo zamítněte přístup.</p>
+          </div>
+          <span class="uapp-next-service-requests-count">${esc(String(pendingServiceRequests(data).length || visible.length))}</span>
+        </div>
+        <div class="uapp-next-service-requests-list" data-testid="user-service-requests-section">
+          ${cards}
+        </div>
+        <button type="button" class="uapp-next-link-btn uapp-next-service-requests-settings-link" data-uapp-action="serviceRequestsSettings">Všechny žádosti v nastavení ›</button>
+      </section>`;
+  }
+
+  function renderVehicleDetailServiceRequestsSection(data, vehicleId) {
+    const requests = pendingServiceRequestsForVehicle(data, vehicleId);
+    if (!requests.length) return '';
+    return `
+      <section class="uapp-next-vehicle-service-requests" data-testid="vehicle-detail-service-requests-section">
+        <div class="uapp-next-vehicle-service-requests-head">
+          <h3>Žádosti o propojení servisu</h3>
+          <p>Čekající žádosti k tomuto vozidlu</p>
+        </div>
+        <div class="uapp-next-service-requests-list" data-testid="user-service-requests-section">
+          ${requests.map((req) => renderServiceRequestCard(req)).join('')}
+        </div>
+      </section>`;
+  }
+
+  async function resolveServiceAccessRequest(requestId, decision) {
+    const rid = Number(requestId || 0);
+    const dec = String(decision || '').toLowerCase();
+    if (!rid || !['approved', 'rejected'].includes(dec)) return;
+    if (!apiReady()) throw new Error('API není dostupné');
+    await apiCall(`/api/v1/services/access-requests/${rid}`, 'PUT', { decision: dec });
+    STATE.recentServiceRequestDecisions = STATE.recentServiceRequestDecisions || {};
+    STATE.recentServiceRequestDecisions[rid] = { status: dec, at: Date.now() };
+    const list = serviceRequestsList(STATE.latestData || {});
+    STATE.latestData = {
+      ...(STATE.latestData || {}),
+      serviceRequests: list.map((row) => (
+        Number(row?.request_id || row?.id) === rid ? { ...row, status: dec } : row
+      )),
+    };
+    if (hasFn('refreshServiceVehicleAccessGrantsIfUser')) {
+      try { await window.refreshServiceVehicleAccessGrantsIfUser(); } catch (_) {}
+    }
+    await render();
+    void loadData().then(() => render()).catch(() => {});
+    if (hasFn('showAlert')) {
+      window.showAlert(dec === 'approved' ? 'Propojení bylo schváleno.' : 'Propojení bylo zamítnuto.', 'success');
+    }
+  }
+
   function serviceNotificationsCount(data) {
-    const pending = data.accessGrants.filter((grant) => {
+    const pendingFromRequests = pendingServiceRequests(data).length;
+    if (pendingFromRequests > 0) return pendingFromRequests;
+    const pendingFromSummary = Number(data.summary?.pending_service_requests);
+    if (Number.isFinite(pendingFromSummary) && pendingFromSummary > 0) return pendingFromSummary;
+    const pending = (data.accessGrants || []).filter((grant) => {
       const status = String(grant?.status || '').toLowerCase();
       return status.includes('pending') || status.includes('ček') || status.includes('wait');
     }).length;
@@ -4278,7 +4425,15 @@
   }
 
   function serviceAsideRows(data) {
-    const grants = data.accessGrants.slice(0, 4).map((grant) => {
+    const pending = pendingServiceRequests(data).slice(0, 3).map((req) => ({
+      name: req.service_name || 'Servis',
+      meta: [req.vehicle_name || req.vehicle_label, req.vehicle_plate_masked].filter(Boolean).join(' · ') || 'Čeká na schválení',
+      badge: 'Ke schválení',
+      tone: 'warn',
+      action: Number(req?.vehicle_id) > 0 ? `detail:${Number(req.vehicle_id)}` : 'serviceRequestsSettings',
+    }));
+    if (pending.length) return pending;
+    const grants = (data.accessGrants || []).slice(0, 4).map((grant) => {
       const badge = grantBadge(grant.status);
       return {
         name: grant.service_name || grant.service_email || 'Servis',
@@ -4616,6 +4771,7 @@
         ${renderTopbar()}
         <div class="uapp-next-overview-shell" data-testid="dashboard-overview-shell">
           ${renderHero(data)}
+          ${renderServiceRequestsDashboardCard(data)}
           ${quickCards(data)}
           <div class="uapp-next-overview-body" data-testid="dashboard-overview-body">
             <div class="uapp-next-overview-main">
@@ -5079,10 +5235,7 @@
       ? `${Number(vehicle.current_mileage_km).toLocaleString('cs-CZ')} km`
       : '—';
     const grants = (data?.accessGrants || []).filter((g) => Number(g.vehicle_id) === id);
-    const pendingAccess = grants.filter((g) => {
-      const st = String(g?.status || '').toLowerCase();
-      return st.includes('pending') || st.includes('ček') || st.includes('wait');
-    }).length;
+    const pendingAccess = pendingServiceRequestsForVehicle(data, id).length;
     const stkDate = getStkValue(vehicle) ? formatDate(getStkValue(vehicle)) : 'Nezadáno';
     const insDate = vehicle.insurance_valid_until ? formatDate(vehicle.insurance_valid_until) : 'Nezadáno';
     const latestRecord = (records || []).slice().sort((a, b) => (Date.parse(b?.performed_at || b?.created_at) || 0) - (Date.parse(a?.performed_at || a?.created_at) || 0))[0];
@@ -5278,6 +5431,7 @@
                 </div>
               </article>`).join('')}
           </div>
+          ${renderVehicleDetailServiceRequestsSection(data, id)}
           <div class="uapp-next-detail-body">
             <div class="uapp-next-detail-main">
               <div class="uapp-next-detail-tabs" role="tablist" aria-label="Sekce detailu vozidla">
@@ -5748,6 +5902,24 @@
     if (name === 'detailVinRefresh' && id && hasFn('refreshExistingVehicleFromVin')) {
       return window.refreshExistingVehicleFromVin(id);
     }
+    if (name === 'serviceRequest') {
+      const parts = String(action || '').split(':');
+      const decision = parts[1] === 'approved' ? 'approved' : 'rejected';
+      const requestId = Number(parts[2] || 0);
+      if (!requestId) return;
+      void resolveServiceAccessRequest(requestId, decision).catch((err) => {
+        if (hasFn('showAlert')) window.showAlert(String(err?.message || err || 'Rozhodnutí se nepodařilo uložit.'), 'error');
+        else window.alert(String(err?.message || err || 'Rozhodnutí se nepodařilo uložit.'));
+      });
+      return;
+    }
+    if (name === 'serviceRequestsSettings') {
+      closeMobileNav();
+      STATE.viewOverride = 'settings';
+      if (hasFn('setSettingsPanelRoute')) window.setSettingsPanelRoute('services-sharing');
+      if (hasFn('switchTab')) return window.switchTab('account');
+      return render();
+    }
     if (name === 'detailTab') {
       const parts = String(action || '').split(':');
       const tabKey = parts[1];
@@ -5861,6 +6033,12 @@
   function installHooks() {
     if (STATE.installed) return;
     STATE.installed = true;
+    window.uappResolveServiceAccessRequest = resolveServiceAccessRequest;
+    window.refreshUserServiceRequests = async function refreshUserServiceRequests() {
+      if (!shouldActivate()) return;
+      await loadData();
+      await render();
+    };
 
     const originalLoadHomeDashboard = window.loadHomeDashboard;
     if (typeof originalLoadHomeDashboard === 'function') {

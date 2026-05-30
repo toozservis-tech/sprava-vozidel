@@ -17,6 +17,7 @@ from ..database import get_db
 from ..models import (
     Customer,
     Reminder as ReminderModel,
+    ServiceAccessRequest,
     ServiceRecord as ServiceRecordModel,
     ServiceVehicleAccess,
     Vehicle as VehicleModel,
@@ -87,6 +88,7 @@ class DashboardSummaryOutV1(BaseModel):
     stk_expired: int
     records_missing_history: int
     missing_main_photo: int
+    pending_service_requests: int = 0
     recent_activity: list[DashboardRecentActivityItemV1]
     attention: list[DashboardAttentionItemV1]
     extras: DashboardExtrasV1
@@ -95,6 +97,24 @@ class DashboardSummaryOutV1(BaseModel):
 
 def _vehicle_name(vehicle: VehicleModel) -> str:
     return str(vehicle.nickname or vehicle.plate or f"Vozidlo #{vehicle.id}")
+
+
+def _pending_service_requests_count(db: Session, *, current_user: Customer, vehicle_ids: list[int]) -> int:
+    if not vehicle_ids:
+        return 0
+    role_key = _normalize_role(getattr(current_user, "role", None))
+    if is_service(role_key):
+        return 0
+    return int(
+        db.query(func.count(ServiceAccessRequest.id))
+        .filter(
+            ServiceAccessRequest.owner_customer_id == current_user.id,
+            ServiceAccessRequest.vehicle_id.in_(vehicle_ids),
+            ServiceAccessRequest.status == "pending",
+        )
+        .scalar()
+        or 0
+    )
 
 
 def _vehicle_has_primary_photo(vehicle: VehicleModel) -> bool:
@@ -243,6 +263,7 @@ def get_dashboard_summary(
             stk_expired=0,
             records_missing_history=0,
             missing_main_photo=0,
+            pending_service_requests=0,
             recent_activity=[],
             attention=[],
             extras=DashboardExtrasV1(),
@@ -395,6 +416,7 @@ def get_dashboard_summary(
 
     missing_main_photo = sum(1 for vehicle in vehicles if not _vehicle_has_primary_photo(vehicle))
     records_missing_history = sum(1 for vehicle in vehicles if records_count_by_vehicle.get(int(vehicle.id), 0) == 0)
+    pending_service_requests = _pending_service_requests_count(db, current_user=current_user, vehicle_ids=vehicle_ids)
 
     return DashboardSummaryOutV1(
         scope=scope,
@@ -404,6 +426,7 @@ def get_dashboard_summary(
         stk_expired=stk_expired,
         records_missing_history=records_missing_history,
         missing_main_photo=missing_main_photo,
+        pending_service_requests=pending_service_requests,
         recent_activity=recent_activity,
         attention=attention[:attention_limit],
         extras=DashboardExtrasV1(

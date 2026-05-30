@@ -1240,6 +1240,149 @@ body.user-app-next-view-invoices #homeTab.active {
   min-width: 0;
 }
 
+.uapp-next-service-requests-dashboard {
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--uapp-radius-lg);
+  border: 1px solid #fbbf24;
+  background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+  box-shadow: var(--uapp-shadow-soft);
+}
+
+.uapp-next-service-requests-dashboard-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.uapp-next-service-requests-dashboard-head h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  color: var(--uapp-navy-deep);
+}
+
+.uapp-next-service-requests-dashboard-head p {
+  margin: 0;
+  color: var(--uapp-muted);
+  font-size: 0.92rem;
+}
+
+.uapp-next-service-requests-count {
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.uapp-next-service-requests-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.uapp-next-service-request-card {
+  border: 1px solid var(--uapp-border);
+  border-radius: var(--uapp-radius-md);
+  background: #fff;
+  padding: 0.85rem 0.95rem;
+}
+
+.uapp-next-service-request-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.uapp-next-service-request-date,
+.uapp-next-service-request-scope,
+.uapp-next-service-request-deny {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: var(--uapp-muted);
+}
+
+.uapp-next-service-request-vehicle,
+.uapp-next-service-request-reason {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+}
+
+.uapp-next-service-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.uapp-next-service-request-actions .uapp-next-btn {
+  min-height: 44px;
+  flex: 1 1 140px;
+}
+
+.uapp-next-service-request-state {
+  margin: 0.75rem 0 0;
+  font-weight: 600;
+}
+
+.uapp-next-service-request-state.is-approved {
+  color: #15803d;
+}
+
+.uapp-next-service-request-state.is-rejected {
+  color: #b91c1c;
+}
+
+.uapp-next-vehicle-service-requests {
+  margin: 0 0 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid #fde68a;
+  border-radius: var(--uapp-radius-md);
+  background: #fffbeb;
+}
+
+.uapp-next-vehicle-service-requests-head h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.98rem;
+}
+
+.uapp-next-vehicle-service-requests-head p {
+  margin: 0 0 0.65rem;
+  color: var(--uapp-muted);
+  font-size: 0.88rem;
+}
+
+.uapp-next-service-requests-settings-link {
+  margin-top: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .uapp-next-service-requests-dashboard,
+  .uapp-next-service-request-card,
+  .uapp-next-vehicle-service-requests {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .uapp-next-service-request-actions {
+    flex-direction: column;
+  }
+
+  .uapp-next-service-request-actions .uapp-next-btn {
+    width: 100%;
+  }
+}
+
 .uapp-next-aside-card {
   background: var(--uapp-card);
   border: 1px solid var(--uapp-border);

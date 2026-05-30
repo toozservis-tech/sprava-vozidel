@@ -602,13 +602,13 @@
       return '<p class="uapp-settings-muted">Žádné čekající žádosti servisů.</p>';
     }
     return pending.map((r) => `
-      <article class="uapp-settings-request-card" data-testid="user-service-request-row">
+      <article class="uapp-settings-request-card" data-testid="user-service-request-card">
         <div class="uapp-settings-request-head">
-          <strong>${esc(r.service_name || 'Servis')}</strong>
-          <span>${esc(r.vehicle_name || 'Vozidlo')}</span>
+          <strong data-testid="user-service-request-service-name">${esc(r.service_name || 'Servis')}</strong>
+          <span data-testid="user-service-request-vehicle">${esc(r.vehicle_name || 'Vozidlo')}</span>
         </div>
         <p class="uapp-settings-muted">${esc([r.vehicle_plate_masked, r.vehicle_vin_masked].filter(Boolean).join(' · ') || 'SPZ/VIN maskováno')}</p>
-        <p>${esc(r.reason || r.requested_scope || 'Žádost o propojení s vozidlem')}</p>
+        <p data-testid="user-service-request-reason">${esc(r.reason || r.requested_scope || 'Žádost o propojení s vozidlem')}</p>
         <p class="uapp-settings-muted"><strong>Po schválení:</strong> servis uvidí historii, km a může zakládat servisní záznamy. <strong>Nevidí:</strong> faktury, ceny a interní poznámky mimo schválený rozsah.</p>
         ${renderServiceSharingActions(r)}
       </article>

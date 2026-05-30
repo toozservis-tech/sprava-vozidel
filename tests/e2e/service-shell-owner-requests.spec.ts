@@ -63,9 +63,9 @@ test.describe('Owner service access requests', () => {
 
   test('user_sees_service_request', async ({ page }) => {
     await openServicesSharingPanel(page);
-    await expect(page.locator('[data-testid="user-service-request-row"]').first()).toContainText(/E2E Test Servis/i);
-    await expect(page.locator('[data-testid="user-service-request-row"]').first()).toContainText(/Skoda Octavia/i);
-    const card = page.locator('[data-testid="user-service-request-row"]').first();
+    await expect(page.locator('[data-testid="user-service-request-card"]').first()).toContainText(/E2E Test Servis/i);
+    await expect(page.locator('[data-testid="user-service-request-card"]').first()).toContainText(/Skoda Octavia/i);
+    const card = page.locator('[data-testid="user-service-request-card"]').first();
     await expect(card.locator('[data-testid="user-service-request-approve-button"]')).toBeVisible();
     await expect(card.locator('[data-testid="user-service-request-reject-button"]')).toBeVisible();
   });
@@ -85,7 +85,7 @@ test.describe('Owner service access requests', () => {
       }
       await route.continue();
     });
-    await page.locator('[data-testid="user-service-request-row"]').first().locator('[data-testid="user-service-request-approve-button"]').click();
+    await page.locator('[data-testid="user-service-request-card"]').first().locator('[data-testid="user-service-request-approve-button"]').click();
     await expect.poll(() => decisionBody?.decision).toBe('approved');
   });
 
@@ -104,7 +104,7 @@ test.describe('Owner service access requests', () => {
       }
       await route.continue();
     });
-    await page.locator('[data-testid="user-service-request-row"]').first().locator('[data-testid="user-service-request-reject-button"]').click();
+    await page.locator('[data-testid="user-service-request-card"]').first().locator('[data-testid="user-service-request-reject-button"]').click();
     await expect.poll(() => decisionBody?.decision).toBe('rejected');
   });
 });

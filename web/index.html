@@ -36528,6 +36528,7 @@
         };
         var serviceVehicleAccessState = {
             grants: [],
+            pendingRequests: [],
             vehicles: [],
             apiAvailable: true
         };
@@ -56189,9 +56190,29 @@
                 return;
             }
             try {
-                const accessPayload = await apiCall('/api/v1/services/vehicle-access', 'GET');
+                const [accessPayload, requestsPayload] = await Promise.all([
+                    apiCall('/api/v1/services/vehicle-access', 'GET'),
+                    apiCall('/api/v1/user/service-requests?status=pending', 'GET').catch(() =>
+                        apiCall('/api/v1/services/access-requests', 'GET').then((data) => ({
+                            requests: (Array.isArray(data?.requests) ? data.requests : []).map((row) => ({
+                                request_id: Number(row.id),
+                                vehicle_id: Number(row.vehicle_id),
+                                vehicle_name: row.vehicle_name,
+                                vehicle_plate_masked: row.vehicle_plate,
+                                vehicle_vin_masked: null,
+                                service_name: row.service_name,
+                                reason: row.note,
+                                status: row.status,
+                                requested_at: row.requested_at,
+                                scope: row.scope_summary,
+                            })),
+                        })),
+                    ),
+                ]);
                 const grants = Array.isArray(accessPayload?.grants) ? accessPayload.grants : [];
+                const pendingRequests = Array.isArray(requestsPayload?.requests) ? requestsPayload.requests : [];
                 serviceVehicleAccessState.grants = grants;
+                serviceVehicleAccessState.pendingRequests = pendingRequests;
                 serviceVehicleAccessState.apiAvailable = true;
                 if (servicesDirectoryState.payload && typeof servicesDirectoryState.payload === 'object') {
                     servicesDirectoryState.payload.vehicleAccessGrants = grants;
@@ -56290,12 +56311,58 @@
             }
 
             const vid = Number(vehicleId || 0);
+            const pendingForVehicle = (serviceVehicleAccessState.pendingRequests || []).filter(
+                (row) => Number(row?.vehicle_id) === vid && String(row?.status || 'pending').toLowerCase() === 'pending',
+            );
+            const pendingSection = pendingForVehicle.length
+                ? `<section class="vehicle-access-pending-section" data-testid="vehicle-detail-service-requests-section">
+                    <h4>Žádosti o propojení servisu</h4>
+                    <div data-testid="user-service-requests-section">${pendingForVehicle
+                        .map((req) => {
+                            const requestId = Number(req.request_id || req.id || 0);
+                            const serviceName = escapeHtml(req.service_name || 'Servis');
+                            const vehicleLabel = escapeHtml(req.vehicle_name || req.vehicle_label || 'Vozidlo');
+                            const plateVin = escapeHtml(
+                                [req.vehicle_plate_masked, req.vehicle_vin_masked].filter(Boolean).join(' · ') ||
+                                    'SPZ/VIN maskováno',
+                            );
+                            const reason = escapeHtml(req.reason || req.note || 'Žádost o propojení s vozidlem');
+                            const scope = escapeHtml(
+                                req.scope || req.scope_summary || req.requested_scope || 'Historie vozidla a nové servisní záznamy.',
+                            );
+                            const requestedAt = req.requested_at
+                                ? new Date(req.requested_at).toLocaleString('cs-CZ', {
+                                      dateStyle: 'medium',
+                                      timeStyle: 'short',
+                                      hour12: false,
+                                  })
+                                : '';
+                            return `<article class="vehicle-access-pending-card" data-testid="user-service-request-card">
+                                <div class="vehicle-access-pending-head">
+                                    <strong data-testid="user-service-request-service-name">${serviceName}</strong>
+                                    ${requestedAt ? `<span>${escapeHtml(requestedAt)}</span>` : ''}
+                                </div>
+                                <p data-testid="user-service-request-vehicle"><strong>Vozidlo:</strong> ${vehicleLabel} · ${plateVin}</p>
+                                <p data-testid="user-service-request-reason"><strong>Důvod:</strong> ${reason}</p>
+                                <p><strong>Po schválení:</strong> ${scope}</p>
+                                <p class="vehicle-access-muted"><strong>Servis nikdy neuvidí:</strong> faktury, ceny a billing kontakt.</p>
+                                <div class="vehicle-access-pending-actions">
+                                    <button type="button" class="btn btn-primary" data-testid="user-service-request-approve-button" data-vehicle-access-approve="${requestId}">Schválit propojení</button>
+                                    <button type="button" class="btn btn-secondary" data-testid="user-service-request-reject-button" data-vehicle-access-reject="${requestId}">Zamítnout propojení</button>
+                                </div>
+                            </article>`;
+                        })
+                        .join('')}</div>
+                </section>`
+                : '';
+
             const grants = (serviceVehicleAccessState.grants || []).filter((g) => Number(g?.vehicle_id) === vid);
-            if (!grants.length) {
+            if (!pendingForVehicle.length && !grants.length) {
                 shell.innerHTML = `
                     <p class="vehicle-access-lead uapp-vehicle-float-lead">Žádný servis zatím nemá ke vozidlu povolenou správu. Přístup povolíte u konkrétního partnera v sekci Servisní partneři (výběr vozidla a tlačítko „Povolit správu“).</p>
                     <button type="button" class="uapp-next-btn uapp-next-btn-primary" onclick="leaveVehicleDetailForTab('servicesDirectory')">Otevřít servisní partnery</button>
                 `;
+                bindVehicleDetailServiceAccessActions(shell);
                 return;
             }
 
@@ -56344,11 +56411,61 @@
             }).join('');
 
             shell.innerHTML = `
-                <p class="vehicle-access-lead">Servisy s povolenou správou tohoto vozidla (stejná data jako u partnerů):</p>
-                <div class="vehicle-access-service-stack">${cards}</div>
+                ${pendingSection}
+                ${grants.length ? `<p class="vehicle-access-lead">Servisy s povolenou správou tohoto vozidla (stejná data jako u partnerů):</p>
+                <div class="vehicle-access-service-stack">${cards}</div>` : ''}
                 <button type="button" class="btn btn-secondary" onclick="switchTab('servicesDirectory'); closeVehicleModal();">Všechny servisní partnery</button>
             `;
+            bindVehicleDetailServiceAccessActions(shell);
         }
+
+        function bindVehicleDetailServiceAccessActions(shell) {
+            if (!shell) return;
+            shell.querySelectorAll('[data-vehicle-access-approve]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const rid = Number(btn.getAttribute('data-vehicle-access-approve'));
+                    try {
+                        await apiCall(`/api/v1/services/access-requests/${rid}`, 'PUT', {
+                            decision: 'approved',
+                            note: null,
+                        });
+                        showAlert('Přístup servisu byl schválen.', 'success');
+                        await refreshServiceVehicleAccessGrantsIfUser();
+                        if (typeof window.uappResolveServiceAccessRequest === 'function') {
+                            try {
+                                await window.refreshUserServiceRequests();
+                            } catch (_) {}
+                        }
+                        renderVehicleDetailServiceAccessPanel(Number(shell.id.replace('vehicle-service-access-modal-', '')));
+                    } catch (e) {
+                        showAlert(e?.message || 'Schválení se nepodařilo.', 'error');
+                    }
+                });
+            });
+            shell.querySelectorAll('[data-vehicle-access-reject]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const rid = Number(btn.getAttribute('data-vehicle-access-reject'));
+                    try {
+                        await apiCall(`/api/v1/services/access-requests/${rid}`, 'PUT', {
+                            decision: 'rejected',
+                            note: null,
+                        });
+                        showAlert('Žádost byla zamítnuta.', 'success');
+                        await refreshServiceVehicleAccessGrantsIfUser();
+                        if (typeof window.refreshUserServiceRequests === 'function') {
+                            try {
+                                await window.refreshUserServiceRequests();
+                            } catch (_) {}
+                        }
+                        renderVehicleDetailServiceAccessPanel(Number(shell.id.replace('vehicle-service-access-modal-', '')));
+                    } catch (e) {
+                        showAlert(e?.message || 'Zamítnutí se nepodařilo.', 'error');
+                    }
+                });
+            });
+        }
+
+        window.renderVehicleDetailServiceAccessPanel = renderVehicleDetailServiceAccessPanel;
 
         function parseTachometerHistorySortTime(checkDate) {
             if (!checkDate) return 0;
