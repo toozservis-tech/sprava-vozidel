@@ -4709,6 +4709,76 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
   vertical-align: middle;
 }
 
+.service-intake-wizard-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.service-intake-wizard-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.service-intake-wizard-step.is-active {
+  border-color: #2563eb;
+  color: #1d4ed8;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.12);
+}
+
+.service-intake-wizard-step.is-done {
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.service-intake-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.service-intake-photo-slot {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.service-intake-wizard-nav {
+  margin-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .service-intake-wizard-progress {
+    gap: 6px;
+  }
+
+  .service-intake-wizard-step {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .service-intake-wizard-nav .btn,
+  .service-intake-wizard-nav .service-shell-primary-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .service-work-order-line-actions .btn {
+    min-height: 44px;
+  }
+}
+
 .service-work-order-part-source {
   display: flex;
   gap: 16px;

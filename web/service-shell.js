@@ -291,6 +291,9 @@
     todayReservations: [],
     dashboardRisks: [],
     quickIntakeDraft: { plate: '', vin: '', phone: '', email: '', checklist: {} },
+    intakeWizardStep: 1,
+    intakeAccessMode: '',
+    intakeDraftWorkOrderId: 0,
     intakeDraft: {
       vin: '',
       plate: '',
@@ -302,6 +305,13 @@
       mileage: '',
       odometer: '',
       technicianNote: '',
+      customerComplaint: '',
+      arrivalCondition: '',
+      visibleDefect: '',
+      fuelLevel: '',
+      preliminaryAgreement: '',
+      createWorkOrder: true,
+      intakePhotos: {},
       checklist: {
         keys: false,
         body: false,
@@ -4513,6 +4523,7 @@
       await window.apiCall(`/api/service/work-orders/${id}/complete`, 'POST', {});
       if (typeof window.showAlert === 'function') window.showAlert('Zakázka byla dokončena.', 'success');
       await reloadWorkOrderDetailModal(id);
+      openWorkOrderCompletionDialog(id);
     } catch (err) {
       setWorkOrderLimitedNotice(err?.message || 'Zakázku se nepodařilo dokončit.');
       await reloadWorkOrderDetailModal(id);
@@ -4732,6 +4743,7 @@
               </div>
             </div>
             <div class="service-shell-modal-actions">
+              ${detail?.status === 'intake_pending' ? `<button type="button" class="btn btn-primary" data-testid="service-work-order-accept-button" onclick="window.serviceShell.submitWorkOrderAccept(${id})">Přijmout k práci</button>` : ''}
               <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-button" ${detail?.status === 'completed' ? 'disabled' : ''} onclick="window.serviceShell.submitWorkOrderComplete(${id})">Dokončit zakázku</button>
             </div>
           </form>
@@ -7350,7 +7362,7 @@
     const access = response?.access || {};
     const legacy = state.intakeLookupLegacyCandidate || {};
     const vehicleId = Number(preview?.vehicle_id || legacy?.vehicle_id || 0);
-    const ownerId = Number(legacy?.owner_customer_id || 0);
+    const ownerId = Number(legacy?.owner_customer_id || response?.owner_customer_id || 0);
     const accessStatus = String(access.status || '').toLowerCase();
     const lookupStatus = String(response?.status || '').toLowerCase();
     const canCreateUnowned = response?.found === false && response?.status === 'not_found';
@@ -7455,8 +7467,8 @@
         ${accessStatus === 'pending' ? '<p>Propojení čeká na vyjádření majitele. Vlastní jednorázový zásah je možné vést odděleně.</p>' : ''}
         ${['rejected', 'revoked'].includes(accessStatus) ? '<p>Dlouhodobé propojení bylo zamítnuto nebo odebráno. Vlastní zásah zůstává oddělený.</p>' : ''}
         <div class="service-action-bar">
-          ${showWorkAccess ? `<button type="button" class="service-shell-primary-btn" data-testid="service-intake-work-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createWorkAccessFromIntake()">${state.intakeMutationLoading ? 'Ukládám…' : 'Pracovat bez propojení'}</button>` : ''}
-          ${showRequestAccess ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-request-access-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.requestVehicleAccessFromIntake()">${state.intakeMutationLoading ? 'Odesílám…' : 'Vyžádat propojení s majitelem'}</button>` : ''}
+          ${showWorkAccess ? `<button type="button" class="service-shell-primary-btn" data-testid="service-intake-one-time-work-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createWorkAccessFromIntake()">${state.intakeMutationLoading ? 'Ukládám…' : 'Jednorázový servisní zásah'}</button>` : ''}
+          ${showRequestAccess ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-request-owner-link-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.requestVehicleAccessFromIntake()">${state.intakeMutationLoading ? 'Odesílám…' : 'Vyžádat propojení s majitelem'}</button>` : ''}
           ${preview?.vehicle_id && (canWorkAccess || accessStatus === 'approved') ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-safe-history-button" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.loadSafeHistoryFromIntake()">Zobrazit bezpečnou historii</button>` : ''}
         </div>
       </div>
@@ -7664,11 +7676,20 @@
         state.intakeCreateFormOpen = false;
       }
       await fetchIntakeLegacyLookupContext(vin, plate);
+      const previewId = Number(response?.vehicle_preview?.vehicle_id || 0);
+      const canAdvance = previewId > 0 || (response?.found === false && response?.status === 'not_found');
+      if (canAdvance && Number(state.intakeWizardStep || 1) === 1) {
+        state.intakeWizardStep = 2;
+      }
     } catch (error) {
       state.intakeLookupError = error?.message || 'Lookup vozidla se nepodařilo načíst.';
     } finally {
       state.intakeLookupLoading = false;
-      intakeUiRefresh();
+      if (Number(state.intakeWizardStep || 1) > 1) {
+        render();
+      } else {
+        intakeUiRefresh();
+      }
     }
   }
 
@@ -7767,7 +7788,7 @@
       state.intakeLookupError = error?.message || 'Pracovní přístup se nepodařilo založit.';
     } finally {
       state.intakeMutationLoading = false;
-      intakeUiRefresh();
+      render();
     }
   }
 
@@ -7792,7 +7813,8 @@
       state.intakeLookupError = error?.message || 'Bezpečnou historii se nepodařilo načíst.';
     } finally {
       state.intakeMutationLoading = false;
-      intakeUiRefresh();
+      if (state.activeSection === 'intake') render();
+      else intakeUiRefresh();
     }
   }
 
@@ -7827,7 +7849,7 @@
       state.intakeLookupError = error?.message || 'Žádost o autorizaci se nepodařilo odeslat.';
     } finally {
       state.intakeMutationLoading = false;
-      intakeUiRefresh();
+      render();
     }
   }
 
@@ -7918,57 +7940,320 @@
     }
   }
 
+  const INTAKE_PHOTO_SLOTS = [
+    ['front', 'Přední část'],
+    ['rear', 'Zadní část'],
+    ['left', 'Levý bok'],
+    ['right', 'Pravý bok'],
+    ['interior', 'Interiér'],
+    ['damage', 'Poškození'],
+  ];
+
+  function setIntakeWizardStep(step) {
+    const next = Math.max(1, Math.min(6, Number(step || 1)));
+    state.intakeWizardStep = next;
+    render();
+  }
+
+  function intakeWizardCanAdvance(step) {
+    const ctx = getIntakeUiContext();
+    if (step === 1) return Boolean(ctx.vehicleId || ctx.canCreateUnowned);
+    if (step === 2) {
+      const access = String(ctx.accessStatus || '').toLowerCase();
+      return ['approved', 'work_access', 'pending'].includes(access) || ctx.lookupStatus === 'found_service_unowned';
+    }
+    if (step === 3) return true;
+    if (step === 4) return true;
+    return false;
+  }
+
+  function renderIntakeWizardProgress() {
+    const steps = [
+      'Vyhledání',
+      'Režim přístupu',
+      'Fotodokumentace',
+      'Příjmový protokol',
+      'Návrh zakázky',
+      'Hotovo',
+    ];
+    const current = Number(state.intakeWizardStep || 1);
+    return `<nav class="service-intake-wizard-progress" aria-label="Kroky příjmu">${steps.map((label, idx) => {
+      const n = idx + 1;
+      const cls = n === current ? 'is-active' : n < current ? 'is-done' : '';
+      return `<span class="service-intake-wizard-step ${cls}"><strong>${n}</strong> ${escape(label)}</span>`;
+    }).join('')}</nav>`;
+  }
+
+  function renderIntakeStepSearch(ctx) {
+    const { draft } = ctx;
+    return `
+      <article class="service-pro-card" data-testid="service-intake-step-search">
+        <h3>Krok 1 — Vyhledání vozidla</h3>
+        <label>VIN
+          <input data-testid="service-intake-vin-input" class="service-shell-search" value="${escape(draft.vin || '')}" oninput="window.serviceShell.setIntakeDraftField('vin', this.value)" placeholder="např. TMBJH7NP9N7041234">
+        </label>
+        <label>SPZ
+          <input data-testid="service-intake-plate-input" class="service-shell-search" value="${escape(draft.plate || '')}" oninput="window.serviceShell.setIntakeDraftField('plate', this.value)" placeholder="např. 1AB 2345">
+        </label>
+        <div class="service-action-bar">
+          <button type="button" class="service-shell-primary-btn" data-testid="service-intake-lookup-button" ${state.intakeLookupLoading ? 'disabled' : ''} onclick="window.serviceShell.lookupVehicleForIntake()">${state.intakeLookupLoading ? 'Načítám…' : 'Načíst vozidlo'}</button>
+        </div>
+        <div data-intake-patch="lookup-error">${renderIntakeLookupErrorHtml()}</div>
+        <article class="service-pro-card service-pro-card--muted" data-testid="service-intake-result">${renderIntakeResultPanelHtml(ctx)}</article>
+        <div data-intake-patch="create-vehicle">${renderIntakeCreateVehiclePanelHtml(ctx)}</div>
+      </article>`;
+  }
+
+  function renderIntakeStepAccess(ctx) {
+    return `
+      <article class="service-pro-card" data-testid="service-intake-step-access-choice">
+        <h3>Krok 2 — Volba režimu</h3>
+        <p class="service-shell-muted">Vyberte, zda chcete požádat majitele o propojení, nebo pokračovat jednorázovým servisním zásahem bez přístupu k osobním údajům.</p>
+        ${renderIntakeAccessPanelHtml(ctx)}
+        <ul class="service-shell-static-list">
+          <li><strong>Propojení:</strong> majitel schválí přístup ke km, historii a záznamům.</li>
+          <li><strong>Jednorázový zásah:</strong> servis pracuje bez PII majitele; propojení není nutné.</li>
+        </ul>
+      </article>`;
+  }
+
+  function renderIntakeStepPhotos() {
+    const photos = state.intakeDraft?.intakePhotos || {};
+    const limited = !Number(state.intakeDraftWorkOrderId || 0);
+    return `
+      <article class="service-pro-card" data-testid="service-intake-step-photos">
+        <h3>Krok 3 — Fotodokumentace příjmu</h3>
+        ${limited ? '<p class="service-shell-list-note">Fotky se nahrají automaticky po vytvoření návrhu zakázky v kroku 5. Vyberte soubory nyní — uloží se spolu se zakázkou.</p>' : ''}
+        <div class="service-intake-photo-grid">
+          ${INTAKE_PHOTO_SLOTS.map(([key, label]) => {
+            const selected = photos[key]?.name ? escape(photos[key].name) : '';
+            return `<label class="service-intake-photo-slot"><span>${escape(label)}</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" data-testid="service-intake-photo-upload" data-intake-photo-key="${key}" onchange="window.serviceShell.setIntakePhotoFile('${key}', this)">
+              ${selected ? `<small>${selected}</small>` : ''}
+            </label>`;
+          }).join('')}
+        </div>
+      </article>`;
+  }
+
+  function renderIntakeStepConditionReport(ctx) {
+    const draft = ctx.draft || {};
+    return `
+      <article class="service-pro-card" data-testid="service-intake-step-condition-report">
+        <h3>Krok 4 — Příjmový protokol</h3>
+        <label>S čím auto přijelo
+          <textarea data-testid="service-intake-arrival-condition" rows="2" oninput="window.serviceShell.setIntakeDraftField('arrivalCondition', this.value)">${escape(draft.arrivalCondition || '')}</textarea>
+        </label>
+        <label>Požadavek zákazníka
+          <textarea data-testid="service-intake-customer-complaint" rows="2" oninput="window.serviceShell.setIntakeDraftField('customerComplaint', this.value)">${escape(draft.customerComplaint || '')}</textarea>
+        </label>
+        <label>Viditelná závada
+          <textarea rows="2" oninput="window.serviceShell.setIntakeDraftField('visibleDefect', this.value)">${escape(draft.visibleDefect || '')}</textarea>
+        </label>
+        <div class="service-dashboard-modal-grid cols-2">
+          <label>Stav tachometru (km)
+            <input class="service-shell-search" value="${escape(draft.odometer || '')}" oninput="window.serviceShell.setIntakeDraftField('odometer', this.value)" placeholder="např. 185000">
+          </label>
+          <label>Stav paliva
+            <input class="service-shell-search" value="${escape(draft.fuelLevel || '')}" oninput="window.serviceShell.setIntakeDraftField('fuelLevel', this.value)" placeholder="např. 3/4">
+          </label>
+        </div>
+        <label>Poznámka technika
+          <textarea data-testid="service-intake-technician-note" rows="3" oninput="window.serviceShell.setIntakeDraftField('technicianNote', this.value)">${escape(draft.technicianNote || '')}</textarea>
+        </label>
+        <label>Předběžná domluva
+          <textarea rows="2" oninput="window.serviceShell.setIntakeDraftField('preliminaryAgreement', this.value)">${escape(draft.preliminaryAgreement || '')}</textarea>
+        </label>
+        <label class="service-check-row"><span>Vytvořit návrh zakázky po uložení</span><input type="checkbox" ${draft.createWorkOrder !== false ? 'checked' : ''} onchange="window.serviceShell.setIntakeDraftField('createWorkOrder', this.checked)"></label>
+      </article>`;
+  }
+
+  function renderIntakeStepCreateOrder(ctx) {
+    const woId = Number(state.intakeDraftWorkOrderId || 0);
+    return `
+      <article class="service-pro-card">
+        <h3>Krok 5 — Návrh zakázky</h3>
+        ${woId ? `<p class="service-shell-list-note">Návrh zakázky #${woId} byl vytvořen se stavem „Nový příjem / Čeká na práci“.</p>` : `
+          <p class="service-shell-muted">Uloží příjmový protokol a vytvoří návrh zakázky v sekci Zakázky.</p>
+          <button type="button" class="service-shell-primary-btn" data-testid="service-intake-create-draft-work-order" ${state.intakeMutationLoading ? 'disabled' : ''} onclick="window.serviceShell.createIntakeDraftWorkOrder()">${state.intakeMutationLoading ? 'Ukládám…' : 'Vytvořit návrh zakázky'}</button>
+        `}
+      </article>`;
+  }
+
+  function renderIntakeStepDone() {
+    const woId = Number(state.intakeDraftWorkOrderId || 0);
+    return `
+      <article class="service-pro-card" data-testid="service-intake-step-done">
+        <h3>Krok 6 — Zakázka čeká na technika</h3>
+        <p>Příjem je dokončen. Technik může v sekci Zakázky otevřít návrh a kliknout „Přijmout k práci“.</p>
+        ${woId ? `<button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.navigate('work-orders'); window.serviceShell.openWorkOrderDetailModal(${woId})">Otevřít zakázku #${woId}</button>` : ''}
+      </article>`;
+  }
+
+  function setIntakePhotoFile(key, input) {
+    const file = input?.files?.[0] || null;
+    if (!state.intakeDraft.intakePhotos) state.intakeDraft.intakePhotos = {};
+    if (file) state.intakeDraft.intakePhotos[key] = file;
+    else delete state.intakeDraft.intakePhotos[key];
+    intakeUiRefresh();
+  }
+
+  async function uploadPendingIntakePhotos(workOrderId) {
+    const woId = Number(workOrderId || 0);
+    const photos = state.intakeDraft?.intakePhotos || {};
+    const keys = Object.keys(photos);
+    if (!woId || !keys.length) return;
+    const typeMap = { front: 'intake', rear: 'intake', left: 'intake', right: 'intake', interior: 'internal', damage: 'damage' };
+    for (const key of keys) {
+      const file = photos[key];
+      if (!file) continue;
+      try {
+        const fileContentBase64 = await fileToBase64(file);
+        await window.apiCall(`/api/service/work-orders/${woId}/photos`, 'POST', {
+          photo_type: typeMap[key] || 'intake',
+          visibility_scope: 'service_private',
+          file_name: file.name || `${key}.jpg`,
+          file_mime_type: file.type || 'image/jpeg',
+          file_content_base64: fileContentBase64,
+        }, 180000);
+      } catch (_err) {
+        /* keep going — partial photo failure is visible in WO detail */
+      }
+    }
+  }
+
+  async function createIntakeDraftWorkOrder() {
+    const ctx = getIntakeUiContext();
+    const vehicleId = Number(ctx.vehicleId || 0);
+    if (!vehicleId) {
+      state.intakeLookupError = 'Nejprve dokončete vyhledání vozidla.';
+      intakeUiRefresh();
+      return;
+    }
+    const accessStatus = String(ctx.accessStatus || '').toLowerCase();
+    const canWork = ['approved', 'work_access'].includes(accessStatus) || ctx.lookupStatus === 'found_service_unowned';
+    if (!canWork && accessStatus === 'pending') {
+      state.intakeLimitedNotice = 'Propojení čeká na majitele — pro pokračování založte jednorázový servisní zásah v kroku 2.';
+      intakeUiRefresh();
+      return;
+    }
+    if (!canWork) {
+      state.intakeLimitedNotice = 'Nejdřív zvolte režim přístupu v kroku 2.';
+      intakeUiRefresh();
+      return;
+    }
+    state.intakeMutationLoading = true;
+    state.intakeLookupError = '';
+    try {
+      const odometer = Number(state.intakeDraft?.odometer || 0);
+      let caseId = Number(state.intakeStartResult?.id || 0);
+      if (!caseId) {
+        const caseResp = await window.apiCall('/api/v1/services/workspace/service-cases/', 'POST', {
+          vehicle_id: vehicleId,
+          customer_request: String(state.intakeDraft?.customerComplaint || '').trim() || null,
+          intake_note: String(state.intakeDraft?.technicianNote || '').trim() || null,
+          initial_mileage_km: Number.isFinite(odometer) && odometer > 0 ? odometer : null,
+          visible_defect: String(state.intakeDraft?.visibleDefect || '').trim() || null,
+          fuel_level: String(state.intakeDraft?.fuelLevel || '').trim() || null,
+          preliminary_agreement: String(state.intakeDraft?.preliminaryAgreement || '').trim() || null,
+        });
+        state.intakeStartResult = caseResp || null;
+        caseId = Number(caseResp?.id || 0);
+      }
+      if (state.intakeDraft?.createWorkOrder === false) {
+        state.intakeLimitedNotice = 'Příjmový protokol byl uložen bez vytvoření zakázky.';
+        state.intakeWizardStep = 6;
+        intakeUiRefresh();
+        return;
+      }
+      const descParts = [
+        state.intakeDraft?.arrivalCondition,
+        state.intakeDraft?.customerComplaint,
+        state.intakeDraft?.visibleDefect ? `Závada: ${state.intakeDraft.visibleDefect}` : '',
+        state.intakeDraft?.preliminaryAgreement ? `Domluva: ${state.intakeDraft.preliminaryAgreement}` : '',
+        state.intakeDraft?.technicianNote,
+      ].filter(Boolean);
+      const payload = {
+        vehicle_id: vehicleId,
+        title: 'Nový příjem vozidla',
+        description: descParts.join('\n').trim() || null,
+        status: 'intake_pending',
+        source_type: 'intake',
+        source_intake_id: caseId || null,
+      };
+      const ownerId = Number(ctx.ownerId || 0);
+      if (ownerId > 0 && accessStatus === 'approved') payload.owner_id = ownerId;
+      const response = await window.apiCall('/api/service/work-orders', 'POST', payload);
+      state.intakeDraftWorkOrderId = Number(response?.id || 0);
+      await uploadPendingIntakePhotos(state.intakeDraftWorkOrderId);
+      state.intakeLimitedNotice = `Návrh zakázky #${state.intakeDraftWorkOrderId} byl vytvořen.`;
+      state.intakeWizardStep = 6;
+    } catch (error) {
+      state.intakeLookupError = error?.message || 'Návrh zakázky se nepodařilo vytvořit.';
+    } finally {
+      state.intakeMutationLoading = false;
+      render();
+    }
+  }
+
+  async function submitWorkOrderAccept(workOrderId) {
+    const id = Number(workOrderId || 0);
+    try {
+      await window.apiCall(`/api/service/work-orders/${id}/accept`, 'POST', {});
+      if (typeof window.showAlert === 'function') window.showAlert('Zakázka byla přijata k práci.', 'success');
+      await reloadWorkOrderDetailModal(id);
+    } catch (err) {
+      setWorkOrderLimitedNotice(err?.message || 'Zakázku se nepodařilo přijmout k práci.');
+      await reloadWorkOrderDetailModal(id);
+    }
+  }
+
+  function openWorkOrderCompletionDialog(workOrderId) {
+    const id = Number(workOrderId || 0);
+    if (!id || !hasFloatingModalSupport()) return;
+    openModal({
+      key: `work-order-complete-${id}`,
+      title: 'Zakázka dokončena',
+      description: 'Vyberte další krok po dokončení práce.',
+      renderContent: () => `
+        <p class="service-shell-list-note">Doklad zůstává obchodním dokumentem servisu. Servisní záznam pro majitele neobsahuje ceny ani interní data.</p>
+        <div class="service-shell-modal-actions service-intake-completion-actions">
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-invoice" onclick="window.serviceShell.createWorkOrderInvoice(${id}); window.serviceShell.closeModal();">Vystavit doklad</button>
+          <button type="button" class="btn btn-secondary" data-testid="service-work-order-complete-record" onclick="window.serviceShell.submitWorkOrderServiceRecord(${id}); window.serviceShell.closeModal();">Přidat servisní záznam</button>
+          <button type="button" class="btn btn-primary" data-testid="service-work-order-complete-both" onclick="window.serviceShell.createWorkOrderInvoice(${id}); window.serviceShell.submitWorkOrderServiceRecord(${id}); window.serviceShell.closeModal();">Vytvořit obojí</button>
+        </div>
+      `,
+      renderFooter: () => renderMobileModalFooter('<button type="button" class="btn btn-secondary" onclick="window.serviceShell.closeModal()">Zavřít</button>'),
+    });
+  }
+
   function renderServiceIntakeSection() {
     const ctx = getIntakeUiContext();
-    const { draft } = ctx;
-    const checklistRows = [
-      ['keys', 'Převzaty klíče'],
-      ['body', 'Kontrola karoserie'],
-      ['lights', 'Kontrola světel'],
-      ['tires', 'Kontrola pneumatik'],
-      ['interior', 'Kontrola interiéru'],
-      ['customer_notified', 'Zákazník upozorněn na viditelné poškození'],
-    ];
+    const step = Number(state.intakeWizardStep || 1);
+    let stepHtml = '';
+    if (step === 1) stepHtml = renderIntakeStepSearch(ctx);
+    else if (step === 2) stepHtml = renderIntakeStepAccess(ctx);
+    else if (step === 3) stepHtml = renderIntakeStepPhotos();
+    else if (step === 4) stepHtml = renderIntakeStepConditionReport(ctx);
+    else if (step === 5) stepHtml = renderIntakeStepCreateOrder(ctx);
+    else stepHtml = renderIntakeStepDone();
+    const navButtons = `
+      <div class="service-action-bar service-intake-wizard-nav">
+        ${step > 1 ? `<button type="button" class="btn btn-secondary" onclick="window.serviceShell.setIntakeWizardStep(${step - 1})">Zpět</button>` : ''}
+        ${step < 6 ? `<button type="button" class="service-shell-primary-btn" ${!intakeWizardCanAdvance(step) ? 'disabled' : ''} onclick="window.serviceShell.setIntakeWizardStep(${step + 1})">Další krok</button>` : ''}
+      </div>`;
     return ServiceProPageShell(
       'Příjem vozidla',
-      'Pracovní tok příjmu vozidla: bezpečný lookup, autorizace přístupu, založení příjmu a navazující zakázka.',
+      'Krokový proces: vyhledání → režim přístupu → fotodokumentace → protokol → návrh zakázky → předání technikovi.',
       `
         <div data-testid="service-intake-section" class="service-intake-layout">
+          ${renderIntakeWizardProgress()}
           <div class="service-pro-bottom-grid service-intake-grid">
-            <article class="service-pro-card">
-              <h3>Vyhledat vozidlo</h3>
-              <label>VIN
-                <input data-testid="service-intake-vin-input" class="service-shell-search" value="${escape(draft.vin || '')}" oninput="window.serviceShell.setIntakeDraftField('vin', this.value)" placeholder="např. TMBJH7NP9N7041234">
-              </label>
-              <label>SPZ
-                <input data-testid="service-intake-plate-input" class="service-shell-search" value="${escape(draft.plate || '')}" oninput="window.serviceShell.setIntakeDraftField('plate', this.value)" placeholder="např. 1AB 2345">
-              </label>
-              <div class="service-action-bar">
-                <button type="button" class="service-shell-primary-btn" data-testid="service-intake-lookup-button" ${state.intakeLookupLoading ? 'disabled' : ''} onclick="window.serviceShell.lookupVehicleForIntake()">${state.intakeLookupLoading ? 'Načítám…' : 'Načíst vozidlo'}</button>
-                <button type="button" class="btn btn-secondary" data-testid="service-intake-ocr-button" disabled title="OCR SPZ není aktuálně aktivní. Zadejte SPZ nebo VIN ručně.">Foto SPZ / OCR</button>
-              </div>
-              <div data-intake-patch="lookup-error">${renderIntakeLookupErrorHtml()}</div>
-            </article>
-            <article class="service-pro-card" data-testid="service-intake-result">${renderIntakeResultPanelHtml(ctx)}</article>
-            <article class="service-pro-card" data-testid="service-intake-access-state">${renderIntakeAccessPanelHtml(ctx)}</article>
-            <div data-intake-patch="create-vehicle">${renderIntakeCreateVehiclePanelHtml(ctx)}</div>
-            <article class="service-pro-card">
-              <h3>Příjem vozidla</h3>
-              <label>Stav tachometru (km)
-                <input class="service-shell-search" value="${escape(draft.odometer || '')}" oninput="window.serviceShell.setIntakeDraftField('odometer', this.value)" placeholder="např. 185000">
-              </label>
-              <label>Poznámka technika
-                <textarea class="service-shell-search" rows="3" oninput="window.serviceShell.setIntakeDraftField('technicianNote', this.value)">${escape(draft.technicianNote || '')}</textarea>
-              </label>
-              <strong>Checklist příjmu</strong>
-              ${checklistRows.map(([key, label]) => `<label class="service-check-row"><span>${escape(label)}</span><input type="checkbox" ${draft?.checklist?.[key] ? 'checked' : ''} onchange="window.serviceShell.setIntakeChecklistItem('${key}', this.checked)"></label>`).join('')}
-              <article class="service-pro-card service-pro-card--muted" data-testid="service-intake-limited-photo-state"><p>Fotodokumentace je v této fázi vedená jako omezený stav. OCR SPZ není aktuálně aktivní.</p></article>
-              <div class="service-action-bar" data-intake-patch="workflow-actions">${renderIntakeWorkflowActionsHtml(ctx)}</div>
-              <p class="service-shell-muted">Pokud backend nepodporuje kompletní převod příjmu na zakázku, tlačítko zobrazí omezený stav bez fake úspěchu.</p>
-            </article>
+            ${stepHtml}
           </div>
+          ${navButtons}
           ${renderIntakeLimitedNoticeHtml()}
-          <article class="service-pro-card service-pro-card--muted"><p>Audit: osobní údaje majitele, ceny, faktury, fotky a dokumenty zůstávají skryté, dokud backend nevrátí schválený rozsah přístupu.</p></article>
+          <article class="service-pro-card service-pro-card--muted"><p>Audit: osobní údaje majitele, ceny, faktury a interní poznámky zůstávají skryté bez schváleného propojení.</p></article>
         </div>
       `,
       { asideHtml: renderQuickIntakePanel(), testId: 'service-intake-page' },
@@ -10584,6 +10869,11 @@
     adjustInventorySelectedItem,
     setInventoryAdjustDraft,
     submitWorkOrderTime,
+    setIntakeWizardStep,
+    setIntakePhotoFile,
+    createIntakeDraftWorkOrder,
+    submitWorkOrderAccept,
+    openWorkOrderCompletionDialog,
     submitWorkOrderComplete,
     submitWorkOrderServiceRecord,
     handleWorkOrderPhotoSelection,

@@ -43692,8 +43692,8 @@
                 <div style="font-weight:600;margin-bottom:6px;">${title}${plate}</div>
                 <div style="font-size:0.9rem;color:#64748b;margin-bottom:10px;">Žádost od: ${svc}</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                  <button type="button" class="btn btn-primary btn-sm" data-access-approve="${id}">Schválit přístup</button>
-                  <button type="button" class="btn btn-secondary btn-sm" data-access-reject="${id}">Zamítnout</button>
+                  <button type="button" class="btn btn-primary btn-sm" data-testid="user-service-request-approve-button" data-access-approve="${id}">Schválit propojení</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-testid="user-service-request-reject-button" data-access-reject="${id}">Zamítnout propojení</button>
                 </div>
               </div>`;
                       })
@@ -43702,7 +43702,7 @@
             overlay.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:20px;box-shadow:0 24px 48px rgba(0,0,0,0.2);">
       <h3 style="margin:0 0 8px;font-size:1.15rem;">Žádosti servisů o přístup k vozidlům</h3>
       <p style="margin:0 0 16px;color:#475569;font-size:0.95rem;line-height:1.5;">Nyní můžete schválit přístup jen k těm vozidlům, se kterými má servis pracovat.</p>
-      <div id="ownerServiceAccessList">${rows}</div>
+      <div id="ownerServiceAccessList" data-testid="user-service-requests-section">${rows}</div>
       <button type="button" class="btn btn-secondary" style="margin-top:12px;width:100%;" id="ownerServiceAccessOverlayClose">Zavřít</button>
     </div>`;
             document.body.appendChild(overlay);
@@ -70047,6 +70047,6 @@
     <script src="/web/tutorial-hub.js"></script>
     <script src="/web/user-app-next.js?v=2026052913"></script>
     <script src="/web/user-settings.js?v=20260524settingsfull"></script>
-    <script src="/web/service-shell.js?v=2026052921"></script>
+    <script src="/web/service-shell.js?v=2026052926"></script>
 </body>
 </html>

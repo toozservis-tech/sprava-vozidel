@@ -272,7 +272,7 @@ test.describe('Service shell work orders route', () => {
       await page.locator('[data-testid="service-intake-lookup-button"]').click();
       await page.locator('[data-testid="service-intake-section"]').getByLabel('Značka').fill('Skoda');
       await page.locator('[data-testid="service-intake-section"]').getByLabel('Model').fill('Fabia');
-      await page.locator('[data-testid="service-intake-create-unowned-button"]').click();
+      await page.locator('[data-testid="service-intake-save-vehicle-button"]').click();
       await expect(page.locator('[data-testid="service-intake-section"]')).toContainText(/bez vlastnické vazby/i, {
         timeout: 30_000,
       });

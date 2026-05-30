@@ -17,7 +17,7 @@ from ..audit_log import write_global_audit_log
 from ..database import get_db
 from ..models import Customer, ServiceIntake, Vehicle
 from ..schema_management import assert_module_ready
-from ..service_access import require_approved_service_vehicle_access
+from ..service_access import get_active_vehicle_service_link, service_has_work_access
 from ..workspace_entitlements import customer_has_service_workspace_access
 from .auth import get_current_user
 
@@ -45,6 +45,9 @@ class ServiceCaseCreateV1(BaseModel):
     customer_request: Optional[str] = Field(default=None, max_length=8000)
     intake_note: Optional[str] = Field(default=None, max_length=8000)
     initial_mileage_km: Optional[int] = Field(default=None, ge=0)
+    visible_defect: Optional[str] = Field(default=None, max_length=4000)
+    fuel_level: Optional[str] = Field(default=None, max_length=64)
+    preliminary_agreement: Optional[str] = Field(default=None, max_length=4000)
 
 
 class ServiceCasePatchV1(BaseModel):
@@ -93,6 +96,37 @@ def _get_owned_case_or_404(db: Session, *, current_user: Customer, case_id: int)
     return row
 
 
+def _resolve_intake_parties(
+    db: Session,
+    *,
+    current_user: Customer,
+    vehicle_id: int,
+) -> tuple[Vehicle, Optional[Customer], Optional[int], str]:
+    """Return vehicle, owner (if linked), service_access_link_id, access_mode."""
+    vehicle = db.query(Vehicle).filter(Vehicle.id == int(vehicle_id)).first()
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vozidlo nebylo nalezeno.")
+    if not service_has_work_access(db, current_user=current_user, vehicle=vehicle):
+        raise HTTPException(
+            status_code=403,
+            detail="Servis nemá oprávnění zahájit příjem pro toto vozidlo. Vyžádejte propojení nebo založte jednorázový zásah.",
+        )
+    link = get_active_vehicle_service_link(
+        db,
+        service_customer_id=int(current_user.id),
+        vehicle_id=int(vehicle.id),
+    )
+    owner: Optional[Customer] = None
+    link_id: Optional[int] = None
+    access_mode = "work_access"
+    if link:
+        link_id = int(link.id)
+        access_mode = "approved"
+        if link.owner_customer_id:
+            owner = db.query(Customer).filter(Customer.id == int(link.owner_customer_id)).first()
+    return vehicle, owner, link_id, access_mode
+
+
 @router.post("/", status_code=201)
 def create_service_case(
     payload: ServiceCaseCreateV1,
@@ -102,28 +136,39 @@ def create_service_case(
     _require_service_workspace(current_user)
     _ensure_ws(db)
 
-    vehicle, owner, link = require_approved_service_vehicle_access(
+    vehicle, owner, link_id, access_mode = _resolve_intake_parties(
         db,
         current_user=current_user,
         vehicle_id=int(payload.vehicle_id),
     )
 
+    note_parts: list[str] = []
+    if payload.intake_note and str(payload.intake_note).strip():
+        note_parts.append(str(payload.intake_note).strip())
+    if payload.visible_defect and str(payload.visible_defect).strip():
+        note_parts.append(f"Viditelná závada: {str(payload.visible_defect).strip()}")
+    if payload.fuel_level and str(payload.fuel_level).strip():
+        note_parts.append(f"Stav paliva: {str(payload.fuel_level).strip()}")
+    if payload.preliminary_agreement and str(payload.preliminary_agreement).strip():
+        note_parts.append(f"Předběžná domluva: {str(payload.preliminary_agreement).strip()}")
+    combined_note = "\n".join(note_parts).strip() or None
+
     now = datetime.utcnow()
     case = ServiceIntake(
-        tenant_id=int(vehicle.tenant_id or owner.tenant_id or current_user.tenant_id or 1),
+        tenant_id=int(vehicle.tenant_id or getattr(current_user, "tenant_id", None) or 1),
         service_tenant_id=getattr(current_user, "tenant_id", None),
         service_id=int(current_user.id),
         vehicle_id=int(vehicle.id),
-        customer_id=int(owner.id),
-        service_access_link_id=int(link.id),
+        customer_id=int(owner.id) if owner else None,
+        service_access_link_id=link_id,
         intake_status="intake_started",
         intake_source="service_cases_api",
-        owner_approval_required=False,
-        owner_approval_status="approved",
+        owner_approval_required=access_mode != "approved",
+        owner_approval_status="approved" if access_mode == "approved" else "not_required",
         check_in_at=now,
         created_by=int(current_user.id),
         customer_request=(payload.customer_request or "").strip() or None,
-        intake_note=(payload.intake_note or "").strip() or None,
+        intake_note=combined_note,
         odometer_km=payload.initial_mileage_km,
         mileage_source=("manual" if payload.initial_mileage_km is not None else None),
     )
@@ -141,8 +186,9 @@ def create_service_case(
         vehicle_id=int(vehicle.id),
         metadata={
             "source": "service_cases_api",
-            "vehicle_service_link_id": int(link.id),
-            "owner_customer_id": int(owner.id),
+            "vehicle_service_link_id": link_id,
+            "owner_customer_id": int(owner.id) if owner else None,
+            "access_mode": access_mode,
         },
     )
     db.commit()

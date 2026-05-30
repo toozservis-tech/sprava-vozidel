@@ -728,6 +728,23 @@ def finalize_service_access_decision(
                 "source_route": source_route,
             },
         )
+        write_global_audit_log(
+            db,
+            entity_type="vehicle_service_link",
+            entity_id=int(link.id),
+            action="owner_approved_service_link",
+            actor_type="user",
+            actor_user_id=int(decided_by.id),
+            actor_role=getattr(decided_by, "role", None),
+            tenant_id=int(vehicle.tenant_id or owner_customer.tenant_id or 1),
+            vehicle_id=int(vehicle.id),
+            metadata={
+                "request_id": int(request_row.id),
+                "service_customer_id": int(service_customer.id),
+                "owner_customer_id": int(owner_customer.id),
+                "source_route": source_route,
+            },
+        )
         return link
 
     if decision_key != "rejected":
@@ -751,6 +768,23 @@ def finalize_service_access_decision(
             "owner_customer_id": int(owner_customer.id),
             "decided_by_customer_id": int(decided_by.id),
             "vin": vin_norm,
+            "source_route": source_route,
+        },
+    )
+    write_global_audit_log(
+        db,
+        entity_type="service_access_request",
+        entity_id=int(request_row.id),
+        action="owner_rejected_service_link",
+        actor_type="user",
+        actor_user_id=int(decided_by.id),
+        actor_role=getattr(decided_by, "role", None),
+        tenant_id=int(vehicle.tenant_id or owner_customer.tenant_id or 1),
+        vehicle_id=int(vehicle.id),
+        metadata={
+            "request_id": int(request_row.id),
+            "service_customer_id": int(service_customer.id),
+            "owner_customer_id": int(owner_customer.id),
             "source_route": source_route,
         },
     )

@@ -167,10 +167,10 @@ test.describe('Service shell intake route', () => {
     await openIntake(page);
     await page.locator('[data-testid="service-intake-vin-input"]').fill('WAUZZZ8K9AA000001');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
-    await expect(page.locator('[data-testid="service-intake-request-access-button"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-request-owner-link-button"]')).toBeVisible();
     await Promise.all([
       page.waitForResponse((response) => response.url().includes('/access-requests') && response.status() === 200),
-      page.locator('[data-testid="service-intake-request-access-button"]').click(),
+      page.locator('[data-testid="service-intake-request-owner-link-button"]').click(),
     ]);
     await expect(page.locator('[data-testid="service-intake-access-state"]')).toContainText(/čeká na schválení majitele/i, { timeout: 20_000 });
   });
@@ -303,7 +303,7 @@ test.describe('Service shell intake route', () => {
     await page.locator('[data-testid="service-intake-vin-input"]').fill('TMBJH7NP9N7050101');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
     await expect(page.locator('[data-testid="service-intake-access-not-requested"]')).toBeVisible();
-    await page.locator('[data-testid="service-intake-work-access-button"]').click();
+    await page.locator('[data-testid="service-intake-one-time-work-button"]').click();
     await expect(page.locator('[data-testid="service-intake-access-work-access"]')).toContainText(/Jednorázový servisní zásah/i);
     await expect(page.locator('[data-testid="service-intake-create-work-order-button"]')).toBeEnabled();
   });
@@ -333,8 +333,8 @@ test.describe('Service shell intake route', () => {
     await page.locator('[data-testid="service-intake-plate-input"]').fill('5AB5002');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
     await expect(page.locator('[data-testid="service-intake-access-rejected"]')).toBeVisible();
-    await expect(page.locator('[data-testid="service-intake-work-access-button"]')).toBeVisible();
-    await expect(page.locator('[data-testid="service-intake-request-access-button"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="service-intake-one-time-work-button"]')).toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-request-owner-link-button"]')).toBeEnabled();
     await expect(page.locator('[data-testid="service-intake-create-work-order-button"]')).toBeDisabled();
   });
 
@@ -363,7 +363,7 @@ test.describe('Service shell intake route', () => {
     await page.locator('[data-testid="service-intake-vin-input"]').fill('TMBJH7NP9N7050303');
     await page.locator('[data-testid="service-intake-lookup-button"]').click();
     await expect(page.locator('[data-testid="service-intake-access-work-access"]')).toBeVisible();
-    await expect(page.locator('[data-testid="service-intake-work-access-button"]')).not.toBeVisible();
+    await expect(page.locator('[data-testid="service-intake-one-time-work-button"]')).not.toBeVisible();
     await expect(page.locator('[data-testid="service-intake-create-work-order-button"]')).toBeEnabled();
   });
 

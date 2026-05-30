@@ -591,9 +591,28 @@
     if (!requestId || status !== 'pending') return '—';
     return `
       <div class="uapp-settings-inline-actions">
-        <button type="button" class="uapp-settings-link" data-uapp-settings-action="service-access:approved:${requestId}">Schválit</button>
-        <button type="button" class="uapp-settings-link is-danger" data-uapp-settings-action="service-access:rejected:${requestId}">Zamítnout</button>
+        <button type="button" class="uapp-settings-btn uapp-settings-btn-primary" data-testid="user-service-request-approve-button" data-uapp-settings-action="service-access:approved:${requestId}">Schválit propojení</button>
+        <button type="button" class="uapp-settings-btn is-danger-outline" data-testid="user-service-request-reject-button" data-uapp-settings-action="service-access:rejected:${requestId}">Zamítnout propojení</button>
       </div>`;
+  }
+
+  function renderPendingServiceRequests(data) {
+    const pending = (Array.isArray(data?.sharing) ? data.sharing : []).filter((r) => String(r.status || '').toLowerCase() === 'pending');
+    if (!pending.length) {
+      return '<p class="uapp-settings-muted">Žádné čekající žádosti servisů.</p>';
+    }
+    return pending.map((r) => `
+      <article class="uapp-settings-request-card" data-testid="user-service-request-row">
+        <div class="uapp-settings-request-head">
+          <strong>${esc(r.service_name || 'Servis')}</strong>
+          <span>${esc(r.vehicle_name || 'Vozidlo')}</span>
+        </div>
+        <p class="uapp-settings-muted">${esc([r.vehicle_plate_masked, r.vehicle_vin_masked].filter(Boolean).join(' · ') || 'SPZ/VIN maskováno')}</p>
+        <p>${esc(r.reason || r.requested_scope || 'Žádost o propojení s vozidlem')}</p>
+        <p class="uapp-settings-muted"><strong>Po schválení:</strong> servis uvidí historii, km a může zakládat servisní záznamy. <strong>Nevidí:</strong> faktury, ceny a interní poznámky mimo schválený rozsah.</p>
+        ${renderServiceSharingActions(r)}
+      </article>
+    `).join('');
   }
 
   function renderPanelServices() {
@@ -602,6 +621,10 @@
     const sharing = data.sharing || [];
     return `
       <div class="uapp-settings-panel-head"><span class="uapp-settings-panel-ico">🔧</span><div><h2>Servisy a sdílení</h2><p>Oblíbené servisy a sdílení vozidel</p></div></div>
+      <section class="uapp-settings-card" data-testid="user-service-requests-section">
+        <div class="uapp-settings-card-head-row"><h3>Žádosti servisů o propojení</h3></div>
+        ${renderPendingServiceRequests(data)}
+      </section>
       <section class="uapp-settings-card"><div class="uapp-settings-card-head-row"><h3>Oblíbené servisy</h3><button type="button" class="uapp-settings-btn" data-uapp-settings-action="nav:servicesDirectory">Přidat servis</button></div>
         ${fav.length ? fav.map((s) => `<div class="uapp-settings-service-row"><div><strong>${esc(s.name)}</strong><span>${esc(s.city || '')}, ${esc(s.country || '')}</span></div><button type="button" class="uapp-settings-link" data-uapp-settings-action="nav:servicesDirectory">Nastavení</button></div>`).join('') : '<p class="uapp-settings-muted">Zatím nemáte oblíbené servisy.</p>'}
       </section>

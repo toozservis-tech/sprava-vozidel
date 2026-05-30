@@ -222,7 +222,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
       await page.locator('[data-testid="service-intake-plate-input"]').fill('6MO6001');
       await page.locator('[data-testid="service-intake-lookup-button"]').click();
       await expect(page.locator('[data-testid="service-intake-access-not-requested"]')).toBeVisible({ timeout: 20_000 });
-      const workBtn = page.locator('[data-testid="service-intake-work-access-button"]');
+      const workBtn = page.locator('[data-testid="service-intake-one-time-work-button"]');
       await expect(workBtn).toBeVisible({ timeout: 20_000 });
       await workBtn.scrollIntoViewIfNeeded();
       const box = await workBtn.boundingBox();

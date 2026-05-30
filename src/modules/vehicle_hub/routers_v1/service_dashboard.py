@@ -51,6 +51,7 @@ router = APIRouter(prefix="/api/service", tags=["service-dashboard"])
 
 WORK_ORDER_STATUSES = {
     "awaiting_client_approval",
+    "intake_pending",
     "approved",
     "in_progress",
     "completed",
@@ -59,8 +60,9 @@ WORK_ORDER_STATUSES = {
 WORK_ORDER_STATUSES_IN_PROGRESS = {"in_progress", "approved"}
 WORK_ORDER_STATUS_LABELS = {
     "awaiting_client_approval": "Čeká na schválení",
+    "intake_pending": "Nový příjem / Čeká na práci",
     "approved": "Schváleno",
-    "in_progress": "Rozpracováno",
+    "in_progress": "Probíhá",
     "completed": "Dokončeno",
     "issue": "Problém",
 }

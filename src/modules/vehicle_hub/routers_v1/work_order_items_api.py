@@ -261,6 +261,41 @@ def add_work_order_time(
     return _serialize_item_for_service(item)
 
 
+def accept_work_order(
+    work_order_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    from . import service_dashboard as sd
+
+    sd._require_service_workspace_role(current_user)
+    sd._ensure_service_dashboard_schema(db)
+    order = sd._get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
+    status = str(order.status or "").lower()
+    if status == "completed":
+        raise HTTPException(status_code=422, detail="Dokončenou zakázku nelze znovu přijmout k práci.")
+    if status not in {"intake_pending", "approved", "awaiting_client_approval"}:
+        raise HTTPException(status_code=422, detail="Zakázku v tomto stavu nelze přijmout k práci.")
+    previous_snapshot = sd._work_order_snapshot(order)
+    order.status = "in_progress"
+    if order.started_at is None:
+        order.started_at = datetime.utcnow()
+    order.updated_at = datetime.utcnow()
+    db.flush()
+    sd._write_work_order_audit(
+        db,
+        work_order=order,
+        action="accepted_to_work",
+        actor=current_user,
+        previous_snapshot=previous_snapshot,
+        new_snapshot=sd._work_order_snapshot(order),
+    )
+    db.commit()
+    db.refresh(order)
+    owner, vehicle, technician = sd._load_work_order_parties(db, order)
+    return sd._serialize_work_order(order, owner=owner, vehicle=vehicle, technician=technician)
+
+
 def complete_work_order(
     work_order_id: int,
     current_user: Customer = Depends(get_current_user),
@@ -559,6 +594,7 @@ def register_work_order_item_routes(router: APIRouter) -> None:
     router.add_api_route("/work-orders/{work_order_id}/parts", add_work_order_part, methods=["POST"])
     router.add_api_route("/work-orders/{work_order_id}/time", add_work_order_time, methods=["POST"])
     router.add_api_route("/work-orders/{work_order_id}/complete", complete_work_order, methods=["POST"])
+    router.add_api_route("/work-orders/{work_order_id}/accept", accept_work_order, methods=["POST"])
     router.add_api_route(
         "/work-orders/{work_order_id}/service-record",
         create_service_record_from_work_order,

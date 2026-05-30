@@ -2963,6 +2963,8 @@ def central_service_vehicle_lookup(
     if access_status == "approved":
         body["access"]["scope"] = ["vehicle_history_read", "create_service_record"]
         body["can_open_detail"] = True
+        if owner_id is not None:
+            body["owner_customer_id"] = int(owner_id)
         if owner_id is None:
             body["can_create_work_order"] = True
             body["access"]["scope"] = list(body["access"]["scope"]) + ["create_work_order"]

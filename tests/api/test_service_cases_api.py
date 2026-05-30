@@ -175,6 +175,30 @@ def test_user_cannot_create_case(cases_ctx):
     assert r.status_code == 403
 
 
+def test_service_with_work_access_can_create_case(cases_ctx):
+    ctx = cases_ctx
+    from src.modules.vehicle_hub.models import ServiceWorkAccess
+
+    db = ctx["db"]
+    db.add(
+        ServiceWorkAccess(
+            tenant_id=ctx["tenant"].id,
+            service_customer_id=ctx["svc_a"].id,
+            vehicle_id=ctx["v_b"].id,
+            status="active",
+            reason="Jednorázový zásah",
+            source="intake",
+        )
+    )
+    db.commit()
+    ctx["set_user"](ctx["svc_a"])
+    r = ctx["client"].post(
+        "/api/v1/services/workspace/service-cases/",
+        json={"vehicle_id": ctx["v_b"].id, "customer_request": "Bez linku, s work access"},
+    )
+    assert r.status_code == 201, r.text
+
+
 def test_service_without_link_cannot_create_case(cases_ctx):
     ctx = cases_ctx
     db = ctx["db"]
