@@ -318,10 +318,29 @@ def complete_work_order(
         previous_snapshot=previous_snapshot,
         new_snapshot=sd._work_order_snapshot(order),
     )
+    handover_document = None
+    try:
+        from ..documents.handover_protocol_sync import (
+            get_handover_protocol_document_card,
+            sync_handover_protocol_vehicle_document,
+        )
+
+        sync_handover_protocol_vehicle_document(
+            db,
+            order=order,
+            service_customer=current_user,
+            actor=current_user,
+        )
+        handover_document = get_handover_protocol_document_card(db, work_order_id=int(order.id))
+    except Exception:
+        pass
     db.commit()
     db.refresh(order)
     owner, vehicle, technician = sd._load_work_order_parties(db, order)
-    return sd._serialize_work_order(order, owner=owner, vehicle=vehicle, technician=technician)
+    result = sd._serialize_work_order(order, owner=owner, vehicle=vehicle, technician=technician)
+    result["handover_document"] = handover_document
+    result["handover_pdf_url"] = f"/api/service/work-orders/{int(order.id)}/handover.pdf"
+    return result
 
 
 def create_service_record_from_work_order(

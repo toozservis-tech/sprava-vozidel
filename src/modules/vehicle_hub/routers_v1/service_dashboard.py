@@ -52,6 +52,10 @@ from ..documents.service_report_sync import (
     get_service_report_document_card,
     sync_service_report_vehicle_document,
 )
+from ..documents.handover_protocol_sync import (
+    get_handover_protocol_document_card,
+    sync_handover_protocol_vehicle_document,
+)
 from ..schema_management import assert_module_ready
 from ..service_access import (
     create_or_update_service_work_access,
@@ -750,6 +754,60 @@ def render_internal_service_report_pdf(
         owner_safe_mode=_owner_safe_mode_for_visibility(visibility),
     )
     return render_service_report_pdf(payload)
+
+
+def render_internal_handover_protocol_pdf(
+    db: Session,
+    *,
+    order: ServiceWorkOrder,
+    actor: Optional[Customer] = None,
+) -> bytes:
+    from ..documents.document_service import resolve_document_file_path
+    from ..documents.handover_protocol_sync import (
+        _document_visibility_from_context,
+        _owner_safe_mode_for_visibility,
+        build_handover_protocol_document_payload,
+    )
+    from ..documents.renderers.handover_protocol import render_handover_protocol_pdf
+
+    if str(order.status or "").lower() != "completed":
+        raise HTTPException(status_code=422, detail="Předávací protokol lze vystavit jen pro dokončenou zakázku.")
+
+    service_customer = db.query(Customer).filter(Customer.id == int(order.service_customer_id)).first()
+    if not service_customer:
+        raise HTTPException(status_code=404, detail="Servis zakázky nebyl nalezen.")
+    sync_actor = actor or service_customer
+    doc = sync_handover_protocol_vehicle_document(
+        db,
+        order=order,
+        service_customer=service_customer,
+        actor=sync_actor,
+    )
+    if doc is not None:
+        path = resolve_document_file_path(doc)
+        if path.exists():
+            return path.read_bytes()
+
+    record = (
+        db.query(ServiceRecordModel)
+        .filter(
+            ServiceRecordModel.work_order_id == int(order.id),
+            ServiceRecordModel.is_deleted.is_(False),
+            ServiceRecordModel.service_id == int(service_customer.id),
+        )
+        .order_by(ServiceRecordModel.id.desc())
+        .first()
+    )
+    visibility = _document_visibility_from_context(order=order, record=record)
+    payload = build_handover_protocol_document_payload(
+        db,
+        order=order,
+        service_customer=service_customer,
+        verification_token=None,
+        verification_code=None,
+        owner_safe_mode=_owner_safe_mode_for_visibility(visibility),
+    )
+    return render_handover_protocol_pdf(payload)
 
 
 def _serialize_quote_summary(
@@ -1608,6 +1666,20 @@ def get_service_work_order_detail(
                 db, service_record_id=int(record.id)
             )
             detail["service_report_pdf_url"] = f"/api/service/service-records/{int(record.id)}/report.pdf"
+    if str(order.status or "").lower() == "completed":
+        try:
+            sync_handover_protocol_vehicle_document(
+                db,
+                order=order,
+                service_customer=current_user,
+                actor=current_user,
+            )
+        except Exception:
+            pass
+        detail["handover_document"] = get_handover_protocol_document_card(
+            db, work_order_id=int(order.id)
+        )
+        detail["handover_pdf_url"] = f"/api/service/work-orders/{int(order.id)}/handover.pdf"
     return detail
 
 
@@ -1740,6 +1812,52 @@ def get_service_record_document_card(
     db.commit()
     if card is None:
         raise HTTPException(status_code=404, detail="Servisní zpráva nebyla nalezena.")
+    return card
+
+
+@router.get("/work-orders/{work_order_id}/handover.pdf")
+def get_service_handover_protocol_pdf(
+    work_order_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    order = _get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
+    pdf_content = render_internal_handover_protocol_pdf(db, order=order, actor=current_user)
+    db.commit()
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="service-handover-protocol-{int(order.id)}.pdf"',
+        },
+    )
+
+
+@router.get("/work-orders/{work_order_id}/handover/document-card")
+def get_service_handover_document_card(
+    work_order_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    order = _get_work_order_or_404(db, current_user=current_user, work_order_id=work_order_id)
+    if str(order.status or "").lower() != "completed":
+        raise HTTPException(status_code=422, detail="Předávací protokol je dostupný jen pro dokončenou zakázku.")
+    sync_handover_protocol_vehicle_document(
+        db,
+        order=order,
+        service_customer=current_user,
+        actor=current_user,
+    )
+    card = get_handover_protocol_document_card(db, work_order_id=int(order.id))
+    db.commit()
+    if card is None:
+        raise HTTPException(status_code=404, detail="Předávací protokol nebyl nalezen.")
     return card
 
 

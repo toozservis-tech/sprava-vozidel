@@ -4236,6 +4236,7 @@
     if (!canCreateInvoice && Number(invoice?.invoice_id || 0) > 0) doneParts.push('doklad vystaven');
     if (!canCreateRecord && recordId > 0) doneParts.push('servisní záznam vytvořen');
     if (recordId > 0 && detail?.service_report_document) doneParts.push('servisní zpráva připravena');
+    if (detail?.handover_document) doneParts.push('předávací protokol připraven');
     const allDone = !canCreateInvoice && !canCreateRecord;
     return `
       <section class="service-pro-card service-work-order-completion-panel${highlighted ? ' is-highlighted' : ''}" data-testid="service-work-order-completion-panel" aria-label="Další kroky po dokončení">
@@ -4245,6 +4246,10 @@
         </div>
         <p class="service-shell-list-note">Doklad zůstává obchodním dokumentem servisu. Servisní záznam pro majitele neobsahuje ceny ani interní data.</p>
         ${doneParts.length ? `<p class="service-shell-list-note" data-testid="service-work-order-completion-progress">${escape(doneParts.join(' · '))}</p>` : ''}
+        ${detail?.handover_document ? `
+          <div class="service-work-order-completion-handover">
+            <button type="button" class="btn btn-secondary" data-testid="service-handover-open-pdf-button" onclick="window.serviceShell.openHandoverProtocolPdf(${woId}, ${JSON.stringify(detail?.handover_pdf_url || detail?.handover_document?.file_url || '')})">Otevřít předávací protokol</button>
+          </div>` : ''}
         ${allDone
           ? `<p class="service-shell-list-note" data-testid="service-work-order-completion-done">${escape(doneParts.join(' · ') || 'Všechny kroky jsou hotové.')}</p>`
           : `
@@ -4821,6 +4826,7 @@
           bindWorkOrderSheetDocumentActions(modalEl, detail);
           bindIntakeProtocolDocumentActions(modalEl, detail);
           bindServiceReportDocumentActions(modalEl, detail);
+          bindHandoverDocumentActions(modalEl, detail);
         });
         return `
           <div class="service-shell-modal-summary" data-testid="service-work-order-detail">
@@ -4870,6 +4876,7 @@
               <label for="serviceShellDetailDescription">Popis</label>
               <textarea id="serviceShellDetailDescription" rows="4">${escape(detail?.description || '')}</textarea>
             </div>
+            ${renderHandoverDocumentSection(detail)}
             ${renderServiceReportDocumentSection(detail)}
             ${renderIntakeProtocolDocumentSection(detail)}
             ${renderWorkOrderSheetDocumentSection(detail)}
@@ -6813,6 +6820,75 @@
     if (typeof window.openAuthenticatedPdf === 'function') {
       window.openAuthenticatedPdf(path).catch((err) => {
         const msg = err?.message || 'Zakázkový list se nepodařilo otevřít.';
+        if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
+      });
+      return;
+    }
+    window.open(`${window.location.origin}${path}`, '_blank', 'noopener');
+  }
+
+  function renderHandoverDocumentSection(detail) {
+    const status = String(detail?.status || '').toLowerCase();
+    if (status !== 'completed') return '';
+    const woId = Number(detail?.id || detail?.entity_id || 0);
+    const doc = detail?.handover_document;
+    const pdfUrl = detail?.handover_pdf_url || doc?.pdf_url || doc?.file_url || (woId ? `/api/service/work-orders/${woId}/handover.pdf` : '');
+    if (!doc || typeof window.ToozDocumentCards?.renderDocumentCard !== 'function') {
+      return `
+        <section class="service-shell-handover-protocol" data-testid="service-handover-document-section">
+          <div class="service-shell-card-head">
+            <div>
+              <h3 class="service-shell-card-title">Předávací protokol</h3>
+              <p class="service-shell-subtitle">Důkazní dokument předání vozidla zákazníkovi po servisu.</p>
+            </div>
+          </div>
+          ${woId ? `<button type="button" class="btn btn-secondary" data-testid="service-handover-open-pdf-button" onclick="window.serviceShell.openHandoverProtocolPdf(${woId}, ${JSON.stringify(pdfUrl)})">Otevřít předávací protokol</button>` : ''}
+        </section>`;
+    }
+    const statusText = window.ToozDocumentCards.statusLabel(doc.status);
+    const cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
+      cardClass: 'vehicle-document-card service-handover-document-card-inner',
+      buttonClass: 'vehicle-document-action',
+    })
+      .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-handover-open-pdf-button"')
+      .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-handover-download-pdf-button"')
+      .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-handover-verify-button"')
+      .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-handover-status-badge"');
+    return `
+      <section class="service-shell-handover-protocol" data-testid="service-handover-document-section">
+        <div class="service-shell-card-head">
+          <div>
+            <h3 class="service-shell-card-title">Předávací protokol</h3>
+            <p class="service-shell-subtitle">Důkazní dokument předání vozidla — ověřitelný PDF doklad bez obchodních údajů.</p>
+          </div>
+          <span class="vehicle-document-card__status" data-testid="service-handover-status-badge">${escape(statusText)}</span>
+        </div>
+        <div class="service-handover-preview" data-testid="service-handover-document-card">${cardHtml}</div>
+      </section>`;
+  }
+
+  function bindHandoverDocumentActions(root, detail) {
+    const container = root || document;
+    const section = container.querySelector('[data-testid="service-handover-document-section"]');
+    if (!section || !window.ToozDocumentCards?.bindDocumentCardActions) return;
+    const woId = Number(detail?.id || detail?.entity_id || 0);
+    const pdfUrl = detail?.handover_pdf_url || detail?.handover_document?.file_url || '';
+    window.ToozDocumentCards.bindDocumentCardActions(section, {
+      onOpen: (fileUrl) => openHandoverProtocolPdf(woId, fileUrl || pdfUrl),
+      onDownload: (fileUrl) => openHandoverProtocolPdf(woId, fileUrl || pdfUrl),
+      onVerify: (verifyUrl) => {
+        if (verifyUrl) window.open(verifyUrl, '_blank', 'noopener');
+      },
+    });
+  }
+
+  function openHandoverProtocolPdf(workOrderId, pdfUrl) {
+    const id = Number(workOrderId || 0);
+    if (!id && !pdfUrl) return;
+    const path = pdfUrl || `/api/service/work-orders/${id}/handover.pdf`;
+    if (typeof window.openAuthenticatedPdf === 'function') {
+      window.openAuthenticatedPdf(path).catch((err) => {
+        const msg = err?.message || 'Předávací protokol se nepodařilo otevřít.';
         if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
       });
       return;
@@ -11710,6 +11786,7 @@
     openWorkOrderSheetPdf,
     openIntakeProtocolPdf,
     openServiceReportPdf,
+    openHandoverProtocolPdf,
     openBillingQuoteDetail,
     openBillingInvoiceDetail,
     createQuoteFromRecord,

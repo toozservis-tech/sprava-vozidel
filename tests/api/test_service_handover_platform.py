@@ -1,4 +1,4 @@
-"""C1.5 — platform service report documents (VehicleDocument + renderer)."""
+"""C1.6 — platform handover protocol documents (VehicleDocument + renderer)."""
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -17,8 +17,6 @@ from src.modules.vehicle_hub.models import (
     Customer,
     ServiceCustomerLink,
     ServiceIntake,
-    ServiceRecord,
-    ServiceWorkOrder,
     Tenant,
     Vehicle,
     VehicleDocument,
@@ -49,7 +47,7 @@ def _make_app(db):
 
 
 @pytest.fixture()
-def service_report_platform_context(tmp_path: Path, monkeypatch):
+def handover_protocol_platform_context(tmp_path: Path, monkeypatch):
     docs_root = tmp_path / "vehicle_documents"
     docs_root.mkdir(parents=True, exist_ok=True)
     for target in (
@@ -60,16 +58,17 @@ def service_report_platform_context(tmp_path: Path, monkeypatch):
         "src.modules.vehicle_hub.documents.work_order_sheet_sync.VEHICLE_DOCUMENTS_ROOT",
         "src.modules.vehicle_hub.documents.intake_protocol_sync.VEHICLE_DOCUMENTS_ROOT",
         "src.modules.vehicle_hub.documents.service_report_sync.VEHICLE_DOCUMENTS_ROOT",
+        "src.modules.vehicle_hub.documents.handover_protocol_sync.VEHICLE_DOCUMENTS_ROOT",
     ):
         monkeypatch.setattr(target, docs_root)
 
-    db_path = tmp_path / "service_report_platform.sqlite"
+    db_path = tmp_path / "handover_protocol_platform.sqlite"
     engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
 
-    tenant = Tenant(name="Service Report Platform Tenant", license_key="service-report-platform-key")
+    tenant = Tenant(name="Handover Protocol Platform Tenant", license_key="handover-protocol-platform-key")
     db.add(tenant)
     db.commit()
     db.refresh(tenant)
@@ -103,7 +102,7 @@ def service_report_platform_context(tmp_path: Path, monkeypatch):
         user_email=owner.email,
         brand="Skoda",
         model="Octavia",
-        vin="VINSERVREPORT12345",
+        vin="VINHANDOVER123456",
         plate="1AB2345",
         stk_valid_until=date(2030, 1, 1),
         current_mileage_km=118500,
@@ -184,7 +183,7 @@ def _pdf_text(pdf_bytes: bytes) -> str:
     return "\n".join(page.extract_text() or "" for page in reader.pages)
 
 
-def _create_completed_work_order_with_record(ctx, *, owner_visible: bool = True) -> tuple[ServiceWorkOrder, ServiceRecord]:
+def _create_completed_work_order(ctx, *, with_recommendations: bool = True) -> dict:
     db = ctx["db"]
     intake = ServiceIntake(
         tenant_id=ctx["tenant"].id,
@@ -192,9 +191,9 @@ def _create_completed_work_order_with_record(ctx, *, owner_visible: bool = True)
         vehicle_id=ctx["vehicle"].id,
         customer_id=ctx["owner"].id,
         odometer_km=125000,
-        damage_description="Netěsní chladicí systém",
-        customer_request="Kontrola úniku kapaliny",
-        intake_note="Stav paliva: polovina nádrže",
+        damage_description="Opotřebené brzdové destičky",
+        customer_request="Výměna brzd",
+        fluids_ok='{"keys": true}',
         check_in_at=datetime.utcnow(),
     )
     db.add(intake)
@@ -208,8 +207,8 @@ def _create_completed_work_order_with_record(ctx, *, owner_visible: bool = True)
             "owner_id": ctx["owner"].id,
             "vehicle_id": ctx["vehicle"].id,
             "technician_id": ctx["service_a"].id,
-            "title": "Servis chlazení",
-            "description": "Kontrola chlazení a netěsností",
+            "title": "Servis brzd",
+            "description": "Výměna brzdových destiček a kotoučů",
             "source_type": "intake",
             "source_intake_id": intake.id,
             "status": "in_progress",
@@ -220,228 +219,224 @@ def _create_completed_work_order_with_record(ctx, *, owner_visible: bool = True)
 
     labor = ctx["client"].post(
         f"/api/service/work-orders/{wo['id']}/labor",
-        json={"name": "Diagnostika chlazení", "hours": 1.5, "unit_price_without_vat": 500},
+        json={"name": "Výměna brzdových destiček", "hours": 2, "unit_price_without_vat": 500},
     )
     assert labor.status_code == 200, labor.text
 
     parts = ctx["client"].post(
         f"/api/service/work-orders/{wo['id']}/parts",
-        json={"name": "Těsnění chladiče", "quantity": 1, "unit_price_without_vat": 350},
+        json={"name": "Brzdové destičky", "quantity": 1, "unit_price_without_vat": 890},
     )
     assert parts.status_code == 200, parts.text
 
     complete = ctx["client"].post(f"/api/service/work-orders/{wo['id']}/complete", json={})
     assert complete.status_code == 200, complete.text
 
-    record_resp = ctx["client"].post(
-        f"/api/service/work-orders/{wo['id']}/service-record",
-        json={"mileage": 126500},
-    )
-    assert record_resp.status_code == 200, record_resp.text
+    if with_recommendations:
+        record_resp = ctx["client"].post(
+            f"/api/service/work-orders/{wo['id']}/service-record",
+            json={"mileage": 126800},
+        )
+        assert record_resp.status_code == 200, record_resp.text
+        from src.modules.vehicle_hub.models import ServiceRecord
 
-    order = db.query(ServiceWorkOrder).filter(ServiceWorkOrder.id == int(wo["id"])).first()
-    record = db.query(ServiceRecord).filter(ServiceRecord.work_order_id == int(wo["id"])).first()
-    assert order is not None
-    assert record is not None
+        record = db.query(ServiceRecord).filter(ServiceRecord.work_order_id == int(wo["id"])).first()
+        assert record is not None
+        record.recommended_next_service_text = "Kontrola brzd za 12 měsíců"
+        db.add(record)
+        db.commit()
 
-    record.recommended_next_service_text = "Kontrola chladicí kapaliny za 12 měsíců"
-    if owner_visible:
-        record.visibility_scope = "owner_visible_no_prices"
-    else:
-        record.visibility_scope = "service_private"
-    db.add(record)
-    db.commit()
-    db.refresh(record)
-    db.refresh(order)
-    return order, record
+    return wo
 
 
-def test_service_report_pdf_uses_platform_renderer(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_pdf_uses_platform_renderer(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    response = ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
+    response = ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
     assert response.status_code == 200
     body = response.content
     assert body.startswith(b"%PDF")
     assert len(body) > 4096
     text = _pdf_text(body)
-    assert "SERVISNÍ ZPRÁVA" in text
-    assert "Document Platform C1.5" in text
+    assert "PŘEDÁVACÍ PROTOKOL" in text
+    assert "Document Platform C1.6" in text
 
 
-def test_service_report_creates_vehicle_document(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_creates_vehicle_document(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
     doc = (
         ctx["db"]
         .query(VehicleDocument)
         .filter(
-            VehicleDocument.source_type == "service_record",
-            VehicleDocument.source_id == int(record.id),
+            VehicleDocument.source_type == "service_work_order",
+            VehicleDocument.source_id == int(wo["id"]),
+            VehicleDocument.document_type == "handover_protocol",
         )
         .first()
     )
     assert doc is not None
-    assert doc.document_type == "service_report"
     assert int(doc.vehicle_id) == int(ctx["vehicle"].id)
     assert doc.verification_token
 
 
-def test_service_report_vehicle_document_no_duplicates(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_vehicle_document_no_duplicates(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
-    record.recommended_next_service_text = "Aktualizované doporučení"
-    ctx["db"].add(record)
-    ctx["db"].commit()
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
+    ctx["client"].put(
+        f"/api/service/work-orders/{wo['id']}",
+        json={"description": "Aktualizovaný popis předání"},
+    )
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
     rows = (
         ctx["db"]
         .query(VehicleDocument)
         .filter(
-            VehicleDocument.source_type == "service_record",
-            VehicleDocument.source_id == int(record.id),
+            VehicleDocument.source_type == "service_work_order",
+            VehicleDocument.source_id == int(wo["id"]),
+            VehicleDocument.document_type == "handover_protocol",
         )
         .all()
     )
     assert len(rows) == 1
 
 
-def test_service_report_pdf_contains_vehicle(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_pdf_contains_vehicle(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    text = _pdf_text(ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf").content)
+    text = _pdf_text(ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf").content)
     assert "Octavia" in text or "1AB2345" in text or "Skoda" in text
 
 
-def test_service_report_pdf_contains_work_summary(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_pdf_contains_handover_date(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    text = _pdf_text(ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf").content)
-    assert "Diagnostika" in text or "chlaz" in text.lower()
+    text = _pdf_text(ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf").content)
+    assert "Datum a čas předání" in text or "202" in text
 
 
-def test_service_report_pdf_contains_parts_without_prices(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_pdf_contains_work_summary(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    text = _pdf_text(ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf").content)
-    assert "Těsnění" in text or "chladi" in text.lower()
-    assert "350" not in text
-    assert "Kč" not in text
+    text = _pdf_text(ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf").content)
+    assert "brzd" in text.lower() or "destič" in text.lower()
 
 
-def test_service_report_pdf_contains_recommendations(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_pdf_contains_recommendations(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    text = _pdf_text(ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf").content)
-    assert "chladic" in text.lower() or "12 měsíc" in text.lower()
+    text = _pdf_text(ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf").content)
+    assert "12 měsíc" in text.lower() or "brzd" in text.lower()
 
 
-def test_service_report_pdf_contains_qr_verify(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_pdf_contains_qr_verify(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
     doc = (
         ctx["db"]
         .query(VehicleDocument)
-        .filter(
-            VehicleDocument.source_type == "service_record",
-            VehicleDocument.source_id == int(record.id),
-            VehicleDocument.document_type == "service_report",
-        )
+        .filter(VehicleDocument.source_id == int(wo["id"]), VehicleDocument.document_type == "handover_protocol")
         .first()
     )
     assert doc
-    text = _pdf_text(ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf").content)
+    text = _pdf_text(ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf").content)
     assert "Ověření dokumentu" in text or doc.verification_token
 
 
-def test_service_report_pdf_is_not_text_export(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_handover_protocol_pdf_is_not_text_export(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    body = ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf").content
+    body = ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf").content
     assert len(body) > 4096
     text = _pdf_text(body)
-    assert "Document Platform C1.5" in text
-    assert "SERVISNÍ ZPRÁVA" in text
+    assert "Document Platform C1.6" in text
+    assert "PŘEDÁVACÍ PROTOKOL" in text
 
 
-def test_service_report_document_scoped_to_service(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context, owner_visible=False)
-    ctx = service_report_platform_context
+def test_handover_protocol_document_scoped_to_service(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
+    db = ctx["db"]
     vehicle_id = ctx["vehicle"].id
     ctx["set_user"](ctx["service_a"])
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
+    doc = (
+        db.query(VehicleDocument)
+        .filter(VehicleDocument.source_id == int(wo["id"]), VehicleDocument.document_type == "handover_protocol")
+        .first()
+    )
+    assert doc is not None
+    doc.visibility_scope = "service_private"
+    db.add(doc)
+    db.commit()
+
     items = ctx["client"].get(f"/api/v1/vehicles/{vehicle_id}/documents").json()
-    assert any(item.get("document_type") == "service_report" for item in items)
+    assert any(item.get("document_type") == "handover_protocol" for item in items)
 
     ctx["set_user"](ctx["service_b"])
     foreign = ctx["client"].get(f"/api/v1/vehicles/{vehicle_id}/documents").json()
-    assert not any(item.get("document_type") == "service_report" for item in foreign)
+    assert not any(item.get("document_type") == "handover_protocol" for item in foreign)
 
-    doc_id = next(item["id"] for item in items if item["document_type"] == "service_report")
+    doc_id = next(item["id"] for item in items if item["document_type"] == "handover_protocol")
     ctx["set_user"](ctx["service_b"])
     assert ctx["client"].get(f"/api/v1/vehicles/{vehicle_id}/documents/{doc_id}/file").status_code == 403
 
 
-def test_owner_does_not_see_service_private_service_report(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context, owner_visible=False)
-    ctx = service_report_platform_context
+def test_owner_does_not_see_service_private_handover_protocol(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     db = ctx["db"]
     vehicle_id = ctx["vehicle"].id
     ctx["set_user"](ctx["service_a"])
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
-    ctx["set_user"](ctx["owner"])
-    listed = ctx["client"].get(f"/api/v1/vehicles/{vehicle_id}/documents")
-    assert listed.status_code == 200
-    assert not any(item.get("document_type") == "service_report" for item in listed.json())
-
-    from src.modules.vehicle_hub.documents.document_service import user_can_view_document
-
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
     doc = (
         db.query(VehicleDocument)
-        .filter(
-            VehicleDocument.source_type == "service_record",
-            VehicleDocument.source_id == int(record.id),
-            VehicleDocument.document_type == "service_report",
-        )
+        .filter(VehicleDocument.source_id == int(wo["id"]), VehicleDocument.document_type == "handover_protocol")
         .first()
     )
     assert doc is not None
-    assert doc.visibility_scope == "service_private"
-    assert user_can_view_document(db, current_user=ctx["owner"], doc=doc) is False
+    doc.visibility_scope = "service_private"
+    db.add(doc)
+    db.commit()
 
-
-def test_owner_can_see_owner_visible_service_report_without_prices(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context, owner_visible=True)
-    ctx = service_report_platform_context
-    vehicle_id = ctx["vehicle"].id
-    ctx["set_user"](ctx["service_a"])
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
     ctx["set_user"](ctx["owner"])
     listed = ctx["client"].get(f"/api/v1/vehicles/{vehicle_id}/documents")
     assert listed.status_code == 200
-    reports = [item for item in listed.json() if item.get("document_type") == "service_report"]
+    assert not any(item.get("document_type") == "handover_protocol" for item in listed.json())
+
+    from src.modules.vehicle_hub.documents.document_service import user_can_view_document
+
+    assert user_can_view_document(db, current_user=ctx["owner"], doc=doc) is False
+
+
+def test_owner_can_see_owner_visible_handover_protocol_without_prices(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
+    vehicle_id = ctx["vehicle"].id
+    ctx["set_user"](ctx["service_a"])
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
+    ctx["set_user"](ctx["owner"])
+    listed = ctx["client"].get(f"/api/v1/vehicles/{vehicle_id}/documents")
+    assert listed.status_code == 200
+    reports = [item for item in listed.json() if item.get("document_type") == "handover_protocol"]
     assert len(reports) == 1
 
     doc = (
         ctx["db"]
         .query(VehicleDocument)
-        .filter(
-            VehicleDocument.source_type == "service_record",
-            VehicleDocument.source_id == int(record.id),
-            VehicleDocument.document_type == "service_report",
-        )
+        .filter(VehicleDocument.source_id == int(wo["id"]), VehicleDocument.document_type == "handover_protocol")
         .first()
     )
     assert doc is not None
@@ -451,24 +446,20 @@ def test_owner_can_see_owner_visible_service_report_without_prices(service_repor
     pdf = ctx["client"].get(f"/api/v1/vehicles/{vehicle_id}/documents/{doc_id}/file")
     assert pdf.status_code == 200
     text = _pdf_text(pdf.content)
-    assert "350" not in text
+    assert "890" not in text
     assert "Kč" not in text
-    assert "Diagnostika" in text or "chlaz" in text.lower()
+    assert "brzd" in text.lower() or "destič" in text.lower()
 
 
-def test_public_verify_service_report_safe_no_pii(service_report_platform_context) -> None:
-    _, record = _create_completed_work_order_with_record(service_report_platform_context)
-    ctx = service_report_platform_context
+def test_public_verify_handover_protocol_safe_no_pii(handover_protocol_platform_context) -> None:
+    wo = _create_completed_work_order(handover_protocol_platform_context)
+    ctx = handover_protocol_platform_context
     ctx["set_user"](ctx["service_a"])
-    ctx["client"].get(f"/api/service/service-records/{record.id}/report.pdf")
+    ctx["client"].get(f"/api/service/work-orders/{wo['id']}/handover.pdf")
     doc = (
         ctx["db"]
         .query(VehicleDocument)
-        .filter(
-            VehicleDocument.source_type == "service_record",
-            VehicleDocument.source_id == int(record.id),
-            VehicleDocument.document_type == "service_report",
-        )
+        .filter(VehicleDocument.source_id == int(wo["id"]), VehicleDocument.document_type == "handover_protocol")
         .first()
     )
     assert doc
@@ -477,5 +468,5 @@ def test_public_verify_service_report_safe_no_pii(service_report_platform_contex
     payload = response.json()
     blob = str(payload).lower()
     assert "owner@example.com" not in blob
-    assert "vinservreport" not in blob
-    assert payload.get("document_type") == "service_report"
+    assert "vinhandover" not in blob
+    assert payload.get("document_type") == "handover_protocol"

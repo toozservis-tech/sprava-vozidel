@@ -92,6 +92,26 @@ export async function installServiceShellMocks(
         { id: 2, action: 'completed', created_at: '2026-04-13T11:00:00Z' },
       ],
     },
+    {
+      id: 503,
+      title: 'Zakázka k dokončení',
+      customer_name: 'Linked Customer',
+      owner_id: 101,
+      vehicle_id: 301,
+      vehicle_vin: 'VINLINKED123456789',
+      vehicle_spz: '1AB2345',
+      due_date: '2026-04-14',
+      status: 'approved',
+      source_type: 'manual',
+      source_intake_id: null,
+      service_record_id: null,
+      technician_id: 9901,
+      technician_name: 'ToozServis',
+      description: 'Kontrola brzd před předáním',
+      audit_log: [
+        { id: 1, action: 'create', created_at: '2026-04-14T10:00:00Z' },
+      ],
+    },
   ];
   const serviceRecords = [
     {
@@ -382,10 +402,41 @@ export async function installServiceShellMocks(
     item.service_report_pdf_url = `/api/service/service-records/${recordId}/report.pdf`;
     return item;
   };
+  const buildHandoverProtocolVehicleDocument = (workOrderId: number, vehicleId = 301, status = 'completed', visibilityScope = 'owner_visible') => {
+    const docId = 9000 + workOrderId;
+    return {
+      id: docId,
+      document_type: 'handover_protocol',
+      label: 'Předávací protokol',
+      status,
+      title: `Předávací protokol PV-${String(workOrderId).padStart(5, '0')}`,
+      document_number: `PV-${String(workOrderId).padStart(5, '0')}`,
+      created_at: '2026-04-12T09:00:00Z',
+      vehicle_id: vehicleId,
+      vehicle_label: 'Octavia',
+      service_display: 'ToozServis',
+      visibility_scope: visibilityScope,
+      thumbnail_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/thumbnail`,
+      file_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/file`,
+      pdf_url: `/api/service/work-orders/${workOrderId}/handover.pdf`,
+      verify_url: `http://127.0.0.1:8000/api/public/documents/verify/handover-protocol-token-${workOrderId}`,
+      actions: ['open', 'download', 'verify'],
+    };
+  };
+  const attachHandoverProtocolPlatformDoc = (item: Record<string, unknown>) => {
+    if (String(item.status || '').toLowerCase() !== 'completed') return item;
+    const id = Number(item.id || 0);
+    const vehicleId = Number(item.vehicle_id || 301);
+    const card = buildHandoverProtocolVehicleDocument(id, vehicleId);
+    item.handover_document = card;
+    item.handover_pdf_url = `/api/service/work-orders/${id}/handover.pdf`;
+    return item;
+  };
   workOrders.forEach((item) => {
     attachWorkOrderSheetPlatformDoc(item as unknown as Record<string, unknown>);
     attachIntakeProtocolPlatformDoc(item as unknown as Record<string, unknown>);
     attachServiceReportPlatformDoc(item as unknown as Record<string, unknown>);
+    attachHandoverProtocolPlatformDoc(item as unknown as Record<string, unknown>);
   });
   const serviceInvoices = [
     {
@@ -496,6 +547,8 @@ export async function installServiceShellMocks(
     service_record_id: (item as { service_record_id?: number | null }).service_record_id ?? null,
     service_report_document: (item as { service_report_document?: unknown }).service_report_document || null,
     service_report_pdf_url: (item as { service_report_pdf_url?: string }).service_report_pdf_url || null,
+    handover_document: (item as { handover_document?: unknown }).handover_document || null,
+    handover_pdf_url: (item as { handover_pdf_url?: string }).handover_pdf_url || null,
     items: {
       labor: [{ id: 1, item_type: 'labor', name: 'Výměna oleje a filtrů', quantity: 1.5, unit: 'h', note: null }],
       parts: [{ id: 2, item_type: 'part', name: 'Filtr oleje', quantity: 1, unit: 'ks', note: null }],
@@ -907,8 +960,12 @@ export async function installServiceShellMocks(
       const reportDocs = workOrders
         .filter((wo) => Number(wo.vehicle_id) === vehicleId && (wo as { service_report_document?: unknown }).service_report_document)
         .map((wo) => (wo as { service_report_document: unknown }).service_report_document);
+      const handoverDocs = workOrders
+        .filter((wo) => Number(wo.vehicle_id) === vehicleId && (wo as { handover_document?: unknown }).handover_document)
+        .map((wo) => (wo as { handover_document: unknown }).handover_document);
       const privateServiceReport = buildServiceReportVehicleDocument(599, vehicleId, 'completed', 'service_private');
-      return json(route, 200, [...invoiceDocs, ...quoteDocs, ...sheetDocs, ...intakeDocs, ...reportDocs, privateServiceReport]);
+      const privateHandover = buildHandoverProtocolVehicleDocument(598, vehicleId, 'completed', 'service_private');
+      return json(route, 200, [...invoiceDocs, ...quoteDocs, ...sheetDocs, ...intakeDocs, ...reportDocs, ...handoverDocs, privateServiceReport, privateHandover]);
     }
     if (/^\/api\/v1\/vehicles\/\d+\/documents\/\d+\/file$/.test(path) && method === 'GET') {
       return route.fulfill({
@@ -986,6 +1043,7 @@ export async function installServiceShellMocks(
       attachWorkOrderSheetPlatformDoc(created as unknown as Record<string, unknown>);
       attachIntakeProtocolPlatformDoc(created as unknown as Record<string, unknown>);
       attachServiceReportPlatformDoc(created as unknown as Record<string, unknown>);
+      attachHandoverProtocolPlatformDoc(created as unknown as Record<string, unknown>);
       return json(route, 200, serializeWorkOrderDetail(created));
     }
     if (/^\/api\/service\/work-orders\/\d+$/.test(path) && method === 'GET') {
@@ -1049,6 +1107,27 @@ export async function installServiceShellMocks(
       const card = item?.service_report_document || buildServiceReportVehicleDocument(recordId);
       return json(route, 200, card);
     }
+    if (/^\/api\/service\/work-orders\/\d+\/handover\.pdf$/.test(path) && method === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/pdf',
+        body: Buffer.from('%PDF-1.4 mock platform handover protocol Document Platform C1.6 PREDAVACI PROTOKOL'),
+      });
+    }
+    if (/^\/api\/service\/work-orders\/\d+\/handover\/document-card$/.test(path) && method === 'GET') {
+      const workOrderId = Number(path.split('/').slice(-3, -2)[0]);
+      const item = workOrders.find((entry) => entry.id === workOrderId) as Record<string, unknown> | undefined;
+      const card = item?.handover_document || buildHandoverProtocolVehicleDocument(workOrderId);
+      return json(route, 200, card);
+    }
+    if (/^\/api\/service\/work-orders\/\d+\/complete$/.test(path) && method === 'POST') {
+      const workOrderId = Number(path.split('/').slice(-2, -1)[0]);
+      const item = workOrders.find((entry) => entry.id === workOrderId);
+      if (!item) return json(route, 404, { detail: 'Not Found' });
+      item.status = 'completed';
+      attachHandoverProtocolPlatformDoc(item as unknown as Record<string, unknown>);
+      return json(route, 200, serializeWorkOrderDetail(item));
+    }
     if (/^\/api\/service\/work-orders\/\d+$/.test(path) && method === 'PUT') {
       const workOrderId = Number(path.split('/').pop());
       const body = route.request().postDataJSON() as {
@@ -1067,6 +1146,9 @@ export async function installServiceShellMocks(
         ...(item.audit_log || []),
         { id: (item.audit_log || []).length + 1, action: 'update', created_at: '2026-04-13T11:00:00Z' },
       ];
+      if (String(item.status || '').toLowerCase() === 'completed') {
+        attachHandoverProtocolPlatformDoc(item as unknown as Record<string, unknown>);
+      }
       return json(route, 200, serializeWorkOrderDetail(item));
     }
 
