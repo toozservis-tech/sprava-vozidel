@@ -1,0 +1,68 @@
+"""Servisní mapa – konstanty a kategorie."""
+from __future__ import annotations
+
+SOURCE_OSM = "osm"
+SOURCE_MDCR = "mdcr"
+SOURCE_MANUAL = "manual"
+SOURCE_STAGING_SEED = "staging_seed"
+SOURCE_VERIFIED_SERVICE = "verified_service"
+
+CATEGORY_AUTOSERVIS = "autoservis"
+CATEGORY_PNEUSERVIS = "pneuservis"
+CATEGORY_STK = "stk"
+CATEGORY_SME = "sme"
+CATEGORY_TRUCK = "truck_service"
+CATEGORY_KAROSARNA = "karosarna"
+CATEGORY_AUTOSKLA = "autoskla"
+CATEGORY_ODTAH = "odtah"
+CATEGORY_DIAGNOSTIKA = "diagnostika"
+CATEGORY_OTHER = "other"
+
+ALL_CATEGORIES = {
+    CATEGORY_AUTOSERVIS,
+    CATEGORY_PNEUSERVIS,
+    CATEGORY_STK,
+    CATEGORY_SME,
+    CATEGORY_TRUCK,
+    CATEGORY_KAROSARNA,
+    CATEGORY_AUTOSKLA,
+    CATEGORY_ODTAH,
+    CATEGORY_DIAGNOSTIKA,
+    CATEGORY_OTHER,
+}
+
+VERIFICATION_IMPORTED = "imported"
+VERIFICATION_CLAIMED = "claimed"
+VERIFICATION_VERIFIED = "verified"
+VERIFICATION_REJECTED = "rejected"
+VERIFICATION_DUPLICATE = "duplicate"
+VERIFICATION_CLOSED = "closed"
+
+PROTECTED_VERIFICATION = {VERIFICATION_VERIFIED, VERIFICATION_CLAIMED}
+
+CATEGORY_LABELS = {
+    CATEGORY_AUTOSERVIS: "Autoservis",
+    CATEGORY_PNEUSERVIS: "Pneuservis",
+    CATEGORY_STK: "STK",
+    CATEGORY_SME: "Emise (SME)",
+    CATEGORY_TRUCK: "Nákladní vozidla",
+    CATEGORY_KAROSARNA: "Karosárna",
+    CATEGORY_AUTOSKLA: "Autoskla",
+    CATEGORY_ODTAH: "Odtah",
+    CATEGORY_DIAGNOSTIKA: "Diagnostika",
+    CATEGORY_OTHER: "Ostatní",
+}
+
+SOURCE_LABELS = {
+    SOURCE_OSM: "OpenStreetMap",
+    SOURCE_MDCR: "MDČR",
+    SOURCE_MANUAL: "Ručně doplněno",
+    SOURCE_STAGING_SEED: "Staging seed",
+    SOURCE_VERIFIED_SERVICE: "Ověřený servis",
+}
+
+# Výchozí střed ČR (Pardubický kraj)
+DEFAULT_MAP_LAT = 49.75
+DEFAULT_MAP_LNG = 15.5
+
+DUPLICATE_RADIUS_METERS = 100
