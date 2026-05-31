@@ -4940,3 +4940,535 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
     width: 100%;
   }
 }
+
+/* Mobile-first service UI stabilization layer.
+   Scope is intentionally limited to the service shell. */
+body.service-shell-app .service-shell-root,
+body.service-shell-app .service-shell-root *,
+body.service-shell-app .service-shell-modal,
+body.service-shell-app .service-shell-modal *,
+body.service-shell-app .service-shell-bottom-sheet-panel,
+body.service-shell-app .service-shell-bottom-sheet-panel * {
+  box-sizing: border-box;
+}
+
+body.service-shell-app .service-shell-root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+body.service-shell-app .service-shell-app-shell,
+body.service-shell-app .service-section-page,
+body.service-shell-app .service-pro-card,
+body.service-shell-app .service-shell-card,
+body.service-shell-app .service-shell-card-list,
+body.service-shell-app .service-shell-list-card,
+body.service-shell-app .service-work-order-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.service-shell-app .service-shell-root :where(button, .btn, input, select, textarea, summary, [role="button"]) {
+  min-height: 44px;
+}
+
+body.service-shell-app .service-shell-root :where(button, .btn, input, select, textarea) {
+  font-size: max(13px, 0.875rem);
+}
+
+@media (min-width: 1024px) {
+  body.service-shell-app .service-shell-root {
+    padding: 0 16px 18px calc(var(--service-rail-width) + 16px);
+  }
+
+  body.service-shell-app .service-topbar--mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  body.service-shell-app {
+    --service-rail-width: 88px;
+  }
+
+  body.service-shell-app .service-shell-root,
+  body.service-shell-app .service-shell-root.service-shell-root--tablet {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: clip;
+    padding: 0 14px 18px calc(var(--service-rail-width) + 14px);
+  }
+
+  body.service-shell-app .service-shell-root > .service-shell-app-shell {
+    order: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-nav {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--service-rail-width);
+    height: 100dvh;
+    padding: 16px 10px;
+    gap: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-right: 1px solid var(--service-border);
+    border-top: 0;
+    border-radius: 0;
+  }
+
+  body.service-shell-app .service-nav-brand,
+  body.service-shell-app .service-nav-account,
+  body.service-shell-app .service-nav-footer {
+    display: none;
+  }
+
+  body.service-shell-app .service-nav-menu {
+    display: grid;
+    gap: 8px;
+  }
+
+  body.service-shell-app .service-nav-item {
+    justify-content: center;
+    padding: 0;
+    gap: 0;
+    min-height: 48px;
+  }
+
+  body.service-shell-app .service-nav-item-label {
+    display: none;
+  }
+
+  body.service-shell-app .service-topbar {
+    margin-bottom: 18px;
+  }
+
+  body.service-shell-app .service-pro-kpis,
+  body.service-shell-app .service-shell-kpis,
+  body.service-shell-app .service-shell-stat-grid,
+  body.service-shell-app .service-shell-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.service-shell-app .service-pro-grid,
+  body.service-shell-app .service-pro-bottom-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  html,
+  body.service-shell-app {
+    overflow-x: hidden;
+  }
+
+  body.service-shell-app {
+    --service-mobile-nav-height: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.service-shell-app .service-shell-root,
+  body.service-shell-app .service-shell-root.service-shell-root--mobile {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: clip;
+    padding: 8px 8px calc(var(--service-mobile-nav-height) + 12px);
+  }
+
+  body.service-shell-app .service-shell-root > .service-shell-app-shell {
+    order: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-shell-root :where(p, label, li, dt, dd, td, th, input, select, textarea, button, .btn, .service-shell-muted, .service-shell-list-note) {
+    font-size: max(13px, 0.875rem);
+    line-height: 1.45;
+  }
+
+  body.service-shell-app .service-shell-root :where(h1) {
+    font-size: clamp(1.25rem, 7vw, 1.5rem);
+    line-height: 1.15;
+  }
+
+  body.service-shell-app .service-shell-root :where(h2) {
+    font-size: clamp(1.125rem, 6vw, 1.375rem);
+    line-height: 1.2;
+  }
+
+  body.service-shell-app .service-shell-root :where(h3, h4) {
+    font-size: max(1rem, 16px);
+    line-height: 1.25;
+  }
+
+  body.service-shell-app .service-topbar--mobile {
+    display: grid !important;
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    width: 100%;
+    min-height: 0;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  body.service-shell-app .service-topbar-row {
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-topbar-row--tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  body.service-shell-app .service-topbar-tools,
+  body.service-shell-app .service-topbar-account-cluster {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-topbar-row--search,
+  body.service-shell-app .service-topbar-search,
+  body.service-shell-app .service-topbar-search input {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-topbar-search {
+    height: auto;
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  body.service-shell-app .service-topbar-row--cta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  body.service-shell-app .service-topbar-cta-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  body.service-shell-app .service-nav,
+  body.service-shell-app .service-nav.service-nav--mobile-tabs {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    height: var(--service-mobile-nav-height);
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--service-border);
+    border-right: 0;
+    border-radius: 16px 16px 0 0;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 -12px 32px rgba(15, 23, 42, 0.12);
+    overflow: hidden;
+    z-index: 30;
+  }
+
+  body.service-shell-app .service-nav-brand,
+  body.service-shell-app .service-nav-account,
+  body.service-shell-app .service-nav-footer {
+    display: none;
+  }
+
+  body.service-shell-app .service-nav--mobile-tabs .service-nav-menu {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+  }
+
+  body.service-shell-app .service-nav--mobile-tabs .service-nav-slot {
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-nav--mobile-tabs .service-nav-item {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 3px;
+    min-width: 44px;
+    min-height: 56px;
+    width: 100%;
+    padding: 4px 2px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.1;
+  }
+
+  body.service-shell-app .service-nav--mobile-tabs .service-nav-item-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  body.service-shell-app .service-nav--mobile-tabs .service-nav-item-label {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  body.service-shell-app .service-shell-mobile-nav-sheet .service-shell-bottom-sheet-panel {
+    max-height: min(82dvh, 620px);
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.service-shell-app .service-shell-mobile-nav-group-title {
+    font-size: 13px;
+    letter-spacing: 0;
+  }
+
+  body.service-shell-app .service-shell-mobile-nav-sheet-btn {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  body.service-shell-app .service-dashboard-pro,
+  body.service-shell-app .service-section-page,
+  body.service-shell-app .service-pro-card,
+  body.service-shell-app .service-shell-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body.service-shell-app .service-pro-grid,
+  body.service-shell-app .service-pro-bottom-grid,
+  body.service-shell-app .service-pro-main,
+  body.service-shell-app .service-pro-aside {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  body.service-shell-app .service-pro-kpis,
+  body.service-shell-app .service-shell-kpis,
+  body.service-shell-app .service-shell-stat-grid,
+  body.service-shell-app .service-shell-card-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  body.service-shell-app .service-shell-card-head,
+  body.service-shell-app .service-shell-list-card-top,
+  body.service-shell-app .service-shell-list-row {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-shell-card-head,
+  body.service-shell-app .service-shell-list-card-top {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  body.service-shell-app .service-shell-list-card {
+    width: 100%;
+    padding: 14px;
+  }
+
+  body.service-shell-app .service-shell-list-card-actions,
+  body.service-shell-app .service-action-bar,
+  body.service-shell-app .service-shell-card-head-actions,
+  body.service-shell-app .service-work-order-line-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  body.service-shell-app .service-shell-list-card-actions > *,
+  body.service-shell-app .service-action-bar > *,
+  body.service-shell-app .service-shell-card-head-actions > *,
+  body.service-shell-app .service-work-order-line-actions > *,
+  body.service-shell-app .service-shell-primary-btn,
+  body.service-shell-app .btn {
+    min-width: 44px;
+  }
+
+  body.service-shell-app .service-shell-list-title,
+  body.service-shell-app .service-shell-list-value,
+  body.service-shell-app .service-shell-card-title,
+  body.service-shell-app .service-shell-badge {
+    overflow-wrap: anywhere;
+  }
+
+  body.service-shell-app .service-shell-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  body.service-shell-app .service-shell-table,
+  body.service-shell-app .service-shell-data-table,
+  body.service-shell-app .service-shell-table tbody,
+  body.service-shell-app .service-shell-data-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  body.service-shell-app .service-shell-table thead,
+  body.service-shell-app .service-shell-data-table thead {
+    display: none;
+  }
+
+  body.service-shell-app .service-shell-table tbody tr,
+  body.service-shell-app .service-shell-data-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin: 0 0 12px;
+    padding: 12px;
+    border: 1px solid var(--service-border);
+    border-radius: 12px;
+    background: var(--service-panel);
+  }
+
+  body.service-shell-app .service-shell-table tbody td,
+  body.service-shell-app .service-shell-data-table tbody td {
+    display: grid;
+    grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  body.service-shell-app .service-shell-table tbody td::before,
+  body.service-shell-app .service-shell-data-table tbody td::before {
+    content: attr(data-label);
+    color: var(--service-text-muted);
+    font-weight: 700;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  body.service-shell-app .service-shell-modal-overlay {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  body.service-shell-app .service-shell-modal,
+  body.service-shell-app .service-shell-modal--wide,
+  body.service-shell-app .service-shell-modal--mobile-flow {
+    position: fixed;
+    inset: 8px;
+    width: auto;
+    max-width: none;
+    height: calc(100dvh - 16px);
+    min-height: 0;
+    max-height: calc(100dvh - 16px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px;
+  }
+
+  body.service-shell-app .service-shell-modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex: 0 0 auto;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  body.service-shell-app .service-shell-modal-close {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  body.service-shell-app .service-shell-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 14px;
+  }
+
+  body.service-shell-app .service-shell-modal-footer,
+  body.service-shell-app .service-shell-mobile-action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: var(--service-panel);
+    border-top: 1px solid var(--service-border);
+  }
+
+  body.service-shell-app .service-shell-modal-footer .btn,
+  body.service-shell-app .service-shell-mobile-action-bar .btn,
+  body.service-shell-app .service-shell-modal-footer button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  body.service-shell-app .service-dashboard-modal-form,
+  body.service-shell-app .service-dashboard-modal-grid,
+  body.service-shell-app .service-dashboard-modal-grid.cols-2,
+  body.service-shell-app .service-shell-form-grid,
+  body.service-shell-app .service-shell-modal-detail-grid,
+  body.service-shell-app .service-shell-modal-detail-grid.cols-2,
+  body.service-shell-app .service-billing-contact-form,
+  body.service-shell-app .service-work-order-add-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  body.service-shell-app .service-shell-modal label,
+  body.service-shell-app .service-shell-root label {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.service-shell-app .service-shell-modal input,
+  body.service-shell-app .service-shell-modal select,
+  body.service-shell-app .service-shell-modal textarea,
+  body.service-shell-app .service-shell-root input,
+  body.service-shell-app .service-shell-root select,
+  body.service-shell-app .service-shell-root textarea {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  body.service-shell-app .service-shell-modal textarea,
+  body.service-shell-app .service-shell-root textarea {
+    min-height: 96px;
+  }
+}

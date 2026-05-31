@@ -6,10 +6,15 @@ import {
   waitForServiceShellReady,
 } from './helpers';
 
-const MOBILE_VIEWPORTS = [
-  { name: 'iphone', width: 390, height: 844 },
-  { name: 'iphone14pro', width: 430, height: 932 },
+const SERVICE_SHELL_VIEWPORTS = [
+  { name: 'iphone-se', width: 375, height: 667 },
+  { name: 'iphone-14', width: 390, height: 844 },
+  { name: 'android', width: 412, height: 915 },
+  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'desktop', width: 1366, height: 900 },
 ] as const;
+
+const MOBILE_MAX = 639;
 
 async function openServiceSection(
   page: Parameters<typeof test>[0]['page'],
@@ -26,11 +31,11 @@ async function assertNoHorizontalOverflow(page: Parameters<typeof test>[0]['page
   expect(ok).toBe(true);
 }
 
-for (const viewport of MOBILE_VIEWPORTS) {
-  test.describe(`Mobile shell (${viewport.name} ${viewport.width}x${viewport.height})`, () => {
+for (const viewport of SERVICE_SHELL_VIEWPORTS) {
+  test.describe(`Service shell responsive (${viewport.name} ${viewport.width}x${viewport.height})`, () => {
     test.use({
       viewport: { width: viewport.width, height: viewport.height },
-      hasTouch: true,
+      hasTouch: viewport.width <= 1023,
     });
 
     test.beforeEach(async ({ page }) => {
@@ -40,6 +45,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     });
 
     test('bottom_nav_has_five_tabs_without_overflow', async ({ page }) => {
+      test.skip(viewport.width > MOBILE_MAX, 'Bottom tab bar is mobile-only.');
       await openServiceSection(page, 'dashboard');
       const nav = page.locator('#service-shell-left-nav .service-nav-menu .service-nav-slot');
       await expect(nav).toHaveCount(5);
@@ -53,6 +59,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     });
 
     test('more_sheet_opens_and_navigates_to_settings', async ({ page }) => {
+      test.skip(viewport.width > MOBILE_MAX, 'More sheet is mobile-only.');
       await openServiceSection(page, 'dashboard');
       await page.locator('[data-testid="service-nav-more"]').click();
       await expect(page.locator('[data-testid="service-mobile-nav-sheet"]')).toBeVisible();
@@ -63,6 +70,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     });
 
     test('topbar_search_and_ctas_are_full_width', async ({ page }) => {
+      test.skip(viewport.width > MOBILE_MAX, 'Stacked service topbar is mobile-only.');
       await openServiceSection(page, 'dashboard');
       const topbar = page.locator('.service-topbar--mobile');
       await expect(topbar).toBeVisible();
@@ -80,21 +88,30 @@ for (const viewport of MOBILE_VIEWPORTS) {
     });
 
     test('sections_have_no_horizontal_overflow', async ({ page }) => {
-      for (const section of ['dashboard', 'intake', 'work-orders', 'clients']) {
+      for (const section of ['dashboard', 'intake', 'work-orders', 'vehicles', 'customers', 'documents', 'reservations', 'billing']) {
         await openServiceSection(page, section);
         await assertNoHorizontalOverflow(page);
       }
     });
 
-    test('create_work_order_modal_footer_stacks_on_mobile', async ({ page }) => {
+    test('create_work_order_modal_stays_inside_viewport', async ({ page }) => {
       await openServiceSection(page, 'work-orders');
       await page.locator('[data-testid="service-topbar-workorder-cta"]').click();
-      const footer = page.locator('.app-floating-modal-root .service-shell-modal-footer');
+      const modal = page.locator('.app-floating-modal-root .service-shell-modal').last();
+      await expect(modal).toBeVisible({ timeout: 20_000 });
+      const modalBox = await modal.boundingBox();
+      expect(modalBox?.x || 0).toBeGreaterThanOrEqual(0);
+      expect(modalBox?.y || 0).toBeGreaterThanOrEqual(0);
+      expect((modalBox?.x || 0) + (modalBox?.width || 0)).toBeLessThanOrEqual(viewport.width + 2);
+      expect((modalBox?.y || 0) + (modalBox?.height || 0)).toBeLessThanOrEqual(viewport.height + 2);
+      const footer = modal.locator('.service-shell-modal-footer');
       await expect(footer).toBeVisible({ timeout: 20_000 });
-      const primaryBtn = footer.locator('.btn-primary').first();
-      const footerWidth = await footer.evaluate((el) => (el as HTMLElement).getBoundingClientRect().width);
-      const primaryWidth = await primaryBtn.evaluate((el) => (el as HTMLElement).getBoundingClientRect().width);
-      expect(primaryWidth).toBeGreaterThanOrEqual(footerWidth * 0.92);
+      if (viewport.width <= MOBILE_MAX) {
+        const primaryBtn = footer.locator('.btn-primary').first();
+        const footerWidth = await footer.evaluate((el) => (el as HTMLElement).getBoundingClientRect().width);
+        const primaryWidth = await primaryBtn.evaluate((el) => (el as HTMLElement).getBoundingClientRect().width);
+        expect(primaryWidth).toBeGreaterThanOrEqual(footerWidth * 0.92);
+      }
       await page.evaluate(() => window.serviceShell.closeModal());
     });
   });

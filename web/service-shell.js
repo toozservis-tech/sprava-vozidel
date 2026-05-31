@@ -92,10 +92,10 @@
 
   /** Spodní lišta na mobilu — 4 hlavní sekce + „Více“. */
   const MOBILE_TAB_CONFIG = [
-    { group: 'prehled', navIcon: 'pin', label: 'Přehled', section: 'dashboard', kind: 'section' },
-    { group: 'prijem', navIcon: 'car', label: 'Příjem', section: 'intake', kind: 'section' },
+    { group: 'prehled', navIcon: 'pin', label: 'Dashboard', section: 'dashboard', kind: 'section' },
     { group: 'zakazky', navIcon: 'clipboard', label: 'Zakázky', section: 'work-orders', kind: 'section' },
     { group: 'vozidla', navIcon: 'car', label: 'Vozidla', section: 'vehicles', kind: 'section' },
+    { group: 'zakaznici', navIcon: 'users', label: 'Zákazníci', section: 'clients', kind: 'section' },
     { group: 'vice', navIcon: 'menu', label: 'Více', section: null, kind: 'more' },
   ];
 
@@ -106,33 +106,25 @@
   /** Skupiny v sheetu „Více“ — všechny sekce mimo primární záložky. */
   const MOBILE_NAV_SHEET_GROUPS = [
     {
-      title: 'Zákazníci',
+      title: 'Rychlé akce',
       items: [
-        ['clients', 'Zákaznické centrum'],
-        ['vehicles', 'Vozidla zákazníků'],
+        ['intake', 'Příjem vozidla'],
+        ['photos', 'Fotodokumentace'],
       ],
     },
     {
       title: 'Provoz',
       items: [
-        ['intake', 'Příjem vozidla'],
-        ['work-orders', 'Zakázky'],
+        ['documents', 'Dokumenty'],
         ['reservations', 'Rezervace'],
+        ['invoices', 'Faktury'],
         ['reminders', 'Připomínky'],
       ],
     },
     {
-      title: 'Dokumentace',
+      title: 'Servisní data',
       items: [
-        ['photos', 'Fotodokumentace'],
         ['history', 'Servisní historie'],
-        ['documents', 'Dokumenty'],
-      ],
-    },
-    {
-      title: 'Finance a sklad',
-      items: [
-        ['invoices', 'Nabídky a faktury'],
         ['parts', 'Sklad dílů'],
       ],
     },
@@ -478,8 +470,24 @@
     return role === 'service';
   }
 
+  const SERVICE_VIEWPORT = {
+    mobileMax: 639,
+    tabletMax: 1023,
+  };
+
+  function getServiceViewportMode() {
+    const width = Number(window.innerWidth || document.documentElement?.clientWidth || 0);
+    if (width <= SERVICE_VIEWPORT.mobileMax) return 'mobile';
+    if (width <= SERVICE_VIEWPORT.tabletMax) return 'tablet';
+    return 'desktop';
+  }
+
   function isMobileViewport() {
-    return Number(window.innerWidth || 0) <= 900;
+    return getServiceViewportMode() === 'mobile';
+  }
+
+  function isTabletViewport() {
+    return getServiceViewportMode() === 'tablet';
   }
 
   let serviceShellToastSeq = 0;
@@ -1471,7 +1479,11 @@
   function bindMobileViewportListenerOnce() {
     if (mobileViewportListenerBound || typeof window.matchMedia !== 'function') return;
     mobileViewportListenerBound = true;
-    const mq = window.matchMedia('(max-width: 900px)');
+    const queries = [
+      window.matchMedia(`(max-width: ${SERVICE_VIEWPORT.mobileMax}px)`),
+      window.matchMedia(`(min-width: ${SERVICE_VIEWPORT.mobileMax + 1}px) and (max-width: ${SERVICE_VIEWPORT.tabletMax}px)`),
+      window.matchMedia(`(min-width: ${SERVICE_VIEWPORT.tabletMax + 1}px)`),
+    ];
     const onChange = () => {
       if (!state.mounted) return;
       state.mobileNavOpen = false;
@@ -1479,11 +1491,13 @@
       state.accountMenuOpen = false;
       render();
     };
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', onChange);
-    } else if (typeof mq.addListener === 'function') {
-      mq.addListener(onChange);
-    }
+    queries.forEach((mq) => {
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', onChange);
+      } else if (typeof mq.addListener === 'function') {
+        mq.addListener(onChange);
+      }
+    });
   }
 
   function renderModalFooter() {
@@ -1546,6 +1560,27 @@
         </div>
       </div>
     `);
+    hydrateResponsiveTables(document.querySelector('.app-floating-modal-root') || document.body);
+  }
+
+  function hydrateResponsiveTables(scope) {
+    try {
+      const root = scope && typeof scope.querySelectorAll === 'function' ? scope : document;
+      root.querySelectorAll('table.service-shell-table, table.service-shell-data-table').forEach((table) => {
+        const labels = Array.from(table.querySelectorAll('thead th')).map((th) => String(th.textContent || '').trim());
+        if (!labels.length) return;
+        table.querySelectorAll('tbody tr').forEach((row) => {
+          Array.from(row.children || []).forEach((cell, index) => {
+            if (!cell || String(cell.tagName || '').toLowerCase() !== 'td') return;
+            if (cell.hasAttribute('data-label')) return;
+            const label = labels[index] || '';
+            if (label) cell.setAttribute('data-label', label);
+          });
+        });
+      });
+    } catch (error) {
+      console.warn('[SERVICE_SHELL] responsive table labels failed:', error);
+    }
   }
 
   function setModalState(patch = {}) {
@@ -9435,8 +9470,8 @@
           <button type="button" class="service-shell-icon-btn service-shell-theme-toggle-btn" onclick="window.toggleAppUiTheme()" aria-label="Přepnout motiv">◐</button>
           <button type="button" class="service-shell-icon-btn" onclick="window.serviceShell.load(true)" aria-label="Obnovit data">↻</button>
           <button type="button" class="service-shell-icon-btn" onclick="window.serviceShell.openServiceToolsModal()" aria-label="Servisní nástroje">⌘</button>
-          <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openIntakeFlow()">+ Přijmout vozidlo</button>
-          <button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.openCreateWorkOrderModal()">+ Nová zakázka</button>
+          <button type="button" class="service-shell-primary-btn" data-testid="service-topbar-intake-cta" onclick="window.serviceShell.openIntakeFlow()">+ Přijmout vozidlo</button>
+          <button type="button" class="service-shell-primary-btn" data-testid="service-topbar-workorder-cta" onclick="window.serviceShell.openCreateWorkOrderModal()">+ Nová zakázka</button>
           <button type="button" class="service-shell-bell" onclick="window.serviceShell.scrollToRisks()" aria-label="Upozornění">♧<span>${escape(String(risksCount || 0))}</span></button>
           
           <div class="service-shell-userbox-wrap">
@@ -11608,8 +11643,9 @@
       const nav = ServiceNav();
       const banner = activeVehicleBanner();
       const section = currentSectionHtmlSafe();
+      const viewportMode = getServiceViewportMode();
       root.innerHTML = `
-      <div class="service-shell-root ${isMobileViewport() ? 'service-shell-root--mobile' : ''}" data-service-shell="root" data-service-active-section="${escape(String(state.activeSection || '').trim())}">
+      <div class="service-shell-root service-shell-root--${viewportMode}" data-service-shell="root" data-service-viewport="${viewportMode}" data-service-active-section="${escape(String(state.activeSection || '').trim())}">
         ${nav}
         <div class="service-shell-app-shell" style="flex: 1; display: flex; flex-direction: column; width: 100%;">
           ${topBar}
@@ -11625,6 +11661,7 @@
       if (typeof window.refreshWorkspaceModeSwitcher === 'function') {
         window.refreshWorkspaceModeSwitcher();
       }
+      hydrateResponsiveTables(root);
       mountRemindersOverdueOverlayIfNeeded();
       if (intakeFocusSnap) {
         restoreIntakeFocus(intakeFocusSnap);
