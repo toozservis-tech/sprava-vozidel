@@ -273,6 +273,34 @@ export async function installServiceShellMocks(
     return quote;
   };
   serviceQuotes.forEach((quote) => attachQuotePlatformDoc(quote as unknown as Record<string, unknown>));
+  const buildWorkOrderSheetVehicleDocument = (workOrderId: number, vehicleId = 301, status = 'pending') => {
+    const docId = 5000 + workOrderId;
+    return {
+      id: docId,
+      document_type: 'work_order_sheet',
+      label: 'Zakázkový list',
+      status,
+      title: `Zakázkový list ZL-${String(workOrderId).padStart(5, '0')}`,
+      document_number: `ZL-${String(workOrderId).padStart(5, '0')}`,
+      created_at: '2026-04-12T09:00:00Z',
+      vehicle_id: vehicleId,
+      vehicle_label: 'Octavia',
+      service_display: 'ToozServis',
+      thumbnail_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/thumbnail`,
+      file_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/file`,
+      verify_url: `http://127.0.0.1:8000/api/public/documents/verify/wo-sheet-token-${workOrderId}`,
+      actions: ['open', 'download', 'verify'],
+    };
+  };
+  const attachWorkOrderSheetPlatformDoc = (item: Record<string, unknown>) => {
+    const id = Number(item.id || 0);
+    const vehicleId = Number(item.vehicle_id || 301);
+    const card = buildWorkOrderSheetVehicleDocument(id, vehicleId, String(item.status || '').toLowerCase() === 'completed' ? 'completed' : 'pending');
+    item.work_order_sheet_document = card;
+    item.work_order_sheet_pdf_url = `/api/service/work-orders/${id}/sheet.pdf`;
+    return item;
+  };
+  workOrders.forEach((item) => attachWorkOrderSheetPlatformDoc(item as unknown as Record<string, unknown>));
   const serviceInvoices = [
     {
       id: 9001,
@@ -374,6 +402,26 @@ export async function installServiceShellMocks(
         consistency_note: null,
       } : null;
     })(),
+    work_order_sheet_document: (item as { work_order_sheet_document?: unknown }).work_order_sheet_document || null,
+    work_order_sheet_pdf_url: `/api/service/work-orders/${item.id}/sheet.pdf`,
+    items: {
+      labor: [{ id: 1, item_type: 'labor', name: 'Výměna oleje a filtrů', quantity: 1.5, unit: 'h', note: null }],
+      parts: [{ id: 2, item_type: 'part', name: 'Filtr oleje', quantity: 1, unit: 'ks', note: null }],
+      time: [],
+    },
+    photos: [{ id: 1, photo_type: 'intake', photo_type_label: 'Příjem', visibility_scope: 'service_private' }],
+    capabilities: {
+      labor: true,
+      parts: true,
+      time: true,
+      photos: true,
+      edit_items: true,
+      quotes: true,
+      invoices: true,
+      complete: true,
+      create_service_record: true,
+    },
+    limited_notices: {},
     entity_type: 'work_order',
     id: item.id,
     title: item.title,
@@ -758,7 +806,10 @@ export async function installServiceShellMocks(
       const quoteDocs = serviceQuotes
         .filter((quote) => Number(quote.vehicle_id) === vehicleId && (quote as { vehicle_document?: unknown }).vehicle_document)
         .map((quote) => (quote as { vehicle_document: unknown }).vehicle_document);
-      return json(route, 200, [...invoiceDocs, ...quoteDocs]);
+      const sheetDocs = workOrders
+        .filter((wo) => Number(wo.vehicle_id) === vehicleId && (wo as { work_order_sheet_document?: unknown }).work_order_sheet_document)
+        .map((wo) => (wo as { work_order_sheet_document: unknown }).work_order_sheet_document);
+      return json(route, 200, [...invoiceDocs, ...quoteDocs, ...sheetDocs]);
     }
     if (/^\/api\/v1\/vehicles\/\d+\/documents\/\d+\/file$/.test(path) && method === 'GET') {
       return route.fulfill({
@@ -837,6 +888,19 @@ export async function installServiceShellMocks(
       const workOrderId = Number(path.split('/').pop());
       const item = workOrders.find((entry) => entry.id === workOrderId);
       return json(route, item ? 200 : 404, item ? serializeWorkOrderDetail(item) : { detail: 'Not Found' });
+    }
+    if (/^\/api\/service\/work-orders\/\d+\/sheet\.pdf$/.test(path) && method === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/pdf',
+        body: Buffer.from('%PDF-1.4 mock platform work order sheet Document Platform C1.3 ZAKAZKOVY LIST'),
+      });
+    }
+    if (/^\/api\/service\/work-orders\/\d+\/document-card$/.test(path) && method === 'GET') {
+      const workOrderId = Number(path.split('/').slice(-2, -1)[0]);
+      const item = workOrders.find((entry) => entry.id === workOrderId) as Record<string, unknown> | undefined;
+      const card = item?.work_order_sheet_document;
+      return json(route, card ? 200 : 404, card || { detail: 'Not Found' });
     }
     if (/^\/api\/service\/work-orders\/\d+$/.test(path) && method === 'PUT') {
       const workOrderId = Number(path.split('/').pop());
@@ -1337,6 +1401,16 @@ export async function bootstrapAuthenticatedQuotePlatformShell(page: Page): Prom
   const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
   const slug = slugMatch?.[1] || 'e2e-fixed-service';
   await page.goto(`/web/app/s/${slug}/billing`, { waitUntil: 'domcontentloaded' });
+  await waitForServiceShellReady(page);
+  return slug;
+}
+
+export async function bootstrapAuthenticatedWorkOrderShell(page: Page): Promise<string> {
+  await installQuotePlatformMocks(page);
+  await loginServiceUser(page);
+  const slugMatch = page.url().match(/\/app\/s\/([^/]+)\//);
+  const slug = slugMatch?.[1] || 'e2e-fixed-service';
+  await page.goto(`/web/app/s/${slug}/work-orders`, { waitUntil: 'domcontentloaded' });
   await waitForServiceShellReady(page);
   return slug;
 }

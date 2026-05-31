@@ -4784,6 +4784,11 @@
         const detail = modal.data || {};
         state.workOrderDetailCache[id] = detail;
         const quote = detail?.quote_summary || null;
+        queueMicrotask(() => {
+          const modalEl = document.querySelector('#appFloatingModalRoot .service-shell-modal:last-of-type')
+            || document.querySelector('.service-shell-modal:last-of-type');
+          bindWorkOrderSheetDocumentActions(modalEl, detail);
+        });
         return `
           <div class="service-shell-modal-summary" data-testid="service-work-order-detail">
             <span>${escape(detail?.customer_name || '-')}</span>
@@ -4832,6 +4837,7 @@
               <label for="serviceShellDetailDescription">Popis</label>
               <textarea id="serviceShellDetailDescription" rows="4">${escape(detail?.description || '')}</textarea>
             </div>
+            ${renderWorkOrderSheetDocumentSection(detail)}
             ${renderWorkOrderItemsPanel(detail, id)}
             ${renderWorkOrderCompletionPanel(detail, id)}
             <div class="form-group">
@@ -6713,6 +6719,72 @@
     window.open(`${window.location.origin}${path}`, '_blank', 'noopener');
   }
 
+  function renderWorkOrderSheetDocumentSection(detail) {
+    const woId = Number(detail?.id || detail?.entity_id || 0);
+    const doc = detail?.work_order_sheet_document;
+    const pdfUrl = detail?.work_order_sheet_pdf_url || doc?.pdf_url || doc?.file_url || (woId ? `/api/service/work-orders/${woId}/sheet.pdf` : '');
+    if (!doc || typeof window.ToozDocumentCards?.renderDocumentCard !== 'function') {
+      return `
+        <section class="service-shell-work-order-sheet" data-testid="service-work-order-sheet-section">
+          <div class="service-shell-card-head">
+            <div>
+              <h3 class="service-shell-card-title">Zakázkový list</h3>
+              <p class="service-shell-subtitle">Technicko-provozní servisní formulář vozidla na platformě.</p>
+            </div>
+          </div>
+          ${woId ? `<button type="button" class="btn btn-secondary" data-testid="service-work-order-sheet-open-pdf-button" onclick="window.serviceShell.openWorkOrderSheetPdf(${woId}, ${JSON.stringify(pdfUrl)})">Otevřít zakázkový list</button>` : ''}
+        </section>`;
+    }
+    const statusText = window.ToozDocumentCards.statusLabel(doc.status);
+    const cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
+      cardClass: 'vehicle-document-card service-work-order-sheet-document-card-inner',
+      buttonClass: 'vehicle-document-action',
+    })
+      .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-work-order-sheet-open-pdf-button"')
+      .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-work-order-sheet-download-pdf-button"')
+      .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-work-order-sheet-verify-button"')
+      .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-work-order-sheet-status-badge"');
+    return `
+      <section class="service-shell-work-order-sheet" data-testid="service-work-order-sheet-section">
+        <div class="service-shell-card-head">
+          <div>
+            <h3 class="service-shell-card-title">Zakázkový list</h3>
+            <p class="service-shell-subtitle">Technicko-provozní servisní formulář vozidla — ověřitelný PDF doklad.</p>
+          </div>
+          <span class="vehicle-document-card__status" data-testid="service-work-order-sheet-status-badge">${escape(statusText)}</span>
+        </div>
+        <div class="service-work-order-sheet-preview" data-testid="service-work-order-sheet-document-card">${cardHtml}</div>
+      </section>`;
+  }
+
+  function bindWorkOrderSheetDocumentActions(root, detail) {
+    const container = root || document;
+    if (!window.ToozDocumentCards?.bindDocumentCardActions) return;
+    const woId = Number(detail?.id || detail?.entity_id || 0);
+    const pdfUrl = detail?.work_order_sheet_pdf_url || detail?.work_order_sheet_document?.file_url || '';
+    window.ToozDocumentCards.bindDocumentCardActions(container, {
+      onOpen: (fileUrl) => openWorkOrderSheetPdf(woId, fileUrl || pdfUrl),
+      onDownload: (fileUrl) => openWorkOrderSheetPdf(woId, fileUrl || pdfUrl),
+      onVerify: (verifyUrl) => {
+        if (verifyUrl) window.open(verifyUrl, '_blank', 'noopener');
+      },
+    });
+  }
+
+  function openWorkOrderSheetPdf(workOrderId, pdfUrl) {
+    const id = Number(workOrderId || 0);
+    if (!id && !pdfUrl) return;
+    const path = pdfUrl || `/api/service/work-orders/${id}/sheet.pdf`;
+    if (typeof window.openAuthenticatedPdf === 'function') {
+      window.openAuthenticatedPdf(path).catch((err) => {
+        const msg = err?.message || 'Zakázkový list se nepodařilo otevřít.';
+        if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
+      });
+      return;
+    }
+    window.open(`${window.location.origin}${path}`, '_blank', 'noopener');
+  }
+
   function openServiceInvoiceDetailModal(invoiceId, options = {}) {
     const id = Number(invoiceId || 0);
     if (!id) return;
@@ -8436,6 +8508,7 @@
         <h3>Krok 6 — Zakázka čeká na technika</h3>
         <p>Příjem je dokončen. Technik může v sekci Zakázky otevřít návrh a kliknout „Přijmout k práci“.</p>
         ${woId ? `<button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.navigate('work-orders'); window.serviceShell.openWorkOrderDetailModal(${woId})">Otevřít zakázku #${woId}</button>` : ''}
+        ${woId ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-open-work-order-sheet-button" onclick="window.serviceShell.openWorkOrderSheetPdf(${woId})">Otevřít zakázkový list</button>` : ''}
       </article>`;
   }
 
@@ -11256,6 +11329,7 @@
     openServiceRecordModal,
     submitServiceRecordModal,
     openQuoteModal,
+    openWorkOrderSheetPdf,
     openBillingQuoteDetail,
     openBillingInvoiceDetail,
     createQuoteFromRecord,
