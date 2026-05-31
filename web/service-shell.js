@@ -4788,6 +4788,7 @@
           const modalEl = document.querySelector('#appFloatingModalRoot .service-shell-modal:last-of-type')
             || document.querySelector('.service-shell-modal:last-of-type');
           bindWorkOrderSheetDocumentActions(modalEl, detail);
+          bindIntakeProtocolDocumentActions(modalEl, detail);
         });
         return `
           <div class="service-shell-modal-summary" data-testid="service-work-order-detail">
@@ -4837,6 +4838,7 @@
               <label for="serviceShellDetailDescription">Popis</label>
               <textarea id="serviceShellDetailDescription" rows="4">${escape(detail?.description || '')}</textarea>
             </div>
+            ${renderIntakeProtocolDocumentSection(detail)}
             ${renderWorkOrderSheetDocumentSection(detail)}
             ${renderWorkOrderItemsPanel(detail, id)}
             ${renderWorkOrderCompletionPanel(detail, id)}
@@ -6785,6 +6787,74 @@
     window.open(`${window.location.origin}${path}`, '_blank', 'noopener');
   }
 
+  function renderIntakeProtocolDocumentSection(detail) {
+    const intakeId = Number(detail?.source_intake_id || 0);
+    const doc = detail?.intake_protocol_document;
+    const pdfUrl = detail?.intake_protocol_pdf_url || doc?.pdf_url || doc?.file_url || (intakeId ? `/api/service/intakes/${intakeId}/protocol.pdf` : '');
+    if (!intakeId && !doc) return '';
+    if (!doc || typeof window.ToozDocumentCards?.renderDocumentCard !== 'function') {
+      return `
+        <section class="service-shell-intake-protocol" data-testid="service-intake-protocol-section">
+          <div class="service-shell-card-head">
+            <div>
+              <h3 class="service-shell-card-title">Příjmový protokol</h3>
+              <p class="service-shell-subtitle">Doklad o stavu vozidla při převzetí do servisu.</p>
+            </div>
+          </div>
+          ${intakeId ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-protocol-open-pdf-button" onclick="window.serviceShell.openIntakeProtocolPdf(${intakeId}, ${JSON.stringify(pdfUrl)})">Otevřít příjmový protokol</button>` : ''}
+        </section>`;
+    }
+    const statusText = window.ToozDocumentCards.statusLabel(doc.status);
+    const cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
+      cardClass: 'vehicle-document-card service-intake-protocol-document-card-inner',
+      buttonClass: 'vehicle-document-action',
+    })
+      .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-intake-protocol-open-pdf-button"')
+      .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-intake-protocol-download-pdf-button"')
+      .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-intake-protocol-verify-button"')
+      .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-intake-protocol-status-badge"');
+    return `
+      <section class="service-shell-intake-protocol" data-testid="service-intake-protocol-section">
+        <div class="service-shell-card-head">
+          <div>
+            <h3 class="service-shell-card-title">Příjmový protokol</h3>
+            <p class="service-shell-subtitle">Doklad o stavu vozidla při převzetí — ověřitelný PDF doklad.</p>
+          </div>
+          <span class="vehicle-document-card__status" data-testid="service-intake-protocol-status-badge">${escape(statusText)}</span>
+        </div>
+        <div class="service-intake-protocol-preview" data-testid="service-intake-protocol-document-card">${cardHtml}</div>
+      </section>`;
+  }
+
+  function bindIntakeProtocolDocumentActions(root, detail) {
+    const container = root || document;
+    const section = container.querySelector('[data-testid="service-intake-protocol-section"]');
+    if (!section || !window.ToozDocumentCards?.bindDocumentCardActions) return;
+    const intakeId = Number(detail?.source_intake_id || 0);
+    const pdfUrl = detail?.intake_protocol_pdf_url || detail?.intake_protocol_document?.file_url || '';
+    window.ToozDocumentCards.bindDocumentCardActions(section, {
+      onOpen: (fileUrl) => openIntakeProtocolPdf(intakeId, fileUrl || pdfUrl),
+      onDownload: (fileUrl) => openIntakeProtocolPdf(intakeId, fileUrl || pdfUrl),
+      onVerify: (verifyUrl) => {
+        if (verifyUrl) window.open(verifyUrl, '_blank', 'noopener');
+      },
+    });
+  }
+
+  function openIntakeProtocolPdf(intakeId, pdfUrl) {
+    const id = Number(intakeId || 0);
+    if (!id && !pdfUrl) return;
+    const path = pdfUrl || `/api/service/intakes/${id}/protocol.pdf`;
+    if (typeof window.openAuthenticatedPdf === 'function') {
+      window.openAuthenticatedPdf(path).catch((err) => {
+        const msg = err?.message || 'Příjmový protokol se nepodařilo otevřít.';
+        if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
+      });
+      return;
+    }
+    window.open(`${window.location.origin}${path}`, '_blank', 'noopener');
+  }
+
   function openServiceInvoiceDetailModal(invoiceId, options = {}) {
     const id = Number(invoiceId || 0);
     if (!id) return;
@@ -8508,6 +8578,11 @@
         <h3>Krok 6 — Zakázka čeká na technika</h3>
         <p>Příjem je dokončen. Technik může v sekci Zakázky otevřít návrh a kliknout „Přijmout k práci“.</p>
         ${woId ? `<button type="button" class="service-shell-primary-btn" onclick="window.serviceShell.navigate('work-orders'); window.serviceShell.openWorkOrderDetailModal(${woId})">Otevřít zakázku #${woId}</button>` : ''}
+        ${(() => {
+          const intakeId = Number(state.intakeStartResult?.id || 0);
+          if (!intakeId) return '';
+          return `<button type="button" class="btn btn-secondary" data-testid="service-intake-open-protocol-button" onclick="window.serviceShell.openIntakeProtocolPdf(${intakeId})">Otevřít příjmový protokol</button>`;
+        })()}
         ${woId ? `<button type="button" class="btn btn-secondary" data-testid="service-intake-open-work-order-sheet-button" onclick="window.serviceShell.openWorkOrderSheetPdf(${woId})">Otevřít zakázkový list</button>` : ''}
       </article>`;
   }
@@ -11330,6 +11405,7 @@
     submitServiceRecordModal,
     openQuoteModal,
     openWorkOrderSheetPdf,
+    openIntakeProtocolPdf,
     openBillingQuoteDetail,
     openBillingInvoiceDetail,
     createQuoteFromRecord,

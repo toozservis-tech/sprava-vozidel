@@ -44,6 +44,10 @@ from ..documents.work_order_sheet_sync import (
     get_work_order_sheet_document_card,
     sync_work_order_vehicle_document,
 )
+from ..documents.intake_protocol_sync import (
+    get_intake_protocol_document_card,
+    sync_intake_protocol_vehicle_document,
+)
 from ..schema_management import assert_module_ready
 from ..service_access import (
     create_or_update_service_work_access,
@@ -605,6 +609,49 @@ def render_internal_service_quote_pdf(
         verification_code=None,
     )
     return render_quote_document_pdf(payload)
+
+
+def _get_service_intake_or_404(db: Session, *, current_user: Customer, intake_id: int) -> ServiceIntake:
+    intake = db.query(ServiceIntake).filter(ServiceIntake.id == int(intake_id)).first()
+    if not intake or int(intake.service_id) != int(current_user.id):
+        raise HTTPException(status_code=404, detail="Příjem vozidla nebyl nalezen.")
+    if intake.vehicle_id is None:
+        raise HTTPException(status_code=422, detail="Příjem nemá přiřazené vozidlo.")
+    return intake
+
+
+def render_internal_service_intake_protocol_pdf(
+    db: Session,
+    *,
+    intake: ServiceIntake,
+    actor: Optional[Customer] = None,
+) -> bytes:
+    from ..documents.document_service import resolve_document_file_path
+    from ..documents.intake_protocol_sync import build_intake_protocol_document_payload
+    from ..documents.renderers.intake_protocol import render_intake_protocol_pdf
+
+    service_customer = db.query(Customer).filter(Customer.id == int(intake.service_id)).first()
+    if not service_customer:
+        raise HTTPException(status_code=404, detail="Servis příjmu nebyl nalezen.")
+    sync_actor = actor or service_customer
+    doc = sync_intake_protocol_vehicle_document(
+        db,
+        intake=intake,
+        service_customer=service_customer,
+        actor=sync_actor,
+    )
+    if doc is not None:
+        path = resolve_document_file_path(doc)
+        if path.exists():
+            return path.read_bytes()
+    payload = build_intake_protocol_document_payload(
+        db,
+        intake=intake,
+        service_customer=service_customer,
+        verification_token=None,
+        verification_code=None,
+    )
+    return render_intake_protocol_pdf(payload)
 
 
 def render_internal_service_work_order_sheet_pdf(
@@ -1456,6 +1503,23 @@ def get_service_work_order_detail(
         db, work_order_id=int(order.id)
     )
     detail["work_order_sheet_pdf_url"] = f"/api/service/work-orders/{int(order.id)}/sheet.pdf"
+    if order.source_intake_id:
+        intake = db.query(ServiceIntake).filter(ServiceIntake.id == int(order.source_intake_id)).first()
+        if intake is not None:
+            try:
+                sync_intake_protocol_vehicle_document(
+                    db,
+                    intake=intake,
+                    service_customer=current_user,
+                    actor=current_user,
+                )
+            except Exception:
+                pass
+            detail["intake_protocol_document"] = get_intake_protocol_document_card(
+                db, intake_id=int(intake.id)
+            )
+            detail["intake_protocol_pdf_url"] = f"/api/service/intakes/{int(intake.id)}/protocol.pdf"
+            detail["source_intake_id"] = int(intake.id)
     return detail
 
 
@@ -1500,6 +1564,50 @@ def get_service_work_order_document_card(
     db.commit()
     if card is None:
         raise HTTPException(status_code=404, detail="Zakázkový list nebyl nalezen.")
+    return card
+
+
+@router.get("/intakes/{intake_id}/protocol.pdf")
+def get_service_intake_protocol_pdf(
+    intake_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    intake = _get_service_intake_or_404(db, current_user=current_user, intake_id=intake_id)
+    pdf_content = render_internal_service_intake_protocol_pdf(db, intake=intake, actor=current_user)
+    db.commit()
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="service-intake-protocol-{int(intake.id)}.pdf"',
+        },
+    )
+
+
+@router.get("/intakes/{intake_id}/document-card")
+def get_service_intake_document_card(
+    intake_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    intake = _get_service_intake_or_404(db, current_user=current_user, intake_id=intake_id)
+    sync_intake_protocol_vehicle_document(
+        db,
+        intake=intake,
+        service_customer=current_user,
+        actor=current_user,
+    )
+    card = get_intake_protocol_document_card(db, intake_id=int(intake.id))
+    db.commit()
+    if card is None:
+        raise HTTPException(status_code=404, detail="Příjmový protokol nebyl nalezen.")
     return card
 
 

@@ -61,6 +61,7 @@ export async function installServiceShellMocks(
       due_date: '2026-04-12',
       status: 'approved',
       source_type: 'manual',
+      source_intake_id: 701,
       technician_id: 9901,
       technician_name: 'ToozServis',
       description: 'Detail zakázky',
@@ -300,7 +301,39 @@ export async function installServiceShellMocks(
     item.work_order_sheet_pdf_url = `/api/service/work-orders/${id}/sheet.pdf`;
     return item;
   };
-  workOrders.forEach((item) => attachWorkOrderSheetPlatformDoc(item as unknown as Record<string, unknown>));
+  const buildIntakeProtocolVehicleDocument = (intakeId: number, vehicleId = 301, status = 'pending') => {
+    const docId = 7000 + intakeId;
+    return {
+      id: docId,
+      document_type: 'intake_protocol',
+      label: 'Příjmový protokol',
+      status,
+      title: `Příjmový protokol PP-${String(intakeId).padStart(5, '0')}`,
+      document_number: `PP-${String(intakeId).padStart(5, '0')}`,
+      created_at: '2026-04-12T09:00:00Z',
+      vehicle_id: vehicleId,
+      vehicle_label: 'Octavia',
+      service_display: 'ToozServis',
+      thumbnail_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/thumbnail`,
+      file_url: `/api/v1/vehicles/${vehicleId}/documents/${docId}/file`,
+      pdf_url: `/api/service/intakes/${intakeId}/protocol.pdf`,
+      verify_url: `http://127.0.0.1:8000/api/public/documents/verify/intake-protocol-token-${intakeId}`,
+      actions: ['open', 'download', 'verify'],
+    };
+  };
+  const attachIntakeProtocolPlatformDoc = (item: Record<string, unknown>) => {
+    const intakeId = Number(item.source_intake_id || 0);
+    if (!intakeId) return item;
+    const vehicleId = Number(item.vehicle_id || 301);
+    const card = buildIntakeProtocolVehicleDocument(intakeId, vehicleId);
+    item.intake_protocol_document = card;
+    item.intake_protocol_pdf_url = `/api/service/intakes/${intakeId}/protocol.pdf`;
+    return item;
+  };
+  workOrders.forEach((item) => {
+    attachWorkOrderSheetPlatformDoc(item as unknown as Record<string, unknown>);
+    attachIntakeProtocolPlatformDoc(item as unknown as Record<string, unknown>);
+  });
   const serviceInvoices = [
     {
       id: 9001,
@@ -404,6 +437,9 @@ export async function installServiceShellMocks(
     })(),
     work_order_sheet_document: (item as { work_order_sheet_document?: unknown }).work_order_sheet_document || null,
     work_order_sheet_pdf_url: `/api/service/work-orders/${item.id}/sheet.pdf`,
+    intake_protocol_document: (item as { intake_protocol_document?: unknown }).intake_protocol_document || null,
+    intake_protocol_pdf_url: (item as { intake_protocol_pdf_url?: string }).intake_protocol_pdf_url || null,
+    source_intake_id: (item as { source_intake_id?: number }).source_intake_id || null,
     items: {
       labor: [{ id: 1, item_type: 'labor', name: 'Výměna oleje a filtrů', quantity: 1.5, unit: 'h', note: null }],
       parts: [{ id: 2, item_type: 'part', name: 'Filtr oleje', quantity: 1, unit: 'ks', note: null }],
@@ -809,7 +845,10 @@ export async function installServiceShellMocks(
       const sheetDocs = workOrders
         .filter((wo) => Number(wo.vehicle_id) === vehicleId && (wo as { work_order_sheet_document?: unknown }).work_order_sheet_document)
         .map((wo) => (wo as { work_order_sheet_document: unknown }).work_order_sheet_document);
-      return json(route, 200, [...invoiceDocs, ...quoteDocs, ...sheetDocs]);
+      const intakeDocs = workOrders
+        .filter((wo) => Number(wo.vehicle_id) === vehicleId && (wo as { intake_protocol_document?: unknown }).intake_protocol_document)
+        .map((wo) => (wo as { intake_protocol_document: unknown }).intake_protocol_document);
+      return json(route, 200, [...invoiceDocs, ...quoteDocs, ...sheetDocs, ...intakeDocs]);
     }
     if (/^\/api\/v1\/vehicles\/\d+\/documents\/\d+\/file$/.test(path) && method === 'GET') {
       return route.fulfill({
@@ -845,6 +884,7 @@ export async function installServiceShellMocks(
         due_date?: string;
         status?: string;
         source_type?: string;
+        source_intake_id?: number;
       };
       const shouldExerciseDuplicateGuard = /duplicit/i.test(String(body.title || ''));
       const duplicate = shouldExerciseDuplicateGuard
@@ -876,12 +916,15 @@ export async function installServiceShellMocks(
         due_date: body.due_date || '2026-04-13',
         status: body.status || 'awaiting_client_approval',
         source_type: body.source_type || 'manual',
+        source_intake_id: body.source_intake_id || null,
         technician_id: body.technician_id || 9901,
         technician_name: 'ToozServis',
         description: body.description || 'Zakázka vytvořená testem',
         audit_log: [{ id: 2, action: 'create', created_at: '2026-04-13T10:00:00Z' }],
       };
       workOrders.unshift(created);
+      attachWorkOrderSheetPlatformDoc(created as unknown as Record<string, unknown>);
+      attachIntakeProtocolPlatformDoc(created as unknown as Record<string, unknown>);
       return json(route, 200, serializeWorkOrderDetail(created));
     }
     if (/^\/api\/service\/work-orders\/\d+$/.test(path) && method === 'GET') {
@@ -901,6 +944,19 @@ export async function installServiceShellMocks(
       const item = workOrders.find((entry) => entry.id === workOrderId) as Record<string, unknown> | undefined;
       const card = item?.work_order_sheet_document;
       return json(route, card ? 200 : 404, card || { detail: 'Not Found' });
+    }
+    if (/^\/api\/service\/intakes\/\d+\/protocol\.pdf$/.test(path) && method === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/pdf',
+        body: Buffer.from('%PDF-1.4 mock platform intake protocol Document Platform C1.4 PRIJMOVY PROTOKOL'),
+      });
+    }
+    if (/^\/api\/service\/intakes\/\d+\/document-card$/.test(path) && method === 'GET') {
+      const intakeId = Number(path.split('/').slice(-2, -1)[0]);
+      const item = workOrders.find((entry) => Number((entry as { source_intake_id?: number }).source_intake_id) === intakeId) as Record<string, unknown> | undefined;
+      const card = item?.intake_protocol_document || buildIntakeProtocolVehicleDocument(intakeId);
+      return json(route, 200, card);
     }
     if (/^\/api\/service\/work-orders\/\d+$/.test(path) && method === 'PUT') {
       const workOrderId = Number(path.split('/').pop());
