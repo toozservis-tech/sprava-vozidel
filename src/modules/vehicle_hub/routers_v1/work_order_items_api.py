@@ -366,6 +366,22 @@ def create_service_record_from_work_order(
         previous_snapshot=sd._work_order_snapshot(order),
         new_snapshot=sd._work_order_snapshot(order),
     )
+    service_report_document = None
+    try:
+        from ..documents.service_report_sync import (
+            get_service_report_document_card,
+            sync_service_report_vehicle_document,
+        )
+
+        sync_service_report_vehicle_document(
+            db,
+            record=record,
+            service_customer=current_user,
+            actor=current_user,
+        )
+        service_report_document = get_service_report_document_card(db, service_record_id=int(record.id))
+    except Exception:
+        pass
     db.commit()
     db.refresh(record)
     return {
@@ -374,6 +390,8 @@ def create_service_record_from_work_order(
         "work_order_id": int(order.id),
         "visibility_scope": str(record.visibility_scope or ""),
         "record_status": str(record.record_status or ""),
+        "service_report_document": service_report_document,
+        "service_report_pdf_url": f"/api/service/service-records/{int(record.id)}/report.pdf",
     }
 
 

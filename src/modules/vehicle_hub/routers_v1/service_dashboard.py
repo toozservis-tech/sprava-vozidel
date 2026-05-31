@@ -48,6 +48,10 @@ from ..documents.intake_protocol_sync import (
     get_intake_protocol_document_card,
     sync_intake_protocol_vehicle_document,
 )
+from ..documents.service_report_sync import (
+    get_service_report_document_card,
+    sync_service_report_vehicle_document,
+)
 from ..schema_management import assert_module_ready
 from ..service_access import (
     create_or_update_service_work_access,
@@ -686,6 +690,66 @@ def render_internal_service_work_order_sheet_pdf(
         verification_code=None,
     )
     return render_work_order_sheet_pdf(payload)
+
+
+def _get_service_record_or_404(
+    db: Session,
+    *,
+    current_user: Customer,
+    service_record_id: int,
+) -> ServiceRecordModel:
+    record = (
+        db.query(ServiceRecordModel)
+        .filter(
+            ServiceRecordModel.id == int(service_record_id),
+            ServiceRecordModel.is_deleted.is_(False),
+            ServiceRecordModel.service_id == int(current_user.id),
+        )
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Servisní záznam nebyl nalezen.")
+    if not record.vehicle_id:
+        raise HTTPException(status_code=422, detail="Servisní záznam nemá přiřazené vozidlo.")
+    return record
+
+
+def render_internal_service_report_pdf(
+    db: Session,
+    *,
+    record: ServiceRecordModel,
+    actor: Optional[Customer] = None,
+) -> bytes:
+    from ..documents.document_service import resolve_document_file_path
+    from ..documents.renderers.service_report import render_service_report_pdf
+    from ..documents.service_report_sync import build_service_report_document_payload
+
+    service_customer = db.query(Customer).filter(Customer.id == int(record.service_id)).first()
+    if not service_customer:
+        raise HTTPException(status_code=404, detail="Servis záznamu nebyl nalezen.")
+    sync_actor = actor or service_customer
+    doc = sync_service_report_vehicle_document(
+        db,
+        record=record,
+        service_customer=service_customer,
+        actor=sync_actor,
+    )
+    if doc is not None:
+        path = resolve_document_file_path(doc)
+        if path.exists():
+            return path.read_bytes()
+    from ..documents.service_report_sync import _document_visibility_from_record, _owner_safe_mode_for_visibility
+
+    visibility = _document_visibility_from_record(record)
+    payload = build_service_report_document_payload(
+        db,
+        record=record,
+        service_customer=service_customer,
+        verification_token=None,
+        verification_code=None,
+        owner_safe_mode=_owner_safe_mode_for_visibility(visibility),
+    )
+    return render_service_report_pdf(payload)
 
 
 def _serialize_quote_summary(
@@ -1520,6 +1584,30 @@ def get_service_work_order_detail(
             )
             detail["intake_protocol_pdf_url"] = f"/api/service/intakes/{int(intake.id)}/protocol.pdf"
             detail["source_intake_id"] = int(intake.id)
+    if detail.get("service_record_id"):
+        record = (
+            db.query(ServiceRecordModel)
+            .filter(
+                ServiceRecordModel.id == int(detail["service_record_id"]),
+                ServiceRecordModel.is_deleted.is_(False),
+                ServiceRecordModel.service_id == int(current_user.id),
+            )
+            .first()
+        )
+        if record is not None:
+            try:
+                sync_service_report_vehicle_document(
+                    db,
+                    record=record,
+                    service_customer=current_user,
+                    actor=current_user,
+                )
+            except Exception:
+                pass
+            detail["service_report_document"] = get_service_report_document_card(
+                db, service_record_id=int(record.id)
+            )
+            detail["service_report_pdf_url"] = f"/api/service/service-records/{int(record.id)}/report.pdf"
     return detail
 
 
@@ -1608,6 +1696,50 @@ def get_service_intake_document_card(
     db.commit()
     if card is None:
         raise HTTPException(status_code=404, detail="Příjmový protokol nebyl nalezen.")
+    return card
+
+
+@router.get("/service-records/{service_record_id}/report.pdf")
+def get_service_record_report_pdf(
+    service_record_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    record = _get_service_record_or_404(db, current_user=current_user, service_record_id=service_record_id)
+    pdf_content = render_internal_service_report_pdf(db, record=record, actor=current_user)
+    db.commit()
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="service-report-{int(record.id)}.pdf"',
+        },
+    )
+
+
+@router.get("/service-records/{service_record_id}/document-card")
+def get_service_record_document_card(
+    service_record_id: int,
+    current_user: Customer = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_service_workspace_role(current_user)
+    _ensure_service_dashboard_schema(db)
+
+    record = _get_service_record_or_404(db, current_user=current_user, service_record_id=service_record_id)
+    sync_service_report_vehicle_document(
+        db,
+        record=record,
+        service_customer=current_user,
+        actor=current_user,
+    )
+    card = get_service_report_document_card(db, service_record_id=int(record.id))
+    db.commit()
+    if card is None:
+        raise HTTPException(status_code=404, detail="Servisní zpráva nebyla nalezena.")
     return card
 
 

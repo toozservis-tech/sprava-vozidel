@@ -4235,6 +4235,7 @@
     const doneParts = [];
     if (!canCreateInvoice && Number(invoice?.invoice_id || 0) > 0) doneParts.push('doklad vystaven');
     if (!canCreateRecord && recordId > 0) doneParts.push('servisní záznam vytvořen');
+    if (recordId > 0 && detail?.service_report_document) doneParts.push('servisní zpráva připravena');
     const allDone = !canCreateInvoice && !canCreateRecord;
     return `
       <section class="service-pro-card service-work-order-completion-panel${highlighted ? ' is-highlighted' : ''}" data-testid="service-work-order-completion-panel" aria-label="Další kroky po dokončení">
@@ -4243,6 +4244,7 @@
           ${highlighted ? '<span class="service-status-badge is-success">Nově dokončeno</span>' : ''}
         </div>
         <p class="service-shell-list-note">Doklad zůstává obchodním dokumentem servisu. Servisní záznam pro majitele neobsahuje ceny ani interní data.</p>
+        ${doneParts.length ? `<p class="service-shell-list-note" data-testid="service-work-order-completion-progress">${escape(doneParts.join(' · '))}</p>` : ''}
         ${allDone
           ? `<p class="service-shell-list-note" data-testid="service-work-order-completion-done">${escape(doneParts.join(' · ') || 'Všechny kroky jsou hotové.')}</p>`
           : `
@@ -4818,6 +4820,7 @@
             || document.querySelector('.service-shell-modal:last-of-type');
           bindWorkOrderSheetDocumentActions(modalEl, detail);
           bindIntakeProtocolDocumentActions(modalEl, detail);
+          bindServiceReportDocumentActions(modalEl, detail);
         });
         return `
           <div class="service-shell-modal-summary" data-testid="service-work-order-detail">
@@ -4867,6 +4870,7 @@
               <label for="serviceShellDetailDescription">Popis</label>
               <textarea id="serviceShellDetailDescription" rows="4">${escape(detail?.description || '')}</textarea>
             </div>
+            ${renderServiceReportDocumentSection(detail)}
             ${renderIntakeProtocolDocumentSection(detail)}
             ${renderWorkOrderSheetDocumentSection(detail)}
             ${renderWorkOrderItemsPanel(detail, id)}
@@ -6809,6 +6813,74 @@
     if (typeof window.openAuthenticatedPdf === 'function') {
       window.openAuthenticatedPdf(path).catch((err) => {
         const msg = err?.message || 'Zakázkový list se nepodařilo otevřít.';
+        if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
+      });
+      return;
+    }
+    window.open(`${window.location.origin}${path}`, '_blank', 'noopener');
+  }
+
+  function renderServiceReportDocumentSection(detail) {
+    const recordId = Number(detail?.service_record_id || 0);
+    const doc = detail?.service_report_document;
+    const pdfUrl = detail?.service_report_pdf_url || doc?.pdf_url || doc?.file_url || (recordId ? `/api/service/service-records/${recordId}/report.pdf` : '');
+    if (recordId <= 0) return '';
+    if (!doc || typeof window.ToozDocumentCards?.renderDocumentCard !== 'function') {
+      return `
+        <section class="service-shell-service-report" data-testid="service-report-document-section">
+          <div class="service-shell-card-head">
+            <div>
+              <h3 class="service-shell-card-title">Servisní zpráva</h3>
+              <p class="service-shell-subtitle">Technický report provedených prací — ověřitelný PDF doklad.</p>
+            </div>
+          </div>
+          ${recordId ? `<button type="button" class="btn btn-secondary" data-testid="service-report-open-pdf-button" onclick="window.serviceShell.openServiceReportPdf(${recordId}, ${JSON.stringify(pdfUrl)})">Otevřít servisní zprávu</button>` : ''}
+        </section>`;
+    }
+    const statusText = window.ToozDocumentCards.statusLabel(doc.status);
+    const cardHtml = window.ToozDocumentCards.renderDocumentCard(doc, {
+      cardClass: 'vehicle-document-card service-report-document-card-inner',
+      buttonClass: 'vehicle-document-action',
+    })
+      .replace(/data-testid="vehicle-document-open-button"/g, 'data-testid="service-report-open-pdf-button"')
+      .replace(/data-testid="vehicle-document-download-button"/g, 'data-testid="service-report-download-pdf-button"')
+      .replace(/data-testid="vehicle-document-verify-button"/g, 'data-testid="service-report-verify-button"')
+      .replace(/data-testid="vehicle-document-status"/g, 'data-testid="service-report-status-badge"');
+    return `
+      <section class="service-shell-service-report" data-testid="service-report-document-section">
+        <div class="service-shell-card-head">
+          <div>
+            <h3 class="service-shell-card-title">Servisní zpráva</h3>
+            <p class="service-shell-subtitle">Technický report provedených prací — ověřitelný PDF doklad bez obchodních údajů.</p>
+          </div>
+          <span class="vehicle-document-card__status" data-testid="service-report-status-badge">${escape(statusText)}</span>
+        </div>
+        <div class="service-report-preview" data-testid="service-report-document-card">${cardHtml}</div>
+      </section>`;
+  }
+
+  function bindServiceReportDocumentActions(root, detail) {
+    const container = root || document;
+    const section = container.querySelector('[data-testid="service-report-document-section"]');
+    if (!section || !window.ToozDocumentCards?.bindDocumentCardActions) return;
+    const recordId = Number(detail?.service_record_id || 0);
+    const pdfUrl = detail?.service_report_pdf_url || detail?.service_report_document?.file_url || '';
+    window.ToozDocumentCards.bindDocumentCardActions(section, {
+      onOpen: (fileUrl) => openServiceReportPdf(recordId, fileUrl || pdfUrl),
+      onDownload: (fileUrl) => openServiceReportPdf(recordId, fileUrl || pdfUrl),
+      onVerify: (verifyUrl) => {
+        if (verifyUrl) window.open(verifyUrl, '_blank', 'noopener');
+      },
+    });
+  }
+
+  function openServiceReportPdf(serviceRecordId, pdfUrl) {
+    const id = Number(serviceRecordId || 0);
+    if (!id && !pdfUrl) return;
+    const path = pdfUrl || `/api/service/service-records/${id}/report.pdf`;
+    if (typeof window.openAuthenticatedPdf === 'function') {
+      window.openAuthenticatedPdf(path).catch((err) => {
+        const msg = err?.message || 'Servisní zprávu se nepodařilo otevřít.';
         if (typeof window.showAlert === 'function') window.showAlert(msg, 'error');
       });
       return;
@@ -11637,6 +11709,7 @@
     openQuoteModal,
     openWorkOrderSheetPdf,
     openIntakeProtocolPdf,
+    openServiceReportPdf,
     openBillingQuoteDetail,
     openBillingInvoiceDetail,
     createQuoteFromRecord,
