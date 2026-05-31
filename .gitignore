@@ -12,6 +12,8 @@ __pycache__/
 *.sqlite
 *.sqlite3
 data/
+# Runtime data symlink / production app data - never commit
+/data
 backups/
 snapshots/
 releases/
