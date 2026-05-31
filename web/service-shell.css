@@ -4907,3 +4907,36 @@ body.service-shell-app .service-dashboard-pro .service-shell-badge {
     max-width: 100%;
   }
 }
+
+.service-provision-register-status {
+  min-height: 1.25rem;
+  margin-top: 0.35rem;
+}
+
+.service-provision-register-error {
+  color: #b42318;
+}
+
+.service-provision-register-success {
+  color: #067647;
+}
+
+.service-provision-register-load-btn {
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+
+.service-provision-register-actions {
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .service-provision-register-actions {
+    flex-direction: column;
+  }
+
+  .service-provision-register-actions .service-provision-register-load-btn {
+    width: 100%;
+  }
+}

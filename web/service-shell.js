@@ -3353,6 +3353,8 @@
 
   function openProvisionUnownedVehicleModal() {
     const query = String(state.vehicleLookupQuery || '').trim();
+    state.provisionDecodedMeta = null;
+    state.provisionRegistryLoadedKey = null;
     openModal({
       key: 'provision-unowned-vehicle',
       entityType: 'vehicle',
@@ -3360,12 +3362,23 @@
       description: 'Vozidlo bude evidováno bez majitele. Servis s ním může pracovat v příjmu a budoucí majitel ho později bezpečně převezme.',
       renderContent: () => `
         <div class="service-shell-form-grid">
-          <label>Zadaný VIN nebo SPZ<input id="serviceShellProvisionQuery" value="${escape(query)}"></label>
-          <label>Značka<input id="serviceShellProvisionBrand" placeholder="např. Škoda"></label>
-          <label>Model<input id="serviceShellProvisionModel" placeholder="např. Octavia"></label>
-          <label>Rok<input id="serviceShellProvisionYear" type="number" min="1900" max="2100"></label>
+          <label class="service-shell-form-grid--wide">Zadaný VIN nebo SPZ
+            <div class="service-action-bar service-action-bar--compact service-provision-register-actions">
+              <input id="serviceShellProvisionQuery" class="service-shell-search" value="${escape(query)}" placeholder="např. TMBJH7NP9N7041234 nebo 1AB2345">
+              <button type="button" class="btn btn-secondary service-provision-register-load-btn" id="serviceShellProvisionDecodeButton" data-testid="service-intake-register-load-button" onclick="window.serviceShell.lookupProvisionVehicleFromRegistry({ trigger: 'manual' })">Načíst z registru</button>
+            </div>
+            <div class="service-provision-register-status" aria-live="polite">
+              <small id="serviceShellProvisionDecodeLoading" data-testid="service-intake-register-loading" class="service-shell-muted" hidden>Načítám data z registru MDČR…</small>
+              <small id="serviceShellProvisionDecodeError" data-testid="service-intake-register-error" class="service-provision-register-error" hidden></small>
+              <small id="serviceShellProvisionDecodeSuccess" data-testid="service-intake-register-success" class="service-provision-register-success" hidden></small>
+            </div>
+          </label>
+          <label>Značka<input id="serviceShellProvisionBrand" data-testid="service-intake-provision-brand" placeholder="např. Škoda"></label>
+          <label>Model<input id="serviceShellProvisionModel" data-testid="service-intake-provision-model" placeholder="např. Octavia"></label>
+          <label>Rok<input id="serviceShellProvisionYear" type="number" min="1900" max="2100" data-testid="service-intake-provision-year"></label>
+          <label>Palivo<input id="serviceShellProvisionFuel" data-testid="service-intake-provision-fuel" placeholder="např. Nafta"></label>
           <label>Stav km<input id="serviceShellProvisionMileage" type="number" min="0"></label>
-          <label class="service-shell-form-grid--wide">Poznámka k příjmu<textarea id="serviceShellProvisionNote" rows="3"></textarea></label>
+          <label class="service-shell-form-grid--wide">Poznámka k příjmu<textarea id="serviceShellProvisionNote" rows="3" data-testid="service-intake-provision-note"></textarea></label>
         </div>
         <div class="service-shell-inline-alert">Nevznikne vlastnická vazba. Servisní historie se budoucímu majiteli ukáže pouze v bezpečném režimu bez cen a faktur.</div>
       `,
@@ -3376,6 +3389,10 @@
         </div>
       `,
     });
+    queueMicrotask(() => {
+      bindProvisionUnownedVehicleModal();
+      if (query) void lookupProvisionVehicleFromRegistry({ trigger: 'auto', skipIfLoaded: true });
+    });
   }
 
   async function provisionUnownedVehicleFromLookup() {
@@ -3385,11 +3402,16 @@
     const yearRaw = Number(document.getElementById('serviceShellProvisionYear')?.value || 0);
     const mileageRaw = Number(document.getElementById('serviceShellProvisionMileage')?.value || 0);
     const note = String(document.getElementById('serviceShellProvisionNote')?.value || '').trim();
-    if (!query || !brand || !model) {
-      showServiceToast('warning', 'Nepřiřazené vozidlo', 'Vyplňte VIN/SPZ, značku a model.');
+    if (!query) {
+      showServiceToast('warning', 'Nepřiřazené vozidlo', 'Vyplňte VIN nebo SPZ.');
       return;
     }
-    const normalized = query.toUpperCase().replace(/[\s-]+/g, '');
+    if (!brand || !model) {
+      showServiceToast('warning', 'Nepřiřazené vozidlo', 'Vyplňte značku a model — použijte „Načíst z registru“, pokud nejsou k dispozici.');
+      return;
+    }
+    const vin = normalizeVin(query);
+    const plate = normalizePlate(query);
     const payload = {
       brand,
       model,
@@ -3397,10 +3419,17 @@
       mileage: Number.isFinite(mileageRaw) && mileageRaw > 0 ? mileageRaw : null,
       intake_note: note || null,
     };
-    if (normalized.length === 17) {
-      payload.vin = normalized;
+    const decodedMeta = state.provisionDecodedMeta || {};
+    const fuelField = String(document.getElementById('serviceShellProvisionFuel')?.value || '').trim();
+    if (fuelField) payload.fuel = fuelField;
+    else if (decodedMeta.fuel) payload.fuel = decodedMeta.fuel;
+    if (vin.length === 17) {
+      payload.vin = vin;
+    } else if (plate.replace(/\s+/g, '').length >= 5) {
+      payload.plate = plate;
     } else {
-      payload.plate = query;
+      showServiceToast('warning', 'Nepřiřazené vozidlo', 'Zadejte platný VIN (17 znaků) nebo SPZ.');
+      return;
     }
     try {
       const response = await window.apiCall('/api/v1/services/workspace/vehicles/provision-unowned', 'POST', payload);
@@ -7674,6 +7703,207 @@
     return String(value || '').toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, '').slice(0, 17);
   }
 
+  function normalizeRegistryFuelType(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const map = {
+      nm: 'Nafta',
+      bm: 'Benzín',
+      el: 'Elektro',
+      hy: 'Hybrid',
+      lpg: 'LPG',
+      cng: 'CNG',
+    };
+    return map[raw.toLowerCase()] || raw;
+  }
+
+  function setProvisionFormField(id, value) {
+    const el = document.getElementById(id);
+    if (!el || value === null || value === undefined || value === '') return false;
+    if (id === 'serviceShellProvisionQuery') {
+      el.dataset.skipDecode = '1';
+    }
+    el.value = String(value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  function setProvisionRegisterState(mode, message) {
+    const loadingEl = document.getElementById('serviceShellProvisionDecodeLoading');
+    const errorEl = document.getElementById('serviceShellProvisionDecodeError');
+    const successEl = document.getElementById('serviceShellProvisionDecodeSuccess');
+    [loadingEl, errorEl, successEl].forEach((el) => {
+      if (!el) return;
+      el.hidden = true;
+      el.textContent = '';
+    });
+    if (mode === 'loading' && loadingEl) {
+      loadingEl.hidden = false;
+      loadingEl.textContent = message || 'Načítám data z registru MDČR…';
+      return;
+    }
+    if (mode === 'error' && errorEl) {
+      errorEl.hidden = false;
+      errorEl.textContent = message || 'Načtení z registru selhalo.';
+      return;
+    }
+    if (mode === 'success' && successEl) {
+      successEl.hidden = false;
+      successEl.textContent = message || 'Data z registru byla předvyplněna.';
+    }
+  }
+
+  function provisionRegistryQueryKey(query) {
+    const raw = String(query || '').trim();
+    const vinClean = normalizeVin(raw);
+    if (vinClean.length === 17) return `vin:${vinClean}`;
+    const plateClean = normalizePlate(raw).replace(/\s+/g, '');
+    if (plateClean.length >= 5) return `plate:${plateClean}`;
+    return '';
+  }
+
+  function buildProvisionNoteFromDecode(data) {
+    if (!data || typeof data !== 'object') return '';
+    const parts = [];
+    const stk = data.stk_valid_until || data.tech_inspection_valid_to;
+    if (stk) parts.push(`STK do: ${stk}`);
+    if (data.engine_type_label) {
+      parts.push(`Motor: ${data.engine_type_label}`);
+    } else if (data.engine_displacement_cc || data.engine_power_kw) {
+      const engineParts = [];
+      if (data.engine_displacement_cc) engineParts.push(`${data.engine_displacement_cc} cm³`);
+      if (data.engine_power_kw) engineParts.push(`${data.engine_power_kw} kW`);
+      if (engineParts.length) parts.push(`Motor: ${engineParts.join(' / ')}`);
+    }
+    if (Array.isArray(data.tyres) && data.tyres.length) {
+      parts.push(`Pneumatiky: ${data.tyres.slice(0, 3).join(', ')}`);
+    }
+    return parts.join('\n').trim();
+  }
+
+  async function decodeVehicleRegistryQuery(query) {
+    const raw = String(query || '').trim();
+    if (!raw) return { error: 'Zadejte VIN nebo SPZ.' };
+    const vinClean = normalizeVin(raw);
+    const plateClean = normalizePlate(raw).replace(/\s+/g, '');
+    const isVin = vinClean.length === 17;
+    const isPlate = !isVin && plateClean.length >= 5;
+    if (!isVin && !isPlate) {
+      return { error: 'Zadejte platný VIN (17 znaků) nebo SPZ (min. 5 znaků).' };
+    }
+    const response = isVin
+      ? await window.apiCall('/api/vehicles/decode-vin', 'POST', { vin: vinClean })
+      : await window.apiCall('/api/vehicles/decode-plate', 'POST', { plate: plateClean });
+    if (!response?.success || !response?.data) {
+      const message = Array.isArray(response?.errors) && response.errors.length
+        ? response.errors.join(', ')
+        : 'Data vozidla se z registru nepodařilo načíst.';
+      return { error: message };
+    }
+    return { data: response.data };
+  }
+
+  function applyProvisionDecodeToForm(data) {
+    if (!data || typeof data !== 'object') return;
+    setProvisionFormField('serviceShellProvisionBrand', data.make);
+    setProvisionFormField('serviceShellProvisionModel', data.model);
+    const year = data.production_year || data.model_year;
+    if (year) setProvisionFormField('serviceShellProvisionYear', year);
+    if (data.fuel_type) {
+      setProvisionFormField('serviceShellProvisionFuel', normalizeRegistryFuelType(data.fuel_type));
+    }
+    const note = buildProvisionNoteFromDecode(data);
+    const noteEl = document.getElementById('serviceShellProvisionNote');
+    if (note && noteEl && !String(noteEl.value || '').trim()) {
+      setProvisionFormField('serviceShellProvisionNote', note);
+    }
+    const queryEl = document.getElementById('serviceShellProvisionQuery');
+    if (queryEl && data.vin) {
+      const currentVin = normalizeVin(queryEl.value);
+      if (currentVin.length !== 17) {
+        setProvisionFormField('serviceShellProvisionQuery', data.vin);
+      }
+    }
+    const fuelValue = data.fuel_type ? normalizeRegistryFuelType(data.fuel_type) : null;
+    state.provisionDecodedMeta = {
+      fuel: fuelValue,
+      vin: data.vin ? normalizeVin(data.vin) : null,
+      plate: data.plate ? normalizePlate(data.plate) : null,
+    };
+  }
+
+  let provisionDecodeRequestSeq = 0;
+  let provisionDecodeDebounceTimer = null;
+
+  function bindProvisionUnownedVehicleModal() {
+    const input = document.getElementById('serviceShellProvisionQuery');
+    if (!input || input.dataset.provisionDecodeBound === '1') return;
+    input.dataset.provisionDecodeBound = '1';
+    input.addEventListener('blur', () => {
+      void lookupProvisionVehicleFromRegistry({ trigger: 'blur' });
+    });
+    input.addEventListener('input', () => {
+      if (input.dataset.skipDecode === '1') {
+        delete input.dataset.skipDecode;
+        return;
+      }
+      if (provisionDecodeDebounceTimer) clearTimeout(provisionDecodeDebounceTimer);
+      provisionDecodeDebounceTimer = setTimeout(() => {
+        const vin = normalizeVin(input.value);
+        if (vin.length === 17) {
+          void lookupProvisionVehicleFromRegistry({ trigger: 'debounce' });
+        }
+      }, 650);
+    });
+  }
+
+  async function lookupProvisionVehicleFromRegistry(options = {}) {
+    const query = String(document.getElementById('serviceShellProvisionQuery')?.value || '').trim();
+    const buttonEl = document.getElementById('serviceShellProvisionDecodeButton');
+    const queryKey = provisionRegistryQueryKey(query);
+    if (!queryKey) {
+      if (options.trigger === 'manual') {
+        setProvisionRegisterState('error', 'Zadejte VIN nebo SPZ pro načtení z registru.');
+      }
+      return;
+    }
+    if (options.skipIfLoaded && state.provisionRegistryLoadedKey === queryKey) {
+      return;
+    }
+    const requestSeq = ++provisionDecodeRequestSeq;
+    if (buttonEl) {
+      buttonEl.disabled = true;
+      buttonEl.setAttribute('aria-busy', 'true');
+    }
+    setProvisionRegisterState('loading');
+    try {
+      const result = await decodeVehicleRegistryQuery(query);
+      if (requestSeq !== provisionDecodeRequestSeq) return;
+      if (result.error) {
+        setProvisionRegisterState('error', result.error);
+        state.provisionRegistryLoadedKey = null;
+        return;
+      }
+      applyProvisionDecodeToForm(result.data);
+      state.provisionRegistryLoadedKey = queryKey;
+      const label = [result.data?.make, result.data?.model].filter(Boolean).join(' ');
+      setProvisionRegisterState(
+        'success',
+        label ? `Načteno z registru: ${label}` : 'Data z registru byla předvyplněna.',
+      );
+    } catch (error) {
+      if (requestSeq !== provisionDecodeRequestSeq) return;
+      setProvisionRegisterState('error', error?.message || 'Načtení z registru selhalo.');
+      state.provisionRegistryLoadedKey = null;
+    } finally {
+      if (requestSeq === provisionDecodeRequestSeq && buttonEl) {
+        buttonEl.disabled = false;
+        buttonEl.removeAttribute('aria-busy');
+      }
+    }
+  }
+
   function maskVin(vin) {
     const raw = String(vin || '').trim();
     if (!raw) return '-';
@@ -11341,6 +11571,7 @@
     searchVehicles,
     openProvisionUnownedVehicleModal,
     provisionUnownedVehicleFromLookup,
+    lookupProvisionVehicleFromRegistry,
     requestVehicleAccess,
     openVehicleFromLookup,
     openVehicleFromLookupByIndex,
