@@ -26,7 +26,12 @@ depends_on = None
 def upgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "sqlite":
-        # Lokální sqlite test DB používá Base.metadata.create_all s nullable modelem.
+        with op.batch_alter_table("service_work_orders") as batch_op:
+            batch_op.alter_column(
+                "owner_customer_id",
+                existing_type=sa.Integer(),
+                nullable=True,
+            )
         return
     inspector = inspect(bind)
     if "service_work_orders" not in set(inspector.get_table_names()):
@@ -46,6 +51,19 @@ def upgrade() -> None:
 def downgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "sqlite":
+        null_count = bind.execute(
+            text("SELECT COUNT(*) FROM service_work_orders WHERE owner_customer_id IS NULL")
+        ).scalar()
+        if int(null_count or 0) > 0:
+            raise RuntimeError(
+                "Rollback 20260528_0046 blocked: service_work_orders contains rows with NULL owner_customer_id."
+            )
+        with op.batch_alter_table("service_work_orders") as batch_op:
+            batch_op.alter_column(
+                "owner_customer_id",
+                existing_type=sa.Integer(),
+                nullable=False,
+            )
         return
     inspector = inspect(bind)
     if "service_work_orders" not in set(inspector.get_table_names()):
