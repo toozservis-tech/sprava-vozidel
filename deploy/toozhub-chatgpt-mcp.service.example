@@ -1,0 +1,25 @@
+[Unit]
+Description=TooZ Mechanic ChatGPT MCP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=toozhub
+Group=toozhub
+WorkingDirectory=/opt/toozhub2/app
+EnvironmentFile=/opt/toozhub2/app/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=CHATGPT_MCP_HOST=127.0.0.1
+Environment=CHATGPT_MCP_PORT=8011
+ExecStart=/opt/toozhub2/app/.venv/bin/python -m src.plugins.chatgpt_mcp.server
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/toozhub2/app/data /opt/toozhub2/app/.local_data
+
+[Install]
+WantedBy=multi-user.target
