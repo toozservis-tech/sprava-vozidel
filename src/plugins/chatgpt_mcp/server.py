@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any, Callable
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from src.modules.vehicle_hub.database import SessionLocal
 from src.plugins.chatgpt_mcp import service
@@ -12,18 +12,15 @@ from src.plugins.chatgpt_mcp import service
 MCP_HOST = str(os.getenv("CHATGPT_MCP_HOST") or "127.0.0.1").strip()
 MCP_PORT = int(str(os.getenv("CHATGPT_MCP_PORT") or "8011").strip())
 
-mcp = FastMCP(
+mcp = MCPServer(
     "TooZ Mechanic",
+    version="0.1.0",
     instructions=(
         "Pracovní plugin pro autoservis. Používej VIN/SPZ pouze k vyhledání vozidla, "
         "nikdy neprozrazuj osobní údaje majitele. Před zápisem servisního záznamu musí existovat "
-        "schválený přístup servisu k vozidlu. Diagnostické závěry odděluj od naměřených faktů."
+        "schválený přístup servisu k vozidlu. Diagnostické závěry vždy odděluj od naměřených faktů. "
+        "Nevytvářej duplicitní servisní případ, měření práce ani finální servisní záznam."
     ),
-    host=MCP_HOST,
-    port=MCP_PORT,
-    streamable_http_path="/mcp",
-    stateless_http=True,
-    json_response=True,
 )
 
 
@@ -59,7 +56,7 @@ def tooz_find_vehicle(query: str) -> dict[str, Any]:
     return _call(service.lookup_vehicle, query=query)
 
 
-@mcp.tool(description="Načte technický a servisní kontext schváleného vozidla: identifikaci auta, servisní historii, km a servisní případy. Nevrací PII majitele.")
+@mcp.tool(description="Načte technický a servisní kontext schváleného vozidla: identifikaci auta, servisní historii, km a servisní případy. Nevrací osobní údaje majitele.")
 def tooz_vehicle_context(vehicle_id: int, history_limit: int = 12) -> dict[str, Any]:
     return _call(service.vehicle_context, vehicle_id=vehicle_id, history_limit=history_limit)
 
@@ -135,4 +132,11 @@ def tooz_finalize_service_record(
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(
+        transport="streamable-http",
+        host=MCP_HOST,
+        port=MCP_PORT,
+        streamable_http_path="/mcp",
+        stateless_http=True,
+        json_response=True,
+    )
