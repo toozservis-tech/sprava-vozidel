@@ -7,7 +7,7 @@ on:
   pull_request:
     paths:
       - "src/plugins/chatgpt_mcp/**"
-      - "tests/api/test_chatgpt_mcp_service.py"
+      - "tests/api/test_chatgpt_mcp_*.py"
       - "requirements.txt"
       - ".github/workflows/chatgpt-mcp.yml"
 
@@ -49,5 +49,5 @@ jobs:
           print(type(mcp).__name__)
           PY
 
-      - name: Run MCP service tests
-        run: python -m pytest tests/api/test_chatgpt_mcp_service.py -v --tb=short
+      - name: Run MCP contract and service tests
+        run: python -m pytest tests/api/test_chatgpt_mcp_contract.py tests/api/test_chatgpt_mcp_service.py -v --tb=short
