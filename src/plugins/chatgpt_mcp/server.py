@@ -11,6 +11,7 @@ from src.plugins.chatgpt_mcp import service
 
 MCP_HOST = str(os.getenv("CHATGPT_MCP_HOST") or "127.0.0.1").strip()
 MCP_PORT = int(str(os.getenv("CHATGPT_MCP_PORT") or "8011").strip())
+_PRIVATE_BIND_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 mcp = MCPServer(
     "TooZ Mechanic",
@@ -22,6 +23,15 @@ mcp = MCPServer(
         "Nevytvářej duplicitní servisní případ, měření práce ani finální servisní záznam."
     ),
 )
+
+
+def _assert_private_bind() -> None:
+    """v0.1 používá pevnou servisní identitu; nesmí být přímo vystavena do veřejné sítě."""
+    if MCP_HOST.lower() not in _PRIVATE_BIND_HOSTS:
+        raise RuntimeError(
+            "TooZ Mechanic v0.1 smí poslouchat pouze na loopbacku. "
+            "Použijte Secure MCP Tunnel. Veřejný endpoint vyžaduje OAuth variantu."
+        )
 
 
 def _call(fn: Callable[..., dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
@@ -132,6 +142,7 @@ def tooz_finalize_service_record(
 
 
 if __name__ == "__main__":
+    _assert_private_bind()
     mcp.run(
         transport="streamable-http",
         host=MCP_HOST,
