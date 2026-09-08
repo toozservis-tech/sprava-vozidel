@@ -4,6 +4,7 @@ import os
 from typing import Any, Callable
 
 from mcp.server import MCPServer
+from mcp.types import ToolAnnotations
 
 from src.modules.vehicle_hub.database import SessionLocal
 from src.plugins.chatgpt_mcp import service
@@ -12,6 +13,19 @@ from src.plugins.chatgpt_mcp import service
 MCP_HOST = str(os.getenv("CHATGPT_MCP_HOST") or "127.0.0.1").strip()
 MCP_PORT = int(str(os.getenv("CHATGPT_MCP_PORT") or "8011").strip())
 _PRIVATE_BIND_HOSTS = {"127.0.0.1", "localhost", "::1"}
+_READ_ONLY = ToolAnnotations(read_only_hint=True, open_world_hint=False)
+_SAFE_WRITE = ToolAnnotations(
+    read_only_hint=False,
+    destructive_hint=False,
+    idempotent_hint=True,
+    open_world_hint=False,
+)
+_NON_DESTRUCTIVE_WRITE = ToolAnnotations(
+    read_only_hint=False,
+    destructive_hint=False,
+    idempotent_hint=False,
+    open_world_hint=False,
+)
 
 mcp = MCPServer(
     "TooZ Mechanic",
@@ -51,27 +65,47 @@ def _call(fn: Callable[..., dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
         db.close()
 
 
-@mcp.tool(description="Ověří, zda je TooZ Mechanic připravený, kdo je servisní operátor a kolik má dostupných vozidel/případů. Nemění servisní data.")
+@mcp.tool(
+    title="Stav TooZ Mechanic",
+    description="Ověří připravenost pluginu a počet dostupných vozidel/případů. Nemění servisní data.",
+    annotations=_READ_ONLY,
+)
 def tooz_status() -> dict[str, Any]:
     return _call(service.plugin_status)
 
 
-@mcp.tool(description="Vrátí vozidla, ke kterým má přihlášený servis schválený přístup. Nevrací osobní údaje majitelů.")
+@mcp.tool(
+    title="Moje servisní vozidla",
+    description="Vrátí vozidla, ke kterým má servis schválený přístup. Nevrací osobní údaje majitelů.",
+    annotations=_READ_ONLY,
+)
 def tooz_my_vehicles(limit: int = 20) -> dict[str, Any]:
     return _call(service.list_assigned_vehicles, limit=limit)
 
 
-@mcp.tool(description="Vyhledá vozidlo podle VIN nebo SPZ. Bez schváleného přístupu vrátí jen maskované identifikátory a stav oprávnění. Lookup se auditně zaznamená.")
+@mcp.tool(
+    title="Najít vozidlo podle VIN nebo SPZ",
+    description="Vyhledá vozidlo podle VIN nebo SPZ. Bez schváleného přístupu vrátí pouze maskované identifikátory a stav oprávnění. Lookup se auditně zaznamená.",
+    annotations=_READ_ONLY,
+)
 def tooz_find_vehicle(query: str) -> dict[str, Any]:
     return _call(service.lookup_vehicle, query=query)
 
 
-@mcp.tool(description="Načte technický a servisní kontext schváleného vozidla: identifikaci auta, servisní historii, km a servisní případy. Nevrací osobní údaje majitele.")
+@mcp.tool(
+    title="Otevřít servisní kontext vozidla",
+    description="Načte technická data, servisní historii, km a servisní případy schváleného vozidla bez osobních údajů majitele.",
+    annotations=_READ_ONLY,
+)
 def tooz_vehicle_context(vehicle_id: int, history_limit: int = 12) -> dict[str, Any]:
     return _call(service.vehicle_context, vehicle_id=vehicle_id, history_limit=history_limit)
 
 
-@mcp.tool(description="Založí nový servisní případ k vozidlu, ke kterému má servis schválený přístup. Pokud už existuje otevřený případ, vrátí jej místo vytvoření duplicity.")
+@mcp.tool(
+    title="Založit servisní případ",
+    description="Založí nový servisní případ ke schválenému vozidlu. Pokud už je otevřený, vrátí existující případ místo duplicity.",
+    annotations=_SAFE_WRITE,
+)
 def tooz_create_service_case(
     vehicle_id: int,
     customer_request: str,
@@ -87,7 +121,11 @@ def tooz_create_service_case(
     )
 
 
-@mcp.tool(description="Uloží strukturovanou diagnostiku do existujícího servisního případu: příznaky, DTC, skutečná měření a závěr. Zápis je auditovaný.")
+@mcp.tool(
+    title="Uložit diagnostiku",
+    description="Uloží příznaky, DTC, skutečná měření a diagnostický závěr do existujícího servisního případu. Zápis je auditovaný a nic nemaže.",
+    annotations=_NON_DESTRUCTIVE_WRITE,
+)
 def tooz_record_diagnosis(
     case_id: int,
     symptoms: list[str] | None = None,
@@ -109,17 +147,29 @@ def tooz_record_diagnosis(
     )
 
 
-@mcp.tool(description="Spustí měření času práce na servisním případu. Opakované spuštění nevytvoří druhé paralelní měření.")
+@mcp.tool(
+    title="Spustit čas práce",
+    description="Spustí měření práce na servisním případu. Opakované spuštění nevytvoří druhý paralelní timer.",
+    annotations=_SAFE_WRITE,
+)
 def tooz_start_work(case_id: int) -> dict[str, Any]:
     return _call(service.start_work, case_id=case_id)
 
 
-@mcp.tool(description="Zastaví aktuální měření práce a přepočítá celkový čas případu. Když nic neběží, vrátí bezpečný stav bez chyby a bez zápisu duplicity.")
+@mcp.tool(
+    title="Zastavit čas práce",
+    description="Zastaví aktuální měření a přepočítá celkový čas. Když nic neběží, vrátí bezpečný stav bez duplicity.",
+    annotations=_SAFE_WRITE,
+)
 def tooz_stop_work(case_id: int) -> dict[str, Any]:
     return _call(service.stop_work, case_id=case_id)
 
 
-@mcp.tool(description="Uzavře servisní případ do ověřeného servisního záznamu, zapíše km a audit. Druhé volání nad stejným případem vrátí existující záznam místo vytvoření duplicity.")
+@mcp.tool(
+    title="Dokončit servisní záznam",
+    description="Uzavře případ do ověřeného servisního záznamu, zapíše km a audit. Opakované volání vrátí existující record ID místo vytvoření duplicity.",
+    annotations=_SAFE_WRITE,
+)
 def tooz_finalize_service_record(
     case_id: int,
     description: str,
