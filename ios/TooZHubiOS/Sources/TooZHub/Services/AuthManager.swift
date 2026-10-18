@@ -39,7 +39,11 @@ final class AuthManager: ObservableObject {
             let user: UserProfile = try await api.request(.get("/user/me"), token: token)
             self.user = user
         } catch {
-            logout()
+            // Temporary network/server errors must not erase a valid session.
+            // Only an explicit 401 means the stored token is no longer valid.
+            if case APIError.unauthorized = error {
+                logout()
+            }
         }
     }
 
