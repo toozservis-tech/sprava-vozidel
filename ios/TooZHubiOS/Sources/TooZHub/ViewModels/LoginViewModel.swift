@@ -13,8 +13,9 @@ final class LoginViewModel: ObservableObject {
     func signIn(auth: AuthManager) async {
         errorMessage = nil
         let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedEmail.isEmpty, !normalizedPassword.isEmpty else {
+        // Passwords are exact byte sequences. Trimming them changes valid credentials.
+        let submittedPassword = password
+        guard !normalizedEmail.isEmpty, !submittedPassword.isEmpty else {
             errorMessage = "Vyplňte e-mail a heslo."
             return
         }
@@ -23,7 +24,7 @@ final class LoginViewModel: ObservableObject {
 
         do {
             email = normalizedEmail
-            let response = try await auth.login(email: normalizedEmail, password: normalizedPassword, expectedRole: expectedRole)
+            let response = try await auth.login(email: normalizedEmail, password: submittedPassword, expectedRole: expectedRole)
             if response.twoFactorRequired {
                 errorMessage = "Účet vyžaduje 2FA. Doplňte kód."
                 challengeToken = response.challengeToken
