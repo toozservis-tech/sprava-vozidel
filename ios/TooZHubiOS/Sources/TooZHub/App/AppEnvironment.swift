@@ -172,7 +172,7 @@ final class ServerStatusMonitor: ObservableObject {
     private func healthCandidateURLs() -> [URL] {
         let baseCandidates = [
             APIClient.configuredBaseURLString(),
-            "https://hub.toozservis.cz"
+            "https://app.toozservis.cz"
         ]
 
         var urls: [URL] = []
