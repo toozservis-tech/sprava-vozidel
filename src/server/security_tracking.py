@@ -365,7 +365,15 @@ def log_security_event(
         elif details is not None:
             base_details["details_raw"] = str(details)
 
-        geo = lookup_ip_location(ip_address) or {}
+        # Authentication must not wait for an external IP geolocation provider.
+        # Keep the security audit (IP, account, event, timestamp) intact; use
+        # already-cached location details only for login events.
+        latency_sensitive_login = str(event_type).startswith("login_")
+        if latency_sensitive_login:
+            normalized_ip = _normalize_ip(ip_address)
+            geo = (_get_from_cache(normalized_ip) if normalized_ip else None) or {}
+        else:
+            geo = lookup_ip_location(ip_address) or {}
         browser_geo = _extract_browser_geo(request)
 
         country = geo.get("country")
@@ -380,7 +388,14 @@ def log_security_event(
             longitude = browser_geo.get("longitude")
             source = browser_geo.get("source")
 
-            reverse_geo = reverse_geocode_location(latitude, longitude) or {}
+            # An optional browser location may be supplied, but reverse
+            # geocoding must not delay authentication either.
+            if latency_sensitive_login:
+                reverse_geo = _get_reverse_geo_from_cache(
+                    _reverse_geo_cache_key(latitude, longitude)
+                ) or {}
+            else:
+                reverse_geo = reverse_geocode_location(latitude, longitude) or {}
             country = reverse_geo.get("country") or country
             region = reverse_geo.get("region") or region
             city = reverse_geo.get("city") or city
