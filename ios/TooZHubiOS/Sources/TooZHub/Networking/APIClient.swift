@@ -1,13 +1,12 @@
 import Foundation
 
 final class APIClient: NetworkService {
-    private static let defaultBaseURLString = "https://hub.toozservis.cz"
+    private static let defaultBaseURLString = "https://app.toozservis.cz"
     private static let configurationStorageKey = "sprava_vozidel_api_base_url"
     private static let configurationEnvironmentKey = "SPRAVA_VOZIDEL_API_BASE_URL"
 
     private static let fallbackBaseURLStrings = [
-        "https://hub.toozservis.cz",
-        "http://127.0.0.1:8000"
+        "https://app.toozservis.cz"
     ]
 
     static func configuredBaseURLString() -> String {
@@ -29,7 +28,14 @@ final class APIClient: NetworkService {
             .trimmingCharacters(in: .whitespacesAndNewlines),
            !persistedOverride.isEmpty
         {
-            return persistedOverride
+            // One-time migration of the retired public backend host.
+            let persistedNormalized = persistedOverride.lowercased()
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if persistedNormalized == "https://hub.toozservis.cz" {
+                UserDefaults.standard.removeObject(forKey: configurationStorageKey)
+            } else {
+                return persistedOverride
+            }
         }
 
         return defaultBaseURLString
